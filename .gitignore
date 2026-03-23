@@ -1,0 +1,10 @@
+backend/node_modules/
+backend/.env
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.packages
+mobile/pubspec.lock
+*.log
+.DS_Store

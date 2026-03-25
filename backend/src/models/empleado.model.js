@@ -16,7 +16,7 @@ async function insertar(data) {
         p_apellidos: data.apellidos,
         p_email: data.email,
         p_telefono: data.telefono,
-        p_fecha_ingreso: data.fecha_ingreso,
+        p_fecha_ingreso: new Date(data.fecha_ingreso),
         p_salario_base: data.salario_base,
         p_estado: data.estado,
         p_emp_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
@@ -41,7 +41,7 @@ async function actualizar(data) {
         p_apellidos: data.apellidos,
         p_email: data.email,
         p_telefono: data.telefono,
-        p_fecha_ingreso: data.fecha_ingreso,
+        p_fecha_ingreso: new Date(data.fecha_ingreso),
         p_salario_base: data.salario_base,
         p_estado: data.estado,
       }

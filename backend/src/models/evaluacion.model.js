@@ -11,7 +11,7 @@ async function insertar(data) {
       {
         p_emp_id: data.emp_id,
         p_evaluador_emp_id: data.evaluador_emp_id,
-        p_fecha_eval: data.fecha_eval,
+        p_fecha_eval: data.fecha_eval ? new Date(data.fecha_eval + "T12:00:00") : null,
         p_puntuacion: data.puntuacion,
         p_comentarios: data.comentarios,
         p_estado: data.estado,
@@ -32,7 +32,7 @@ async function actualizar(data) {
         p_evaluacion_id: data.evaluacion_id,
         p_emp_id: data.emp_id,
         p_evaluador_emp_id: data.evaluador_emp_id,
-        p_fecha_eval: data.fecha_eval,
+        p_fecha_eval: data.fecha_eval ? new Date(data.fecha_eval + "T12:00:00") : null,
         p_puntuacion: data.puntuacion,
         p_comentarios: data.comentarios,
         p_estado: data.estado,

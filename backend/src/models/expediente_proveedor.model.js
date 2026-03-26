@@ -12,7 +12,7 @@ async function insertar(data) {
         p_prov_id: data.prov_id,
         p_tipo_documento: data.tipo_documento,
         p_url_documento: data.url_documento,
-        p_fecha_documento: data.fecha_documento,
+        p_fecha_documento: data.fecha_documento ? new Date(data.fecha_documento + "T12:00:00") : null,
         p_expediente_proveedor_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
@@ -31,7 +31,7 @@ async function actualizar(data) {
         p_prov_id: data.prov_id,
         p_tipo_documento: data.tipo_documento,
         p_url_documento: data.url_documento,
-        p_fecha_documento: data.fecha_documento,
+        p_fecha_documento: data.fecha_documento ? new Date(data.fecha_documento + "T12:00:00") : null,
       }
     );
     await conn.commit();

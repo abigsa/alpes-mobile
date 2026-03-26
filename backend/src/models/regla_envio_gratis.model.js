@@ -12,8 +12,8 @@ async function insertar(data) {
         p_zona_envio_id: data.zona_envio_id,
         p_monto_minimo: data.monto_minimo,
         p_peso_max_kg: data.peso_max_kg,
-        p_vigencia_inicio: data.vigencia_inicio,
-        p_vigencia_fin: data.vigencia_fin,
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
         p_regla_envio_gratis_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
@@ -32,8 +32,8 @@ async function actualizar(data) {
         p_zona_envio_id: data.zona_envio_id,
         p_monto_minimo: data.monto_minimo,
         p_peso_max_kg: data.peso_max_kg,
-        p_vigencia_inicio: data.vigencia_inicio,
-        p_vigencia_fin: data.vigencia_fin,
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
       }
     );
     await conn.commit();

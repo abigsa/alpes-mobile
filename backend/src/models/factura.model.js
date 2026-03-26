@@ -11,7 +11,7 @@ async function insertar(data) {
       {
         p_orden_venta_id: data.orden_venta_id,
         p_num_factura: data.num_factura,
-        p_fecha_emision: data.fecha_emision,
+        p_fecha_emision: data.fecha_emision ? new Date(data.fecha_emision + "T12:00:00") : null,
         p_nit_facturacion: data.nit_facturacion,
         p_direccion_facturacion_snapshot: data.direccion_facturacion_snapshot,
         p_total_factura_snapshot: data.total_factura_snapshot,
@@ -32,7 +32,7 @@ async function actualizar(data) {
         p_factura_id: data.factura_id,
         p_orden_venta_id: data.orden_venta_id,
         p_num_factura: data.num_factura,
-        p_fecha_emision: data.fecha_emision,
+        p_fecha_emision: data.fecha_emision ? new Date(data.fecha_emision + "T12:00:00") : null,
         p_nit_facturacion: data.nit_facturacion,
         p_direccion_facturacion_snapshot: data.direccion_facturacion_snapshot,
         p_total_factura_snapshot: data.total_factura_snapshot,

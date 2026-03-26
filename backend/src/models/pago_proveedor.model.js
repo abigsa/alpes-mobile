@@ -11,7 +11,7 @@ async function insertar(data) {
       {
         p_cuenta_pagar_id: data.cuenta_pagar_id,
         p_monto: data.monto,
-        p_fecha_pago: data.fecha_pago,
+        p_fecha_pago: data.fecha_pago ? new Date(data.fecha_pago + "T12:00:00") : null,
         p_referencia: data.referencia,
         p_pago_proveedor_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -30,7 +30,7 @@ async function actualizar(data) {
         p_pago_proveedor_id: data.pago_proveedor_id,
         p_cuenta_pagar_id: data.cuenta_pagar_id,
         p_monto: data.monto,
-        p_fecha_pago: data.fecha_pago,
+        p_fecha_pago: data.fecha_pago ? new Date(data.fecha_pago + "T12:00:00") : null,
         p_referencia: data.referencia,
       }
     );

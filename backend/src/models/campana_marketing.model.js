@@ -12,8 +12,8 @@ async function insertar(data) {
         p_nombre: data.nombre,
         p_canal: data.canal,
         p_presupuesto: data.presupuesto,
-        p_inicio: data.inicio,
-        p_fin: data.fin,
+        p_inicio: data.inicio ? new Date(data.inicio + "T12:00:00") : null,
+        p_fin: data.fin ? new Date(data.fin + "T12:00:00") : null,
         p_campana_marketing_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
@@ -32,8 +32,8 @@ async function actualizar(data) {
         p_nombre: data.nombre,
         p_canal: data.canal,
         p_presupuesto: data.presupuesto,
-        p_inicio: data.inicio,
-        p_fin: data.fin,
+        p_inicio: data.inicio ? new Date(data.inicio + "T12:00:00") : null,
+        p_fin: data.fin ? new Date(data.fin + "T12:00:00") : null,
       }
     );
     await conn.commit();

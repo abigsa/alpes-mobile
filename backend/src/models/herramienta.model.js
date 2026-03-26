@@ -12,7 +12,7 @@ async function insertar(data) {
         p_codigo: data.codigo,
         p_nombre: data.nombre,
         p_descripcion: data.descripcion,
-        p_fecha_compra: data.fecha_compra,
+        p_fecha_compra: data.fecha_compra ? new Date(data.fecha_compra + "T12:00:00") : null,
         p_estado: data.estado,
         p_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -32,7 +32,7 @@ async function actualizar(data) {
         p_codigo: data.codigo,
         p_nombre: data.nombre,
         p_descripcion: data.descripcion,
-        p_fecha_compra: data.fecha_compra,
+        p_fecha_compra: data.fecha_compra ? new Date(data.fecha_compra + "T12:00:00") : null,
         p_estado: data.estado,
       }
     );

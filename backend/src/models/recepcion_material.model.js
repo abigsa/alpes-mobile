@@ -10,7 +10,7 @@ async function insertar(data) {
       `BEGIN ${PKG}.SP_INSERTAR_RECEPCION_MATERIAL(:p_orden_compra_id, :p_fecha_recepcion, :p_emp_id_recibe, :p_observaciones, :p_recepcion_material_id); END;`,
       {
         p_orden_compra_id: data.orden_compra_id,
-        p_fecha_recepcion: data.fecha_recepcion,
+        p_fecha_recepcion: data.fecha_recepcion ? new Date(data.fecha_recepcion + "T12:00:00") : null,
         p_emp_id_recibe: data.emp_id_recibe,
         p_observaciones: data.observaciones,
         p_recepcion_material_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
@@ -29,7 +29,7 @@ async function actualizar(data) {
       {
         p_recepcion_material_id: data.recepcion_material_id,
         p_orden_compra_id: data.orden_compra_id,
-        p_fecha_recepcion: data.fecha_recepcion,
+        p_fecha_recepcion: data.fecha_recepcion ? new Date(data.fecha_recepcion + "T12:00:00") : null,
         p_emp_id_recibe: data.emp_id_recibe,
         p_observaciones: data.observaciones,
       }

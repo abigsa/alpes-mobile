@@ -12,7 +12,7 @@ async function insertar(data) {
         p_prov_id: data.prov_id,
         p_orden_compra_id: data.orden_compra_id,
         p_saldo: data.saldo,
-        p_fecha_vencimiento: data.fecha_vencimiento,
+        p_fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento + "T12:00:00") : null,
         p_estado_cp: data.estado_cp,
         p_cuenta_pagar_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -32,7 +32,7 @@ async function actualizar(data) {
         p_prov_id: data.prov_id,
         p_orden_compra_id: data.orden_compra_id,
         p_saldo: data.saldo,
-        p_fecha_vencimiento: data.fecha_vencimiento,
+        p_fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento + "T12:00:00") : null,
         p_estado_cp: data.estado_cp,
       }
     );

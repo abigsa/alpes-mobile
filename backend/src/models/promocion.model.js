@@ -2,6 +2,7 @@ const oracledb = require("oracledb");
 const { getConnection } = require("../config/db");
 const { readCursor, closeConn } = require("../utils/oracle");
 const PKG = "PKG_PROMOCION";
+
 async function insertar(data) {
   const conn = await getConnection();
   try {
@@ -11,8 +12,8 @@ async function insertar(data) {
         p_tipo_promocion_id: data.tipo_promocion_id,
         p_nombre: data.nombre,
         p_descripcion: data.descripcion,
-        p_vigencia_inicio: new Date(data.vigencia_inicio),
-        p_vigencia_fin: new Date(data.vigencia_fin),
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
         p_prioridad: data.prioridad,
         p_promocion_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -21,6 +22,7 @@ async function insertar(data) {
     return result.outBinds.p_promocion_id;
   } finally { await closeConn(conn); }
 }
+
 async function actualizar(data) {
   const conn = await getConnection();
   try {
@@ -31,14 +33,15 @@ async function actualizar(data) {
         p_tipo_promocion_id: data.tipo_promocion_id,
         p_nombre: data.nombre,
         p_descripcion: data.descripcion,
-        p_vigencia_inicio: new Date(data.vigencia_inicio),
-        p_vigencia_fin: new Date(data.vigencia_fin),
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
         p_prioridad: data.prioridad,
       }
     );
     await conn.commit();
   } finally { await closeConn(conn); }
 }
+
 async function eliminar(id) {
   const conn = await getConnection();
   try {
@@ -49,6 +52,7 @@ async function eliminar(id) {
     await conn.commit();
   } finally { await closeConn(conn); }
 }
+
 async function obtener(id) {
   const conn = await getConnection();
   try {
@@ -63,6 +67,7 @@ async function obtener(id) {
     return rows[0] || null;
   } finally { await closeConn(conn); }
 }
+
 async function listar() {
   const conn = await getConnection();
   try {
@@ -73,5 +78,5 @@ async function listar() {
     return await readCursor(result.outBinds.p_cursor);
   } finally { await closeConn(conn); }
 }
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
 
+module.exports = { insertar, actualizar, eliminar, obtener, listar };

@@ -10,7 +10,7 @@ async function insertar(data) {
       `BEGIN ${PKG}.INSERTAR(:p_emp_id, :p_fecha_cambio, :p_tipo_cambio, :p_detalle, :p_estado, :p_historial_laboral_id); END;`,
       {
         p_emp_id: data.emp_id,
-        p_fecha_cambio: data.fecha_cambio,
+        p_fecha_cambio: data.fecha_cambio ? new Date(data.fecha_cambio + "T12:00:00") : null,
         p_tipo_cambio: data.tipo_cambio,
         p_detalle: data.detalle,
         p_estado: data.estado,
@@ -30,7 +30,7 @@ async function actualizar(data) {
       {
         p_historial_laboral_id: data.historial_laboral_id,
         p_emp_id: data.emp_id,
-        p_fecha_cambio: data.fecha_cambio,
+        p_fecha_cambio: data.fecha_cambio ? new Date(data.fecha_cambio + "T12:00:00") : null,
         p_tipo_cambio: data.tipo_cambio,
         p_detalle: data.detalle,
         p_estado: data.estado,

@@ -12,8 +12,8 @@ async function insertar(data) {
         p_pago_id: data.pago_id,
         p_num_cuota: data.num_cuota,
         p_monto_cuota: data.monto_cuota,
-        p_fecha_vencimiento: data.fecha_vencimiento,
-        p_fecha_pago: data.fecha_pago,
+        p_fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento + "T12:00:00") : null,
+        p_fecha_pago: data.fecha_pago ? new Date(data.fecha_pago + "T12:00:00") : null,
         p_estado: data.estado,
         p_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -33,8 +33,8 @@ async function actualizar(data) {
         p_pago_id: data.pago_id,
         p_num_cuota: data.num_cuota,
         p_monto_cuota: data.monto_cuota,
-        p_fecha_vencimiento: data.fecha_vencimiento,
-        p_fecha_pago: data.fecha_pago,
+        p_fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento + "T12:00:00") : null,
+        p_fecha_pago: data.fecha_pago ? new Date(data.fecha_pago + "T12:00:00") : null,
         p_estado: data.estado,
       }
     );

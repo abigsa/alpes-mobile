@@ -10,7 +10,7 @@ async function insertar(data) {
       `BEGIN ${PKG}.SP_INSERTAR_RUTA_ENTREGA(:p_vehiculo_id, :p_fecha_ruta, :p_descripcion, :p_estado_ruta, :p_ruta_entrega_id); END;`,
       {
         p_vehiculo_id: data.vehiculo_id,
-        p_fecha_ruta: data.fecha_ruta,
+        p_fecha_ruta: data.fecha_ruta ? new Date(data.fecha_ruta + "T12:00:00") : null,
         p_descripcion: data.descripcion,
         p_estado_ruta: data.estado_ruta,
         p_ruta_entrega_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
@@ -29,7 +29,7 @@ async function actualizar(data) {
       {
         p_ruta_entrega_id: data.ruta_entrega_id,
         p_vehiculo_id: data.vehiculo_id,
-        p_fecha_ruta: data.fecha_ruta,
+        p_fecha_ruta: data.fecha_ruta ? new Date(data.fecha_ruta + "T12:00:00") : null,
         p_descripcion: data.descripcion,
         p_estado_ruta: data.estado_ruta,
       }

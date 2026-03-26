@@ -11,8 +11,8 @@ async function insertar(data) {
       {
         p_producto_id: data.producto_id,
         p_cantidad: data.cantidad,
-        p_periodo_inicio: data.periodo_inicio,
-        p_periodo_fin: data.periodo_fin,
+        p_periodo_inicio: data.periodo_inicio ? new Date(data.periodo_inicio + "T12:00:00") : null,
+        p_periodo_fin: data.periodo_fin ? new Date(data.periodo_fin + "T12:00:00") : null,
         p_tiempo_estimado_horas: data.tiempo_estimado_horas,
         p_plan_produccion_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -31,8 +31,8 @@ async function actualizar(data) {
         p_plan_produccion_id: data.plan_produccion_id,
         p_producto_id: data.producto_id,
         p_cantidad: data.cantidad,
-        p_periodo_inicio: data.periodo_inicio,
-        p_periodo_fin: data.periodo_fin,
+        p_periodo_inicio: data.periodo_inicio ? new Date(data.periodo_inicio + "T12:00:00") : null,
+        p_periodo_fin: data.periodo_fin ? new Date(data.periodo_fin + "T12:00:00") : null,
         p_tiempo_estimado_horas: data.tiempo_estimado_horas,
       }
     );

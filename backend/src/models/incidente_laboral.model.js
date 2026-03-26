@@ -10,7 +10,7 @@ async function insertar(data) {
       `BEGIN ${PKG}.INSERTAR(:p_emp_id, :p_fecha_incidente, :p_descripcion, :p_gravedad, :p_acciones_tomadas, :p_estado, :p_incidente_id); END;`,
       {
         p_emp_id: data.emp_id,
-        p_fecha_incidente: data.fecha_incidente,
+        p_fecha_incidente: data.fecha_incidente ? new Date(data.fecha_incidente + "T12:00:00") : null,
         p_descripcion: data.descripcion,
         p_gravedad: data.gravedad,
         p_acciones_tomadas: data.acciones_tomadas,
@@ -31,7 +31,7 @@ async function actualizar(data) {
       {
         p_incidente_id: data.incidente_id,
         p_emp_id: data.emp_id,
-        p_fecha_incidente: data.fecha_incidente,
+        p_fecha_incidente: data.fecha_incidente ? new Date(data.fecha_incidente + "T12:00:00") : null,
         p_descripcion: data.descripcion,
         p_gravedad: data.gravedad,
         p_acciones_tomadas: data.acciones_tomadas,

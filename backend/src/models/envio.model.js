@@ -16,9 +16,9 @@ async function insertar(data) {
         p_ruta_entrega_id: data.ruta_entrega_id,
         p_direccion_entrega_snapshot: data.direccion_entrega_snapshot,
         p_costo_envio_snapshot: data.costo_envio_snapshot,
-        p_fecha_envio: data.fecha_envio,
-        p_fecha_entrega_estimada: data.fecha_entrega_estimada,
-        p_fecha_entrega_real: data.fecha_entrega_real,
+        p_fecha_envio: data.fecha_envio ? new Date(data.fecha_envio + "T12:00:00") : null,
+        p_fecha_entrega_estimada: data.fecha_entrega_estimada ? new Date(data.fecha_entrega_estimada + "T12:00:00") : null,
+        p_fecha_entrega_real: data.fecha_entrega_real ? new Date(data.fecha_entrega_real + "T12:00:00") : null,
         p_tracking_codigo: data.tracking_codigo,
         p_envio_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -42,9 +42,9 @@ async function actualizar(data) {
         p_ruta_entrega_id: data.ruta_entrega_id,
         p_direccion_entrega_snapshot: data.direccion_entrega_snapshot,
         p_costo_envio_snapshot: data.costo_envio_snapshot,
-        p_fecha_envio: data.fecha_envio,
-        p_fecha_entrega_estimada: data.fecha_entrega_estimada,
-        p_fecha_entrega_real: data.fecha_entrega_real,
+        p_fecha_envio: data.fecha_envio ? new Date(data.fecha_envio + "T12:00:00") : null,
+        p_fecha_entrega_estimada: data.fecha_entrega_estimada ? new Date(data.fecha_entrega_estimada + "T12:00:00") : null,
+        p_fecha_entrega_real: data.fecha_entrega_real ? new Date(data.fecha_entrega_real + "T12:00:00") : null,
         p_tracking_codigo: data.tracking_codigo,
       }
     );

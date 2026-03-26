@@ -11,8 +11,8 @@ async function insertar(data) {
       {
         p_prov_id: data.prov_id,
         p_titulo: data.titulo,
-        p_vigencia_inicio: data.vigencia_inicio,
-        p_vigencia_fin: data.vigencia_fin,
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
         p_url_documento: data.url_documento,
         p_contrato_proveedor_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
@@ -31,8 +31,8 @@ async function actualizar(data) {
         p_contrato_proveedor_id: data.contrato_proveedor_id,
         p_prov_id: data.prov_id,
         p_titulo: data.titulo,
-        p_vigencia_inicio: data.vigencia_inicio,
-        p_vigencia_fin: data.vigencia_fin,
+        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
+        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
         p_url_documento: data.url_documento,
       }
     );

@@ -10,7 +10,7 @@ async function insertar(data) {
       `BEGIN ${PKG}.SP_INSERTAR(:p_herramienta_id, :p_fecha_mantenimiento, :p_tipo, :p_costo, :p_observacion, :p_estado, :p_id); END;`,
       {
         p_herramienta_id: data.herramienta_id,
-        p_fecha_mantenimiento: data.fecha_mantenimiento,
+        p_fecha_mantenimiento: data.fecha_mantenimiento ? new Date(data.fecha_mantenimiento + "T12:00:00") : null,
         p_tipo: data.tipo,
         p_costo: data.costo,
         p_observacion: data.observacion,
@@ -31,7 +31,7 @@ async function actualizar(data) {
       {
         p_mantenimiento_id: data.mantenimiento_id,
         p_herramienta_id: data.herramienta_id,
-        p_fecha_mantenimiento: data.fecha_mantenimiento,
+        p_fecha_mantenimiento: data.fecha_mantenimiento ? new Date(data.fecha_mantenimiento + "T12:00:00") : null,
         p_tipo: data.tipo,
         p_costo: data.costo,
         p_observacion: data.observacion,

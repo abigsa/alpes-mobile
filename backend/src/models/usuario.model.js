@@ -86,5 +86,19 @@ async function listar() {
     return await readCursor(result.outBinds.p_cursor);
   } finally { await closeConn(conn); }
 }
+async function buscar(criterio, valor) {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `BEGIN ${PKG}.SP_BUSCAR(:p_valor, :p_cursor); END;`,
+      {
+        p_valor: valor,
+        p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+      }
+    );
+    return await readCursor(result.outBinds.p_cursor);
+  } finally { await closeConn(conn); }
+}
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

@@ -365,79 +365,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildKpiCard(_KpiData k) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AlpesColors.pergamino.withOpacity(0.8)),
-        boxShadow: [
-          BoxShadow(
-            color: k.accent.withOpacity(0.08),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: k.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(k.icon, size: 17, color: k.accent),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Valor siempre en 0 por ahora
-                const Text(
-                  '0',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AlpesColors.cafeOscuro,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  k.label,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    color: AlpesColors.nogalMedio,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 20, height: 20,
-            decoration: BoxDecoration(
-              color: k.isUp ? const Color(0xFFEAF3DE) : const Color(0xFFFCEBEB),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              k.isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-              size: 11,
-              color: k.isUp ? const Color(0xFF3B6D11) : AlpesColors.rojoColonial,
-            ),
-          ),
-        ],
-      ),
-    );
+    return _HoverKpiCard(kpi: k);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -464,61 +392,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildModuleTile(BuildContext context, Map<String, dynamic> item) {
-    return GestureDetector(
-      onTap: () => context.go(item['route'] as String),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AlpesColors.pergamino.withOpacity(0.7)),
-          boxShadow: [
-            BoxShadow(
-              color: AlpesColors.cafeOscuro.withOpacity(0.07),
-              blurRadius: 8,
-              spreadRadius: 0,
-              offset: const Offset(0, 3),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 3,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: AlpesColors.cafeOscuro.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(
-                item['icon'] as IconData,
-                color: AlpesColors.cafeOscuro,
-                size: 18,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                item['label'] as String,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: AlpesColors.cafeOscuro,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return _HoverModuleTile(item: item);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -1010,4 +884,272 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         style: const TextStyle(
             fontSize: 14, fontWeight: FontWeight.w700, color: AlpesColors.cafeOscuro)),
   ]);
+
+}
+
+// ─────────────────────────────────────────────────────────
+//  HOVER: KPI CARD
+// ─────────────────────────────────────────────────────────
+
+class _HoverKpiCard extends StatefulWidget {
+  final _KpiData kpi;
+  const _HoverKpiCard({required this.kpi});
+  @override
+  State<_HoverKpiCard> createState() => _HoverKpiCardState();
+}
+
+class _HoverKpiCardState extends State<_HoverKpiCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = widget.kpi;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        transform: Matrix4.identity()
+          ..translate(0.0, _hovered ? -4.0 : 0.0),
+        decoration: BoxDecoration(
+          color: _hovered
+              ? const Color(0xFFFFFDF9)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _hovered
+                ? AlpesColors.oroGuatemalteco.withOpacity(0.5)
+                : AlpesColors.pergamino.withOpacity(0.8),
+            width: _hovered ? 1.5 : 1.0,
+          ),
+          boxShadow: _hovered
+              ? [
+                  BoxShadow(
+                    color: k.accent.withOpacity(0.16),
+                    blurRadius: 20,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: AlpesColors.oroGuatemalteco.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: k.accent.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: _hovered
+                    ? k.accent.withOpacity(0.18)
+                    : k.accent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(k.icon, size: 17, color: k.accent),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('0',
+                      style: TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700,
+                          color: AlpesColors.cafeOscuro, letterSpacing: -0.5)),
+                  Text(k.label,
+                      style: const TextStyle(
+                          fontSize: 10.5, color: AlpesColors.nogalMedio,
+                          fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 20, height: 20,
+              decoration: BoxDecoration(
+                color: k.isUp ? const Color(0xFFEAF3DE) : const Color(0xFFFCEBEB),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                k.isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                size: 11,
+                color: k.isUp ? const Color(0xFF3B6D11) : AlpesColors.rojoColonial,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  HOVER: MODULE TILE
+// ─────────────────────────────────────────────────────────
+
+class _HoverModuleTile extends StatefulWidget {
+  final Map<String, dynamic> item;
+  const _HoverModuleTile({required this.item});
+  @override
+  State<_HoverModuleTile> createState() => _HoverModuleTileState();
+}
+
+class _HoverModuleTileState extends State<_HoverModuleTile> {
+  bool _hovered  = false;
+  bool _pressed  = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = _hovered || _pressed;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => context.go(widget.item['route'] as String),
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp:   (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.identity()
+            ..translate(0.0, _pressed ? 1.0 : _hovered ? -5.0 : 0.0)
+            ..scale(_pressed ? 0.97 : 1.0),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            // Fondo con leve gradiente al hacer hover
+            gradient: active
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      AlpesColors.oroGuatemalteco.withOpacity(0.05),
+                    ],
+                  )
+                : const LinearGradient(
+                    colors: [Colors.white, Colors.white],
+                  ),
+            borderRadius: BorderRadius.circular(12),
+            // Borde dorado al hover
+            border: Border.all(
+              color: active
+                  ? AlpesColors.oroGuatemalteco.withOpacity(0.6)
+                  : AlpesColors.pergamino.withOpacity(0.7),
+              width: active ? 1.5 : 1.0,
+            ),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: AlpesColors.cafeOscuro.withOpacity(0.14),
+                      blurRadius: 18,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.10),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Stack(
+            children: [
+              // Línea dorada superior al hover
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: active ? 3 : 0,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AlpesColors.oroGuatemalteco.withOpacity(0.8),
+                      AlpesColors.oroGuatemalteco,
+                      AlpesColors.oroGuatemalteco.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                ),
+              ),
+              // Contenido
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? AlpesColors.cafeOscuro.withOpacity(0.12)
+                          : AlpesColors.cafeOscuro.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      widget.item['icon'] as IconData,
+                      color: active
+                          ? AlpesColors.cafeOscuro
+                          : AlpesColors.cafeOscuro.withOpacity(0.8),
+                      size: 19,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 180),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                        color: active
+                            ? AlpesColors.cafeOscuro
+                            : AlpesColors.cafeOscuro.withOpacity(0.8),
+                      ),
+                      child: Text(
+                        widget.item['label'] as String,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

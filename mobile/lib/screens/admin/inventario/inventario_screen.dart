@@ -7,46 +7,78 @@ import '../../../config/api_config.dart';
 
 class InventarioScreen extends StatefulWidget {
   const InventarioScreen({super.key});
+
   @override
   State<InventarioScreen> createState() => _InventarioScreenState();
 }
 
 class _InventarioScreenState extends State<InventarioScreen> {
-  List<Map<String,dynamic>> _items = [];
+  List<Map<String, dynamic>> _items = [];
   bool _loading = true;
 
   @override
-  void initState() { super.initState(); _cargar(); }
+  void initState() {
+    super.initState();
+    _cargar();
+  }
 
   Future<void> _cargar() async {
     setState(() => _loading = true);
     try {
-      final res = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto));
+      final res = await http.get(
+        Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto),
+      );
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) setState(() => _items = List<Map<String,dynamic>>.from(data['data']));
-    } catch (_) {} finally { setState(() => _loading = false); }
+      if (data['ok'] == true) {
+        setState(() {
+          _items = List<Map<String, dynamic>>.from(data['data']);
+        });
+      }
+    } catch (_) {
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _eliminar(int id) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Confirmar'),
-      content: const Text('¿Eliminar este registro?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar'),
-          style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial)),
-      ],
-    ));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar'),
+        content: const Text('¿Eliminar este registro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AlpesColors.rojoColonial,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
     if (ok != true) return;
-    await http.delete(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto + '/' + id.toString()));
+
+    await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}/$id'),
+    );
+
     _cargar();
   }
 
-  void _abrirForm([Map<String,dynamic>? item]) {
+  void _abrirForm([Map<String, dynamic>? item]) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _InventarioForm(item: item, onGuardado: _cargar),
+      builder: (_) => _InventarioForm(
+        item: item,
+        onGuardado: _cargar,
+      ),
     );
   }
 
@@ -56,19 +88,47 @@ class _InventarioScreenState extends State<InventarioScreen> {
       backgroundColor: AlpesColors.cremaFondo,
       appBar: AppBar(
         title: const Text('INVENTARIO'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => context.pop()),
-        actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _abrirForm())],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              context.pop();
+            } else {
+              context.go('/admin');
+            }
+          },
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AlpesColors.cafeOscuro,
+              ),
+            )
           : _items.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.inbox_outlined, size: 64, color: AlpesColors.arenaCalida),
-                  const SizedBox(height: 12),
-                  Text('Sin registros', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(icon: const Icon(Icons.add), label: const Text('Agregar'), onPressed: () => _abrirForm()),
-                ]))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.inbox_outlined,
+                        size: 64,
+                        color: AlpesColors.arenaCalida,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sin registros',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('Agregar'),
+                        onPressed: () => _abrirForm(),
+                      ),
+                    ],
+                  ),
+                )
               : RefreshIndicator(
                   color: AlpesColors.cafeOscuro,
                   onRefresh: _cargar,
@@ -77,18 +137,64 @@ class _InventarioScreenState extends State<InventarioScreen> {
                     itemCount: _items.length,
                     itemBuilder: (_, i) {
                       final item = _items[i];
-                      final keys = item.keys.toList();
-                      final idKey = keys.firstWhere((k) => k.toLowerCase().contains('id'), orElse: () => keys.first);
-                      final nombreKey = keys.firstWhere((k) => k.toLowerCase().contains('nombre') || k.toLowerCase().contains('titulo') || k.toLowerCase().contains('codigo'), orElse: () => keys.length > 1 ? keys[1] : keys.first);
+
+                      final dynamic idValue = item['INV_PROD_ID'] ??
+                          item['inv_prod_id'] ??
+                          item['INVENTARIO_PRODUCTO_ID'] ??
+                          item['inventario_producto_id'] ??
+                          item['ID'] ??
+                          item['id'];
+
+                      final int id = int.tryParse('${idValue ?? 0}') ?? 0;
+
+                      final dynamic productoIdValue = item['PRODUCTO_ID'] ??
+                          item['producto_id'] ??
+                          0;
+
+                      final int productoId =
+                          int.tryParse('${productoIdValue ?? 0}') ?? 0;
+
+                      final dynamic stockValue = item['STOCK'] ?? item['stock'] ?? 0;
+                      final dynamic stockReservadoValue =
+                          item['STOCK_RESERVADO'] ?? item['stock_reservado'] ?? 0;
+                      final dynamic stockMinimoValue =
+                          item['STOCK_MINIMO'] ?? item['stock_minimo'] ?? 0;
+
+                      final nombreProducto = item['NOMBRE'] ??
+                          item['nombre'] ??
+                          item['PRODUCTO_NOMBRE'] ??
+                          item['producto_nombre'] ??
+                          'Producto ID: $productoId';
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          title: Text('\${item[nombreKey] ?? ''}', style: Theme.of(context).textTheme.titleMedium),
-                          subtitle: Text('ID: \${item[idKey]}'),
-                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            IconButton(icon: const Icon(Icons.edit_outlined, color: AlpesColors.nogalMedio), onPressed: () => _abrirForm(item)),
-                            IconButton(icon: const Icon(Icons.delete_outline, color: AlpesColors.rojoColonial), onPressed: () => _eliminar(item[idKey] as int)),
-                          ]),
+                          title: Text(
+                            nombreProducto.toString(),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          subtitle: Text(
+                            'ID: $id | Producto: $productoId | Stock: $stockValue | Reservado: $stockReservadoValue | Mínimo: $stockMinimoValue',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: AlpesColors.nogalMedio,
+                                ),
+                                onPressed: () => _abrirForm(item),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: AlpesColors.rojoColonial,
+                                ),
+                                onPressed: id > 0 ? () => _eliminar(id) : null,
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -96,17 +202,23 @@ class _InventarioScreenState extends State<InventarioScreen> {
                 ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AlpesColors.cafeOscuro,
-        child: const Icon(Icons.add, color: Colors.white),
         onPressed: () => _abrirForm(),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 }
 
 class _InventarioForm extends StatefulWidget {
-  final Map<String,dynamic>? item;
+  final Map<String, dynamic>? item;
   final VoidCallback onGuardado;
-  const _InventarioForm({super.key, this.item, required this.onGuardado});
+
+  const _InventarioForm({
+    super.key,
+    this.item,
+    required this.onGuardado,
+  });
+
   @override
   State<_InventarioForm> createState() => __InventarioFormState();
 }
@@ -119,14 +231,17 @@ class __InventarioFormState extends State<_InventarioForm> {
   @override
   void initState() {
     super.initState();
+
     controllers['producto_id'] = TextEditingController();
     controllers['stock'] = TextEditingController();
     controllers['stock_reservado'] = TextEditingController();
     controllers['stock_minimo'] = TextEditingController();
+
     if (widget.item != null) {
       for (final k in controllers.keys) {
         final upper = k.toUpperCase();
-        controllers[k]!.text = '\${widget.item![upper] ?? widget.item![k] ?? ''}';
+        controllers[k]!.text =
+            (widget.item![upper] ?? widget.item![k] ?? '').toString();
       }
     }
   }
@@ -142,43 +257,97 @@ class __InventarioFormState extends State<_InventarioForm> {
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _guardando = true);
+
     try {
-      final body = {
-      'producto_id': controllers['producto_id']!.text,
-      'stock': controllers['stock']!.text,
-      'stock_reservado': controllers['stock_reservado']!.text,
-      'stock_minimo': controllers['stock_minimo']!.text,
+      final body = <String, dynamic>{
+        'producto_id':
+            int.tryParse(controllers['producto_id']!.text.trim()) ?? 0,
+        'stock': int.tryParse(controllers['stock']!.text.trim()) ?? 0,
+        'stock_reservado':
+            int.tryParse(controllers['stock_reservado']!.text.trim()) ?? 0,
+        'stock_minimo':
+            int.tryParse(controllers['stock_minimo']!.text.trim()) ?? 0,
       };
-      final idKey = widget.item?.keys.firstWhere((k) => k.toLowerCase().contains('id'), orElse: () => '') ?? '';
-      final id = idKey.isNotEmpty ? widget.item![idKey] : null;
+
+      final id = widget.item?['INV_PROD_ID'] ??
+          widget.item?['inv_prod_id'] ??
+          widget.item?['INVENTARIO_PRODUCTO_ID'] ??
+          widget.item?['inventario_producto_id'] ??
+          widget.item?['ID'] ??
+          widget.item?['id'];
+
       http.Response res;
+
       if (id != null) {
-        body[idKey.toLowerCase()] = id;
-        res = await http.put(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto + '/' + id.toString()),
-          headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
+        res = await http.put(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}/$id'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        );
       } else {
-        res = await http.post(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto),
-          headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
+        res = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        );
       }
+
       final data = jsonDecode(res.body);
+
       if (data['ok'] == true) {
         widget.onGuardado();
-        if (context.mounted) Navigator.pop(context);
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
       } else {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['mensaje'] ?? 'Error'), backgroundColor: AlpesColors.rojoColonial));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['mensaje'] ?? 'Error'),
+              backgroundColor: AlpesColors.rojoColonial,
+            ),
+          );
+        }
       }
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: \$e'), backgroundColor: AlpesColors.rojoColonial));
-    } finally { setState(() => _guardando = false); }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AlpesColors.rojoColonial,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _guardando = false);
+    }
+  }
+
+  Widget _campo(
+    String label,
+    String key, {
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controllers[key],
+        keyboardType: keyboardType,
+        decoration: InputDecoration(labelText: label),
+        validator: validator,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -188,35 +357,80 @@ class __InventarioFormState extends State<_InventarioForm> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(widget.item == null ? 'Nuevo inventario' : 'Editar inventario',
-                  style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  widget.item == null ? 'Nuevo inventario' : 'Editar inventario',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
-              TextFormField(
-                controller: controllers['producto_id'],
-                decoration: const InputDecoration(labelText: 'Producto Id'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['stock'],
-                decoration: const InputDecoration(labelText: 'Stock'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['stock_reservado'],
-                decoration: const InputDecoration(labelText: 'Stock Reservado'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['stock_minimo'],
-                decoration: const InputDecoration(labelText: 'Stock Minimo'),
-              ),
-              const SizedBox(height: 12),
-                const SizedBox(height: 8),
+                _campo(
+                  'Producto Id',
+                  'producto_id',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingrese el producto id';
+                    }
+                    if (int.tryParse(value.trim()) == null) {
+                      return 'Ingrese un número válido';
+                    }
+                    return null;
+                  },
+                ),
+                _campo(
+                  'Stock',
+                  'stock',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingrese el stock';
+                    }
+                    if (int.tryParse(value.trim()) == null) {
+                      return 'Ingrese un número válido';
+                    }
+                    return null;
+                  },
+                ),
+                _campo(
+                  'Stock Reservado',
+                  'stock_reservado',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingrese el stock reservado';
+                    }
+                    if (int.tryParse(value.trim()) == null) {
+                      return 'Ingrese un número válido';
+                    }
+                    return null;
+                  },
+                ),
+                _campo(
+                  'Stock Minimo',
+                  'stock_minimo',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingrese el stock mínimo';
+                    }
+                    if (int.tryParse(value.trim()) == null) {
+                      return 'Ingrese un número válido';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _guardando ? null : _guardar,
                   child: _guardando
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('GUARDAR'),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('GUARDAR'),
                 ),
               ],
             ),

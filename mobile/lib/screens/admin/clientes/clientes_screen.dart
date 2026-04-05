@@ -12,40 +12,70 @@ class ClientesScreen extends StatefulWidget {
 }
 
 class _ClientesScreenState extends State<ClientesScreen> {
-  List<Map<String,dynamic>> _items = [];
+  List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _filtrados = [];
   bool _loading = true;
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() { super.initState(); _cargar(); }
+
+  @override
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
   Future<void> _cargar() async {
     setState(() => _loading = true);
     try {
       final res = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.cliente));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) setState(() => _items = List<Map<String,dynamic>>.from(data['data']));
+      if (data['ok'] == true) {
+        _items = List<Map<String, dynamic>>.from(data['data']);
+        _filtrar();
+      }
     } catch (_) {} finally { setState(() => _loading = false); }
   }
 
-  Future<void> _eliminar(int id) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Confirmar'),
-      content: const Text('¿Eliminar este registro?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar'),
-          style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial)),
-      ],
-    ));
+  void _filtrar() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtrados = q.isEmpty ? List.from(_items) : _items.where((c) {
+        final nombre = '${c['NOMBRES'] ?? c['nombres'] ?? ''} ${c['APELLIDOS'] ?? c['apellidos'] ?? ''}'.toLowerCase();
+        final email  = (c['EMAIL'] ?? c['email'] ?? '').toString().toLowerCase();
+        return nombre.contains(q) || email.contains(q);
+      }).toList();
+    });
+  }
+
+  Future<void> _eliminar(dynamic id) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Eliminar cliente'),
+        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
     if (ok != true) return;
-    await http.delete(Uri.parse(ApiConfig.baseUrl + ApiConfig.cliente + '/' + id.toString()));
+    await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}/$id'));
     _cargar();
   }
 
-  void _abrirForm([Map<String,dynamic>? item]) {
+  void _abrirForm([Map<String, dynamic>? item]) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _ClientesForm(item: item, onGuardado: _cargar),
     );
   }
@@ -56,149 +86,273 @@ class _ClientesScreenState extends State<ClientesScreen> {
       backgroundColor: AlpesColors.cremaFondo,
       appBar: AppBar(
         title: const Text('CLIENTES'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => context.pop()),
-        actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _abrirForm())],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/admin'),
+        ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
-          : _items.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.inbox_outlined, size: 64, color: AlpesColors.arenaCalida),
-                  const SizedBox(height: 12),
-                  Text('Sin registros', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(icon: const Icon(Icons.add), label: const Text('Agregar'), onPressed: () => _abrirForm()),
-                ]))
-              : RefreshIndicator(
-                  color: AlpesColors.cafeOscuro,
-                  onRefresh: _cargar,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _items.length,
-                    itemBuilder: (_, i) {
-                      final item = _items[i];
-                      final keys = item.keys.toList();
-                      final idKey = keys.firstWhere((k) => k.toLowerCase().contains('id'), orElse: () => keys.first);
-                      final nombreKey = keys.firstWhere((k) => k.toLowerCase().contains('nombre') || k.toLowerCase().contains('titulo') || k.toLowerCase().contains('codigo'), orElse: () => keys.length > 1 ? keys[1] : keys.first);
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          title: Text('\${item[nombreKey] ?? ''}', style: Theme.of(context).textTheme.titleMedium),
-                          subtitle: Text('ID: \${item[idKey]}'),
-                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            IconButton(icon: const Icon(Icons.edit_outlined, color: AlpesColors.nogalMedio), onPressed: () => _abrirForm(item)),
-                            IconButton(icon: const Icon(Icons.delete_outline, color: AlpesColors.rojoColonial), onPressed: () => _eliminar(item[idKey] as int)),
-                          ]),
-                        ),
-                      );
-                    },
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (_) => _filtrar(),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar cliente…',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _searchCtrl.text.isNotEmpty
+                        ? IconButton(icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () { _searchCtrl.clear(); _filtrar(); })
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    filled: true, fillColor: AlpesColors.cremaFondo,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                   ),
                 ),
-      floatingActionButton: FloatingActionButton(
+              ),
+            ]),
+          ),
+          if (!_loading)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Row(children: [
+                Text('${_filtrados.length} cliente${_filtrados.length != 1 ? 's' : ''}',
+                    style: const TextStyle(fontSize: 12, color: AlpesColors.nogalMedio,
+                        fontWeight: FontWeight.w500)),
+              ]),
+            ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+                : _filtrados.isEmpty
+                    ? _emptyState()
+                    : RefreshIndicator(
+                        color: AlpesColors.cafeOscuro,
+                        onRefresh: _cargar,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
+                          itemCount: _filtrados.length,
+                          itemBuilder: (_, i) => _buildCard(_filtrados[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AlpesColors.cafeOscuro,
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.person_add_rounded, color: Colors.white),
+        label: const Text('Nuevo cliente',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
         onPressed: () => _abrirForm(),
       ),
     );
   }
+
+  Widget _buildCard(Map<String, dynamic> c) {
+    final id       = c['CLI_ID'] ?? c['cli_id'] ?? c['ID'] ?? c['id'];
+    final nombres  = c['NOMBRES'] ?? c['nombres'] ?? '';
+    final apellidos= c['APELLIDOS'] ?? c['apellidos'] ?? '';
+    final email    = c['EMAIL'] ?? c['email'] ?? '';
+    final telefono = c['TEL_CELULAR'] ?? c['tel_celular'] ?? '';
+    final ciudad   = c['CIUDAD'] ?? c['ciudad'] ?? '';
+    final fullName = '$nombres $apellidos'.trim();
+    final initial  = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'C';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AlpesColors.pergamino),
+        boxShadow: [
+          BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05),
+              blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 46, height: 46,
+              decoration: BoxDecoration(
+                  color: AlpesColors.oroGuatemalteco.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.center,
+              child: Text(initial,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: AlpesColors.cafeOscuro)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(fullName.isNotEmpty ? fullName : 'Sin nombre',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14,
+                          color: AlpesColors.cafeOscuro)),
+                  const SizedBox(height: 3),
+                  if (email.isNotEmpty) Row(children: [
+                    const Icon(Icons.email_outlined, size: 11, color: AlpesColors.arenaCalida),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(email,
+                        style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio),
+                        overflow: TextOverflow.ellipsis)),
+                  ]),
+                  if (telefono.isNotEmpty || ciudad.isNotEmpty) const SizedBox(height: 2),
+                  Row(children: [
+                    if (telefono.isNotEmpty) ...[
+                      const Icon(Icons.phone_outlined, size: 11, color: AlpesColors.arenaCalida),
+                      const SizedBox(width: 4),
+                      Text(telefono,
+                          style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
+                    ],
+                    if (ciudad.isNotEmpty) ...[
+                      if (telefono.isNotEmpty) const SizedBox(width: 10),
+                      const Icon(Icons.location_on_outlined, size: 11, color: AlpesColors.arenaCalida),
+                      const SizedBox(width: 2),
+                      Text(ciudad,
+                          style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                _iconBtn(Icons.edit_outlined, AlpesColors.nogalMedio, () => _abrirForm(c)),
+                const SizedBox(height: 4),
+                _iconBtn(Icons.delete_outline, AlpesColors.rojoColonial,
+                    () => _eliminar(id)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+      child: Icon(icon, size: 16, color: color),
+    ),
+  );
+
+  Widget _emptyState() => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(Icons.people_outline, size: 64, color: AlpesColors.arenaCalida.withOpacity(0.5)),
+      const SizedBox(height: 12),
+      const Text('Sin clientes',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AlpesColors.nogalMedio)),
+      const SizedBox(height: 16),
+      ElevatedButton.icon(
+        icon: const Icon(Icons.person_add_rounded),
+        label: const Text('Agregar cliente'),
+        onPressed: () => _abrirForm(),
+      ),
+    ]),
+  );
 }
 
+// ─── FORM ───────────────────────────────────────────────
+
 class _ClientesForm extends StatefulWidget {
-  final Map<String,dynamic>? item;
+  final Map<String, dynamic>? item;
   final VoidCallback onGuardado;
-  const _ClientesForm({super.key, this.item, required this.onGuardado});
+  const _ClientesForm({this.item, required this.onGuardado});
   @override
   State<_ClientesForm> createState() => __ClientesFormState();
 }
 
 class __ClientesFormState extends State<_ClientesForm> {
   final _formKey = GlobalKey<FormState>();
-  final Map<String, TextEditingController> controllers = {};
+  late final Map<String, TextEditingController> _c;
   bool _guardando = false;
 
   @override
   void initState() {
     super.initState();
-    controllers['tipo_documento'] = TextEditingController();
-    controllers['num_documento'] = TextEditingController();
-    controllers['nombres'] = TextEditingController();
-    controllers['apellidos'] = TextEditingController();
-    controllers['email'] = TextEditingController();
-    controllers['tel_celular'] = TextEditingController();
-    controllers['direccion'] = TextEditingController();
-    controllers['ciudad'] = TextEditingController();
-    controllers['departamento'] = TextEditingController();
-    controllers['pais'] = TextEditingController();
+    _c = {
+      'tipo_documento': TextEditingController(),
+      'num_documento' : TextEditingController(),
+      'nombres'       : TextEditingController(),
+      'apellidos'     : TextEditingController(),
+      'email'         : TextEditingController(),
+      'tel_celular'   : TextEditingController(),
+      'direccion'     : TextEditingController(),
+      'ciudad'        : TextEditingController(),
+      'departamento'  : TextEditingController(),
+      'pais'          : TextEditingController(),
+    };
     if (widget.item != null) {
-      for (final k in controllers.keys) {
-        final upper = k.toUpperCase();
-        controllers[k]!.text = '\${widget.item![upper] ?? widget.item![k] ?? ''}';
+      for (final k in _c.keys) {
+        _c[k]!.text = '${widget.item![k.toUpperCase()] ?? widget.item![k] ?? ''}';
       }
     }
   }
 
   @override
-  void dispose() {
-    controllers['tipo_documento']?.dispose();
-    controllers['num_documento']?.dispose();
-    controllers['nombres']?.dispose();
-    controllers['apellidos']?.dispose();
-    controllers['email']?.dispose();
-    controllers['tel_celular']?.dispose();
-    controllers['direccion']?.dispose();
-    controllers['ciudad']?.dispose();
-    controllers['departamento']?.dispose();
-    controllers['pais']?.dispose();
-    super.dispose();
-  }
+  void dispose() { _c.values.forEach((c) => c.dispose()); super.dispose(); }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
-      final body = {
-      'tipo_documento': controllers['tipo_documento']!.text,
-      'num_documento': controllers['num_documento']!.text,
-      'nombres': controllers['nombres']!.text,
-      'apellidos': controllers['apellidos']!.text,
-      'email': controllers['email']!.text,
-      'tel_celular': controllers['tel_celular']!.text,
-      'direccion': controllers['direccion']!.text,
-      'ciudad': controllers['ciudad']!.text,
-      'departamento': controllers['departamento']!.text,
-      'pais': controllers['pais']!.text,
-      };
-      final idKey = widget.item?.keys.firstWhere((k) => k.toLowerCase().contains('id'), orElse: () => '') ?? '';
+      final body = _c.map((k, v) => MapEntry(k, v.text.trim()));
+      final idKey = widget.item?.keys.firstWhere(
+              (k) => k.toLowerCase() == 'cli_id', orElse: () => '') ?? '';
       final id = idKey.isNotEmpty ? widget.item![idKey] : null;
-      http.Response res;
-      if (id != null) {
-        body[idKey.toLowerCase()] = id;
-        res = await http.put(Uri.parse(ApiConfig.baseUrl + ApiConfig.cliente + '/' + id.toString()),
-          headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
-      } else {
-        res = await http.post(Uri.parse(ApiConfig.baseUrl + ApiConfig.cliente),
-          headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
-      }
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}${id != null ? '/$id' : ''}');
+      final res = id != null
+          ? await http.put(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body))
+          : await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         widget.onGuardado();
         if (context.mounted) Navigator.pop(context);
       } else {
         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['mensaje'] ?? 'Error'), backgroundColor: AlpesColors.rojoColonial));
+            SnackBar(content: Text(data['mensaje'] ?? 'Error'),
+                backgroundColor: AlpesColors.rojoColonial));
       }
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: \$e'), backgroundColor: AlpesColors.rojoColonial));
+          SnackBar(content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial));
     } finally { setState(() => _guardando = false); }
   }
+
+  Widget _campo(String label, String key, {TextInputType? type, bool required = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: _c[key],
+          keyboardType: type,
+          decoration: InputDecoration(labelText: label),
+          validator: required
+              ? (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null
+              : null,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -206,65 +360,45 @@ class __ClientesFormState extends State<_ClientesForm> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(widget.item == null ? 'Nuevo clientes' : 'Editar clientes',
-                  style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 20),
-              TextFormField(
-                controller: controllers['tipo_documento'],
-                decoration: const InputDecoration(labelText: 'Tipo Documento'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['num_documento'],
-                decoration: const InputDecoration(labelText: 'Num Documento'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['nombres'],
-                decoration: const InputDecoration(labelText: 'Nombres'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['apellidos'],
-                decoration: const InputDecoration(labelText: 'Apellidos'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['email'],
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['tel_celular'],
-                decoration: const InputDecoration(labelText: 'Tel Celular'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['direccion'],
-                decoration: const InputDecoration(labelText: 'Direccion'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['ciudad'],
-                decoration: const InputDecoration(labelText: 'Ciudad'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['departamento'],
-                decoration: const InputDecoration(labelText: 'Departamento'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controllers['pais'],
-                decoration: const InputDecoration(labelText: 'Pais'),
-              ),
-              const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 36, height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                        color: AlpesColors.pergamino,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                Text(widget.item == null ? 'Nuevo cliente' : 'Editar cliente',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                        color: AlpesColors.cafeOscuro)),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(child: _campo('Tipo documento', 'tipo_documento')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _campo('No. documento', 'num_documento')),
+                ]),
+                Row(children: [
+                  Expanded(child: _campo('Nombres', 'nombres', required: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _campo('Apellidos', 'apellidos', required: true)),
+                ]),
+                _campo('Email', 'email', type: TextInputType.emailAddress),
+                _campo('Teléfono', 'tel_celular', type: TextInputType.phone),
+                _campo('Dirección', 'direccion'),
+                Row(children: [
+                  Expanded(child: _campo('Ciudad', 'ciudad')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _campo('Departamento', 'departamento')),
+                ]),
+                _campo('País', 'pais'),
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: _guardando ? null : _guardar,
                   child: _guardando
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('GUARDAR'),
+                      ? const SizedBox(height: 20, width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('GUARDAR'),
                 ),
               ],
             ),

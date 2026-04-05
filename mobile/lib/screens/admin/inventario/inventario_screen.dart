@@ -98,12 +98,6 @@ class _InventarioScreenState extends State<InventarioScreen> {
             }
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _abrirForm(),
-          ),
-        ],
       ),
       body: _loading
           ? const Center(

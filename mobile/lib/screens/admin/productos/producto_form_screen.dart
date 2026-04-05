@@ -85,9 +85,11 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         }
       }
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial),
       );
+      }
     } finally {
       setState(() => _guardando = false);
     }

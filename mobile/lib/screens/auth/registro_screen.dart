@@ -20,7 +20,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   final _apellidosCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
   bool _verPassword = false;
-  int _paso = 0;
+  final int _paso = 0;
 
   @override
   void dispose() {

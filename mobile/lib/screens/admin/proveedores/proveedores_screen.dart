@@ -206,7 +206,6 @@ class _ProveedoresForm extends StatefulWidget {
   final VoidCallback onGuardado;
 
   const _ProveedoresForm({
-    super.key,
     this.item,
     required this.onGuardado,
   });

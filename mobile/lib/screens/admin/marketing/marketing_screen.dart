@@ -202,7 +202,6 @@ class _MarketingForm extends StatefulWidget {
   final VoidCallback onGuardado;
 
   const _MarketingForm({
-    super.key,
     this.item,
     required this.onGuardado,
   });

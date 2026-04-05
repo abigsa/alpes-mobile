@@ -33,12 +33,12 @@ class _NominaScreenState extends State<NominaScreen> {
       content: const Text('¿Eliminar este registro?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar'),
-          style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial)),
+        ElevatedButton(onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial), child: const Text('Eliminar')),
       ],
     ));
     if (ok != true) return;
-    await http.delete(Uri.parse(ApiConfig.baseUrl + ApiConfig.nomina + '/' + id.toString()));
+    await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.nomina}/$id'));
     _cargar();
   }
 
@@ -84,7 +84,7 @@ class _NominaScreenState extends State<NominaScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           title: Text('\${item[nombreKey] ?? ''}', style: Theme.of(context).textTheme.titleMedium),
-                          subtitle: Text('ID: \${item[idKey]}'),
+                          subtitle: const Text('ID: \${item[idKey]}'),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(icon: const Icon(Icons.edit_outlined, color: AlpesColors.nogalMedio), onPressed: () => _abrirForm(item)),
                             IconButton(icon: const Icon(Icons.delete_outline, color: AlpesColors.rojoColonial), onPressed: () => _eliminar(item[idKey] as int)),
@@ -106,7 +106,7 @@ class _NominaScreenState extends State<NominaScreen> {
 class _NominaForm extends StatefulWidget {
   final Map<String,dynamic>? item;
   final VoidCallback onGuardado;
-  const _NominaForm({super.key, this.item, required this.onGuardado});
+  const _NominaForm({this.item, required this.onGuardado});
   @override
   State<_NominaForm> createState() => __NominaFormState();
 }
@@ -164,7 +164,7 @@ class __NominaFormState extends State<_NominaForm> {
       http.Response res;
       if (id != null) {
         body[idKey.toLowerCase()] = id;
-        res = await http.put(Uri.parse(ApiConfig.baseUrl + ApiConfig.nomina + '/' + id.toString()),
+        res = await http.put(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.nomina}/$id'),
           headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
       } else {
         res = await http.post(Uri.parse(ApiConfig.baseUrl + ApiConfig.nomina),
@@ -175,12 +175,16 @@ class __NominaFormState extends State<_NominaForm> {
         widget.onGuardado();
         if (context.mounted) Navigator.pop(context);
       } else {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['mensaje'] ?? 'Error'), backgroundColor: AlpesColors.rojoColonial));
+        }
       }
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: \$e'), backgroundColor: AlpesColors.rojoColonial));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: \$e'), backgroundColor: AlpesColors.rojoColonial));
+      }
     } finally { setState(() => _guardando = false); }
   }
 

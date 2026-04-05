@@ -33,7 +33,7 @@ class ApiConfig {
   static const String cargos          = '/cargos';
   static const String roles           = '/roles';
   static const String permisos        = '/permisos';
-  static const String nomina          = '/nominas';
+  static const String nomina          = '/nomina';
   static const String nominaDetalle   = '/nominas-detalle';
   static const String evaluaciones    = '/evaluaciones';
   static const String incidentes      = '/incidentes-laborales';

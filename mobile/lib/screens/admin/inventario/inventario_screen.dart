@@ -220,7 +220,6 @@ class _InventarioForm extends StatefulWidget {
   final VoidCallback onGuardado;
 
   const _InventarioForm({
-    super.key,
     this.item,
     required this.onGuardado,
   });

@@ -210,7 +210,6 @@ class _ProductosForm extends StatefulWidget {
   final VoidCallback onGuardado;
 
   const _ProductosForm({
-    super.key,
     this.item,
     required this.onGuardado,
   });

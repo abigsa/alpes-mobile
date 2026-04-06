@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const { initPool } = require("./config/db");
 const app = express();
+const tarjetaclienteroutes = require("./routes/tarjetacliente.routes");
 
 app.use(cors());
 app.use(express.json());
@@ -92,6 +93,7 @@ app.use("/api/unidades-medida", require("./routes/unidad_medida.routes"));
 app.use("/api/usuarios", require("./routes/usuario.routes"));
 app.use("/api/vehiculos", require("./routes/vehiculo.routes"));
 app.use("/api/zonas-envio", require("./routes/zona_envio.routes"));
+app.use("/api/tarjetas-cliente", tarjetaclienteroutes);
 // ───────────────────────────────────────────────────────────
 
 app.get("/", (req, res) => res.json({ mensaje: "Backend Alpes Mobile ✅" }));

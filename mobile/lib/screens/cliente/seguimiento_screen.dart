@@ -26,10 +26,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   Future<void> _cargar() async {
     try {
       final envioRes = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.envio}/buscar?criterio=orden_venta_id&valor=${widget.envioId}'),
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.envio}/buscar?criterio=orden_venta_id&valor=${widget.envioId}'),
       );
       final segRes = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=${widget.envioId}'),
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=${widget.envioId}'),
       );
       final envioData = jsonDecode(envioRes.body);
       final segData = jsonDecode(segRes.body);
@@ -41,7 +43,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           _eventos = List<Map<String, dynamic>>.from(segData['data']);
         }
       });
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       setState(() => _loading = false);
     }
   }
@@ -52,10 +55,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       backgroundColor: AlpesColors.cremaFondo,
       appBar: AppBar(
         title: const Text('SEGUIMIENTO'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => context.pop()),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios),
+            onPressed: () => context.pop()),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(
+              child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -68,24 +74,28 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Información de envío', style: Theme.of(context).textTheme.titleLarge),
+                            Text('Información de envío',
+                                style: Theme.of(context).textTheme.titleLarge),
                             const Divider(),
-                            Text('Código: ${_envio!['TRACKING_CODIGO'] ?? _envio!['tracking_codigo'] ?? '-'}'),
-                            Text('Dirección: ${_envio!['DIRECCION_ENTREGA_SNAPSHOT'] ?? _envio!['direccion_entrega_snapshot'] ?? '-'}'),
+                            Text(
+                                'Código: ${_envio!['TRACKING_CODIGO'] ?? _envio!['tracking_codigo'] ?? '-'}'),
+                            Text(
+                                'Dirección: ${_envio!['DIRECCION_ENTREGA_SNAPSHOT'] ?? _envio!['direccion_entrega_snapshot'] ?? '-'}'),
                           ],
                         ),
                       ),
                     ),
                   const SizedBox(height: 20),
-                  Text('Historial de eventos', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Historial de eventos',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   if (_eventos.isEmpty)
                     const Text('Sin eventos de seguimiento aún')
                   else
                     ..._eventos.asMap().entries.map((e) => _EventoTile(
-                      evento: e.value,
-                      esUltimo: e.key == _eventos.length - 1,
-                    )),
+                          evento: e.value,
+                          esUltimo: e.key == _eventos.length - 1,
+                        )),
                 ],
               ),
             ),
@@ -106,13 +116,16 @@ class _EventoTile extends StatelessWidget {
         Column(
           children: [
             Container(
-              width: 14, height: 14,
+              width: 14,
+              height: 14,
               decoration: BoxDecoration(
-                color: esUltimo ? AlpesColors.cafeOscuro : AlpesColors.arenaCalida,
+                color:
+                    esUltimo ? AlpesColors.cafeOscuro : AlpesColors.arenaCalida,
                 shape: BoxShape.circle,
               ),
             ),
-            if (!esUltimo) Container(width: 2, height: 40, color: AlpesColors.pergamino),
+            if (!esUltimo)
+              Container(width: 2, height: 40, color: AlpesColors.pergamino),
           ],
         ),
         const SizedBox(width: 12),

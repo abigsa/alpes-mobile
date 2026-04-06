@@ -28,10 +28,12 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
     final auth = context.read<AuthProvider>();
     if (auth.clienteId == null) return;
     try {
-      final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'));
+      final res = await http.get(Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) setState(() => _ordenes = List<Map<String, dynamic>>.from(data['data']));
+      if (data['ok'] == true)
+        setState(
+            () => _ordenes = List<Map<String, dynamic>>.from(data['data']));
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -42,17 +44,22 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
       backgroundColor: AlpesColors.cremaFondo,
       appBar: AppBar(title: const Text('MIS ÓRDENES')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(
+              child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : _ordenes.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.receipt_long_outlined, size: 80, color: AlpesColors.arenaCalida),
+                      const Icon(Icons.receipt_long_outlined,
+                          size: 80, color: AlpesColors.arenaCalida),
                       const SizedBox(height: 16),
-                      Text('No tienes órdenes aún', style: Theme.of(context).textTheme.titleLarge),
+                      Text('No tienes órdenes aún',
+                          style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 16),
-                      ElevatedButton(onPressed: () => context.go('/catalogo'), child: const Text('Empezar a comprar')),
+                      ElevatedButton(
+                          onPressed: () => context.go('/catalogo'),
+                          child: const Text('Empezar a comprar')),
                     ],
                   ),
                 )
@@ -70,23 +77,32 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
                       child: ListTile(
                         leading: const CircleAvatar(
                           backgroundColor: AlpesColors.pergamino,
-                          child: Icon(Icons.receipt, color: AlpesColors.cafeOscuro),
+                          child: Icon(Icons.receipt,
+                              color: AlpesColors.cafeOscuro),
                         ),
-                        title: Text('Orden #$num', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('Total: Q${double.tryParse('$total')?.toStringAsFixed(2) ?? total}'),
+                        title: Text('Orden #$num',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                            'Total: Q${double.tryParse('$total')?.toStringAsFixed(2) ?? total}'),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: estado == 'ENTREGADO' ? AlpesColors.exito : AlpesColors.pergamino,
+                                color: estado == 'ENTREGADO'
+                                    ? AlpesColors.exito
+                                    : AlpesColors.pergamino,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(estado,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: estado == 'ENTREGADO' ? Colors.white : AlpesColors.grafito,
+                                    color: estado == 'ENTREGADO'
+                                        ? Colors.white
+                                        : AlpesColors.grafito,
                                   )),
                             ),
                             const Icon(Icons.chevron_right),

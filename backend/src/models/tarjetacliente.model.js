@@ -1,35 +1,82 @@
-class TarjetaClienteModel {
-  constructor(data = {}) {
-    this.tarjetaClienteId = data.TARJETA_CLIENTE_ID ?? data.tarjetaClienteId ?? null;
-    this.cliId = data.CLI_ID ?? data.cliId ?? null;
-    this.titular = data.TITULAR ?? data.titular ?? '';
-    this.ultimos4 = data.ULTIMOS_4 ?? data.ultimos4 ?? '';
-    this.marca = data.MARCA ?? data.marca ?? '';
-    this.mesVencimiento = data.MES_VENCIMIENTO ?? data.mesVencimiento ?? null;
-    this.anioVencimiento = data.ANIO_VENCIMIENTO ?? data.anioVencimiento ?? null;
-    this.aliasTarjeta = data.ALIAS_TARJETA ?? data.aliasTarjeta ?? null;
-    this.predeterminada = data.PREDETERMINADA ?? data.predeterminada ?? 0;
-    this.createdAt = data.CREATED_AT ?? data.createdAt ?? null;
-    this.updatedAt = data.UPDATED_AT ?? data.updatedAt ?? null;
-    this.estado = data.ESTADO ?? data.estado ?? 'ACTIVO';
-  }
+const oracledb = require("oracledb");
+const { getConnection } = require("../config/db");
+const { readCursor, closeConn } = require("../utils/oracle");
+const PKG = "PKG_TARJETA_CLIENTE";
 
-  toJSON() {
-    return {
-      tarjetaClienteId: this.tarjetaClienteId,
-      cliId: this.cliId,
-      titular: this.titular,
-      ultimos4: this.ultimos4,
-      marca: this.marca,
-      mesVencimiento: this.mesVencimiento,
-      anioVencimiento: this.anioVencimiento,
-      aliasTarjeta: this.aliasTarjeta,
-      predeterminada: this.predeterminada,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-      estado: this.estado,
-    };
-  }
+async function insertar(data) {
+  const conn = await getConnection();
+  try {
+    await conn.execute(
+      `BEGIN ${PKG}.SP_INSERTAR_TARJETA_CLIENTE(:p_cli_id, :p_titular, :p_ultimos_4, :p_marca, :p_mes_vencimiento, :p_anio_vencimiento, :p_alias_tarjeta, :p_predeterminada); END;`,
+      {
+        p_cli_id: data.cli_id,
+        p_titular: data.titular,
+        p_ultimos_4: data.ultimos_4,
+        p_marca: data.marca,
+        p_mes_vencimiento: data.mes_vencimiento,
+        p_anio_vencimiento: data.anio_vencimiento,
+        p_alias_tarjeta: data.alias_tarjeta,
+        p_predeterminada: data.predeterminada ?? 0,
+      }
+    );
+    await conn.commit();
+  } finally { await closeConn(conn); }
 }
 
-module.exports = TarjetaClienteModel;
+async function listarPorCliente(cliId) {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `BEGIN ${PKG}.SP_OBTENER_TARJETAS_CLIENTE(:p_cli_id, :p_cursor); END;`,
+      {
+        p_cli_id: cliId,
+        p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+      }
+    );
+    return await readCursor(result.outBinds.p_cursor);
+  } finally { await closeConn(conn); }
+}
+
+async function actualizar(id, data) {
+  const conn = await getConnection();
+  try {
+    await conn.execute(
+      `BEGIN ${PKG}.SP_ACTUALIZAR_TARJETA_CLIENTE(:p_tarjeta_cliente_id, :p_titular, :p_ultimos_4, :p_marca, :p_mes_vencimiento, :p_anio_vencimiento, :p_alias_tarjeta, :p_predeterminada); END;`,
+      {
+        p_tarjeta_cliente_id: id,
+        p_titular: data.titular,
+        p_ultimos_4: data.ultimos_4,
+        p_marca: data.marca,
+        p_mes_vencimiento: data.mes_vencimiento,
+        p_anio_vencimiento: data.anio_vencimiento,
+        p_alias_tarjeta: data.alias_tarjeta,
+        p_predeterminada: data.predeterminada ?? 0,
+      }
+    );
+    await conn.commit();
+  } finally { await closeConn(conn); }
+}
+
+async function desactivar(id) {
+  const conn = await getConnection();
+  try {
+    await conn.execute(
+      `BEGIN ${PKG}.SP_DESACTIVAR_TARJETA_CLIENTE(:p_tarjeta_cliente_id); END;`,
+      { p_tarjeta_cliente_id: id }
+    );
+    await conn.commit();
+  } finally { await closeConn(conn); }
+}
+
+async function marcarPredeterminada(id, cliId) {
+  const conn = await getConnection();
+  try {
+    await conn.execute(
+      `BEGIN ${PKG}.SP_MARCAR_PREDETERMINADA(:p_tarjeta_cliente_id, :p_cli_id); END;`,
+      { p_tarjeta_cliente_id: id, p_cli_id: cliId }
+    );
+    await conn.commit();
+  } finally { await closeConn(conn); }
+}
+
+module.exports = { insertar, listarPorCliente, actualizar, desactivar, marcarPredeterminada };

@@ -19,6 +19,7 @@ import '../screens/cliente/favoritos_screen.dart';
 import '../screens/cliente/perfil_screen.dart';
 import '../screens/cliente/busqueda_screen.dart';
 import '../screens/cliente/seguimiento_screen.dart';
+import '../screens/cliente/mis_tarjetas_screen.dart';
 
 // Screens - Admin
 import '../screens/admin/admin_home_screen.dart';
@@ -70,6 +71,7 @@ class AppRouter {
         GoRoute(path: '/carrito', builder: (_, __) => const CarritoScreen()),
         GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
         GoRoute(path: '/mis-ordenes', builder: (_, __) => const MisOrdenesScreen()),
+        GoRoute(path: '/mis-tarjetas', builder: (_, __) => const MisTarjetasScreen()),
         GoRoute(
           path: '/orden/:id',
           builder: (_, state) => OrdenDetalleScreen(

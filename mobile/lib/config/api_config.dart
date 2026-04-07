@@ -1,11 +1,16 @@
 class ApiConfig {
   // Cambia esta URL cuando despliegues el backend
+<<<<<<< Updated upstream
   static const String baseUrl = 'http://192.168.0.19:3000/api';
+=======
+  static const String baseUrl = 'http://192.168.1.212:3000/api';
+>>>>>>> Stashed changes
 
   // Endpoints
   static const String login           = '/usuarios/login';
   static const String registro        = '/usuarios/registro';
 
+<<<<<<< Updated upstream
   static const String productos       = '/productos';
   static const String categorias      = '/categoria';
   static const String carrito         = '/carrito';
@@ -24,6 +29,26 @@ class ApiConfig {
   static const String cupon           = '/cupones';
   static const String promocion       = '/promociones';
   static const String faq             = '/faqs';
+=======
+  static const String productos = '/productos';
+  static const String categorias = '/categorias';
+  static const String carrito = '/carrito';
+  static const String carritoDetalle = '/carrito_detalle';
+  static const String ordenVenta = '/ordenes-venta';
+  static const String ordenVentaDet = '/ordenes-venta-detalle';
+  static const String pago = '/pagos';
+  static const String metodoPago = '/metodos-pago';
+  static const String envio = '/envios';
+  static const String estadoEnvio = '/estados-envio';
+  static const String seguimiento = '/seguimiento-envio';
+  static const String listaDeseseos = '/listas-deseos';
+  static const String resenas = '/resenas-comentarios';
+  static const String cliente = '/clientes';
+  static const String factura = '/facturas';
+  static const String cupon = '/cupones';
+  static const String promocion = '/promociones';
+  static const String faq = '/faqs';
+>>>>>>> Stashed changes
   static const String historialCompra = '/historial-compra';
   static const String precioHistorico = '/precios-historico';
 

@@ -82,6 +82,40 @@ class _ProductosScreenState extends State<ProductosScreen> {
     );
   }
 
+  Future<void> _abrirFormConDetalle([Map<String, dynamic>? item]) async {
+    if (item == null) {
+      _abrirForm();
+      return;
+    }
+
+    final dynamic idValue =
+        item['PRODUCTO_ID'] ?? item['producto_id'] ?? item['ID'] ?? item['id'];
+
+    final int id = int.tryParse('${idValue ?? 0}') ?? 0;
+
+    if (id <= 0) {
+      _abrirForm(item);
+      return;
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$id'),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (data['ok'] == true && data['data'] != null) {
+        final detalle = Map<String, dynamic>.from(data['data']);
+        _abrirForm(detalle);
+      } else {
+        _abrirForm(item);
+      }
+    } catch (_) {
+      _abrirForm(item);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,7 +214,7 @@ class _ProductosScreenState extends State<ProductosScreen> {
                                   Icons.edit_outlined,
                                   color: AlpesColors.nogalMedio,
                                 ),
-                                onPressed: () => _abrirForm(item),
+                                onPressed: () => _abrirFormConDetalle(item),
                               ),
                               IconButton(
                                 icon: const Icon(
@@ -223,6 +257,13 @@ class __ProductosFormState extends State<_ProductosForm> {
   final Map<String, TextEditingController> controllers = {};
   bool _guardando = false;
 
+  List<Map<String, dynamic>> _categorias = [];
+  List<Map<String, dynamic>> _unidades = [];
+  bool _loadingCatalogos = true;
+
+  int? _categoriaId;
+  int? _unidadMedidaId;
+
   @override
   void initState() {
     super.initState();
@@ -238,8 +279,6 @@ class __ProductosFormState extends State<_ProductosForm> {
     controllers['color'] = TextEditingController();
     controllers['peso_gramos'] = TextEditingController();
     controllers['imagen_url'] = TextEditingController();
-    controllers['unidad_medida_id'] = TextEditingController();
-    controllers['categoria_id'] = TextEditingController();
     controllers['lote_producto'] = TextEditingController();
 
     if (widget.item != null) {
@@ -247,6 +286,64 @@ class __ProductosFormState extends State<_ProductosForm> {
         final upper = k.toUpperCase();
         controllers[k]!.text =
             (widget.item![upper] ?? widget.item![k] ?? '').toString();
+      }
+
+      _unidadMedidaId = _toInt(
+        widget.item!['UNIDAD_MEDIDA_ID'] ?? widget.item!['unidad_medida_id'],
+      );
+      _categoriaId = _toInt(
+        widget.item!['CATEGORIA_ID'] ?? widget.item!['categoria_id'],
+      );
+    }
+
+    _cargarCatalogos();
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    return int.tryParse(value.toString());
+  }
+
+  int? _validDropdownValue(
+    int? selectedValue,
+    List<Map<String, dynamic>> items,
+    String primaryKey,
+    String secondaryKey,
+  ) {
+    if (selectedValue == null) return null;
+
+    final exists = items.any((item) {
+      final value = _toInt(item[primaryKey] ?? item[secondaryKey]);
+      return value == selectedValue;
+    });
+
+    return exists ? selectedValue : null;
+  }
+
+  Future<void> _cargarCatalogos() async {
+    setState(() => _loadingCatalogos = true);
+    try {
+      final unidadesRes = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.unidadMedida}'),
+      );
+      final categoriasRes = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.categorias}'),
+      );
+
+      final unidadesData = jsonDecode(unidadesRes.body);
+      final categoriasData = jsonDecode(categoriasRes.body);
+
+      if (unidadesData['ok'] == true) {
+        _unidades = List<Map<String, dynamic>>.from(unidadesData['data']);
+      }
+
+      if (categoriasData['ok'] == true) {
+        _categorias = List<Map<String, dynamic>>.from(categoriasData['data']);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _loadingCatalogos = false);
       }
     }
   }
@@ -261,6 +358,20 @@ class __ProductosFormState extends State<_ProductosForm> {
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_unidadMedidaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione la unidad de medida')),
+      );
+      return;
+    }
+
+    if (_categoriaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione la categoría')),
+      );
+      return;
+    }
 
     setState(() => _guardando = true);
 
@@ -279,10 +390,8 @@ class __ProductosFormState extends State<_ProductosForm> {
         'peso_gramos':
             int.tryParse(controllers['peso_gramos']!.text.trim()) ?? 0,
         'imagen_url': controllers['imagen_url']!.text.trim(),
-        'unidad_medida_id':
-            int.tryParse(controllers['unidad_medida_id']!.text.trim()) ?? 0,
-        'categoria_id':
-            int.tryParse(controllers['categoria_id']!.text.trim()) ?? 0,
+        'unidad_medida_id': _unidadMedidaId,
+        'categoria_id': _categoriaId,
         'lote_producto': controllers['lote_producto']!.text.trim(),
       };
 
@@ -458,34 +567,105 @@ class __ProductosFormState extends State<_ProductosForm> {
                   },
                 ),
                 _campo('Imagen Url', 'imagen_url'),
-                _campo(
-                  'Unidad Medida Id',
-                  'unidad_medida_id',
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Ingrese la unidad de medida';
-                    }
-                    if (int.tryParse(value.trim()) == null) {
-                      return 'Ingrese un ID valido';
-                    }
-                    return null;
-                  },
-                ),
-                _campo(
-                  'Categoria Id',
-                  'categoria_id',
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Ingrese la categoria';
-                    }
-                    if (int.tryParse(value.trim()) == null) {
-                      return 'Ingrese un ID valido';
-                    }
-                    return null;
-                  },
-                ),
+                const SizedBox(height: 4),
+                _loadingCatalogos
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AlpesColors.cafeOscuro,
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<int>(
+                              value: _validDropdownValue(
+                                _unidadMedidaId,
+                                _unidades,
+                                'UNIDAD_MEDIDA_ID',
+                                'unidad_medida_id',
+                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'Unidad de Medida',
+                              ),
+                              items: _unidades
+                                  .map((unidad) {
+                                    final id = _toInt(
+                                      unidad['UNIDAD_MEDIDA_ID'] ??
+                                          unidad['unidad_medida_id'],
+                                    );
+                                    final nombre =
+                                        (unidad['NOMBRE'] ?? unidad['nombre'] ?? '')
+                                            .toString();
+
+                                    if (id == null || nombre.isEmpty) return null;
+
+                                    return DropdownMenuItem<int>(
+                                      value: id,
+                                      child: Text(nombre),
+                                    );
+                                  })
+                                  .whereType<DropdownMenuItem<int>>()
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() => _unidadMedidaId = value);
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Seleccione una unidad de medida';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<int>(
+                              value: _validDropdownValue(
+                                _categoriaId,
+                                _categorias,
+                                'CATEGORIA_ID',
+                                'categoria_id',
+                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'Categoría',
+                              ),
+                              items: _categorias
+                                  .map((categoria) {
+                                    final id = _toInt(
+                                      categoria['CATEGORIA_ID'] ??
+                                          categoria['categoria_id'],
+                                    );
+                                    final nombre = (categoria['NOMBRE'] ??
+                                            categoria['nombre'] ??
+                                            '')
+                                        .toString();
+
+                                    if (id == null || nombre.isEmpty) return null;
+
+                                    return DropdownMenuItem<int>(
+                                      value: id,
+                                      child: Text(nombre),
+                                    );
+                                  })
+                                  .whereType<DropdownMenuItem<int>>()
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() => _categoriaId = value);
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Seleccione una categoría';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                 _campo('Lote Producto', 'lote_producto'),
                 const SizedBox(height: 16),
                 ElevatedButton(

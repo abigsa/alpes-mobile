@@ -12,7 +12,9 @@ async function insertar(data) {
         p_num_orden: data.num_orden,
         p_cli_id: data.cli_id,
         p_estado_orden_id: data.estado_orden_id,
-        p_fecha_orden: data.fecha_orden,
+        p_fecha_orden: data.fecha_orden
+          ? new Date(data.fecha_orden + "T12:00:00")
+          : null,
         p_subtotal: data.subtotal,
         p_descuento: data.descuento,
         p_impuesto: data.impuesto,
@@ -26,7 +28,9 @@ async function insertar(data) {
     );
     await conn.commit();
     return result.outBinds.p_id;
-  } finally { await closeConn(conn); }
+  } finally {
+    await closeConn(conn);
+  }
 }
 
 async function actualizar(data) {
@@ -39,7 +43,9 @@ async function actualizar(data) {
         p_num_orden: data.num_orden,
         p_cli_id: data.cli_id,
         p_estado_orden_id: data.estado_orden_id,
-        p_fecha_orden: data.fecha_orden,
+        p_fecha_orden: data.fecha_orden
+          ? new Date(data.fecha_orden + "T12:00:00")
+          : null,
         p_subtotal: data.subtotal,
         p_descuento: data.descuento,
         p_impuesto: data.impuesto,
@@ -51,7 +57,9 @@ async function actualizar(data) {
       }
     );
     await conn.commit();
-  } finally { await closeConn(conn); }
+  } finally {
+    await closeConn(conn);
+  }
 }
 
 async function eliminar(id) {
@@ -62,7 +70,9 @@ async function eliminar(id) {
       { p_id: id }
     );
     await conn.commit();
-  } finally { await closeConn(conn); }
+  } finally {
+    await closeConn(conn);
+  }
 }
 
 async function obtener(id) {
@@ -77,7 +87,9 @@ async function obtener(id) {
     );
     const rows = await readCursor(result.outBinds.p_cursor);
     return rows[0] || null;
-  } finally { await closeConn(conn); }
+  } finally {
+    await closeConn(conn);
+  }
 }
 
 async function listar() {
@@ -88,7 +100,9 @@ async function listar() {
       { p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR } }
     );
     return await readCursor(result.outBinds.p_cursor);
-  } finally { await closeConn(conn); }
+  } finally {
+    await closeConn(conn);
+  }
 }
 
 module.exports = { insertar, actualizar, eliminar, obtener, listar };

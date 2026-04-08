@@ -98,6 +98,12 @@ class _InventarioScreenState extends State<InventarioScreen> {
             }
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _abrirForm(),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(
@@ -147,16 +153,18 @@ class _InventarioScreenState extends State<InventarioScreen> {
 
                       final int id = int.tryParse('${idValue ?? 0}') ?? 0;
 
-                      final dynamic productoIdValue = item['PRODUCTO_ID'] ??
-                          item['producto_id'] ??
-                          0;
+                      final dynamic productoIdValue =
+                          item['PRODUCTO_ID'] ?? item['producto_id'] ?? 0;
 
                       final int productoId =
                           int.tryParse('${productoIdValue ?? 0}') ?? 0;
 
-                      final dynamic stockValue = item['STOCK'] ?? item['stock'] ?? 0;
+                      final dynamic stockValue =
+                          item['STOCK'] ?? item['stock'] ?? 0;
                       final dynamic stockReservadoValue =
-                          item['STOCK_RESERVADO'] ?? item['stock_reservado'] ?? 0;
+                          item['STOCK_RESERVADO'] ??
+                              item['stock_reservado'] ??
+                              0;
                       final dynamic stockMinimoValue =
                           item['STOCK_MINIMO'] ?? item['stock_minimo'] ?? 0;
 
@@ -228,27 +236,80 @@ class __InventarioFormState extends State<_InventarioForm> {
   final Map<String, TextEditingController> controllers = {};
   bool _guardando = false;
 
+  List<Map<String, dynamic>> _productos = [];
+  bool _loadingProductos = true;
+  int? _productoId;
+
   @override
   void initState() {
     super.initState();
 
-    controllers['producto_id'] = TextEditingController();
     controllers['stock'] = TextEditingController();
     controllers['stock_reservado'] = TextEditingController();
     controllers['stock_minimo'] = TextEditingController();
 
     if (widget.item != null) {
-      for (final k in controllers.keys) {
-        final upper = k.toUpperCase();
-        controllers[k]!.text =
-            (widget.item![upper] ?? widget.item![k] ?? '').toString();
+      controllers['stock']!.text =
+          (widget.item!['STOCK'] ?? widget.item!['stock'] ?? '').toString();
+      controllers['stock_reservado']!.text =
+          (widget.item!['STOCK_RESERVADO'] ??
+                  widget.item!['stock_reservado'] ??
+                  '')
+              .toString();
+      controllers['stock_minimo']!.text =
+          (widget.item!['STOCK_MINIMO'] ?? widget.item!['stock_minimo'] ?? '')
+              .toString();
+
+      _productoId = _toInt(
+        widget.item!['PRODUCTO_ID'] ?? widget.item!['producto_id'],
+      );
+    }
+
+    _cargarProductos();
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    return int.tryParse(value.toString());
+  }
+
+  int? _validDropdownValue(
+    int? selectedValue,
+    List<Map<String, dynamic>> items,
+    String primaryKey,
+    String secondaryKey,
+  ) {
+    if (selectedValue == null) return null;
+
+    final exists = items.any((item) {
+      final value = _toInt(item[primaryKey] ?? item[secondaryKey]);
+      return value == selectedValue;
+    });
+
+    return exists ? selectedValue : null;
+  }
+
+  Future<void> _cargarProductos() async {
+    setState(() => _loadingProductos = true);
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
+      );
+      final data = jsonDecode(res.body);
+
+      if (data['ok'] == true) {
+        _productos = List<Map<String, dynamic>>.from(data['data']);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _loadingProductos = false);
       }
     }
   }
 
   @override
   void dispose() {
-    controllers['producto_id']?.dispose();
     controllers['stock']?.dispose();
     controllers['stock_reservado']?.dispose();
     controllers['stock_minimo']?.dispose();
@@ -258,12 +319,18 @@ class __InventarioFormState extends State<_InventarioForm> {
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_productoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione un producto')),
+      );
+      return;
+    }
+
     setState(() => _guardando = true);
 
     try {
       final body = <String, dynamic>{
-        'producto_id':
-            int.tryParse(controllers['producto_id']!.text.trim()) ?? 0,
+        'producto_id': _productoId,
         'stock': int.tryParse(controllers['stock']!.text.trim()) ?? 0,
         'stock_reservado':
             int.tryParse(controllers['stock_reservado']!.text.trim()) ?? 0,
@@ -362,20 +429,66 @@ class __InventarioFormState extends State<_InventarioForm> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 20),
-                _campo(
-                  'Producto Id',
-                  'producto_id',
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Ingrese el producto id';
-                    }
-                    if (int.tryParse(value.trim()) == null) {
-                      return 'Ingrese un número válido';
-                    }
-                    return null;
-                  },
-                ),
+                _loadingProductos
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AlpesColors.cafeOscuro,
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DropdownButtonFormField<int>(
+                          value: _validDropdownValue(
+                            _productoId,
+                            _productos,
+                            'PRODUCTO_ID',
+                            'producto_id',
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Producto',
+                          ),
+                          items: _productos
+                              .map((producto) {
+                                final id = _toInt(
+                                  producto['PRODUCTO_ID'] ??
+                                      producto['producto_id'],
+                                );
+                                final nombre = (producto['NOMBRE'] ??
+                                        producto['nombre'] ??
+                                        '')
+                                    .toString();
+                                final referencia = (producto['REFERENCIA'] ??
+                                        producto['referencia'] ??
+                                        '')
+                                    .toString();
+
+                                if (id == null || nombre.isEmpty) return null;
+
+                                final label = referencia.isNotEmpty
+                                    ? '$nombre ($referencia)'
+                                    : nombre;
+
+                                return DropdownMenuItem<int>(
+                                  value: id,
+                                  child: Text(label),
+                                );
+                              })
+                              .whereType<DropdownMenuItem<int>>()
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() => _productoId = value);
+                          },
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Seleccione un producto';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
                 _campo(
                   'Stock',
                   'stock',

@@ -17,8 +17,9 @@ class PerfilScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('MI PERFIL'),
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios),
-            onPressed: () => context.pop()),
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => context.go('/home'),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -57,18 +58,30 @@ class PerfilScreen extends StatelessWidget {
             _OpcionPerfil(
                 icon: Icons.receipt_long_outlined,
                 label: 'Mis órdenes',
-                onTap: () => context.push('/mis-ordenes')),
+                onTap: () => context.go('/mis-ordenes')),
             _OpcionPerfil(
                 icon: Icons.favorite_outline,
                 label: 'Mis favoritos',
-                onTap: () => context.push('/favoritos')),
+                onTap: () => context.go('/favoritos')),
+            _OpcionPerfil(
+                icon: Icons.credit_card_outlined,
+                label: 'Mis tarjetas',
+                onTap: () => context.go('/mis-tarjetas')),
+            _OpcionPerfil(
+                icon: Icons.notifications_outlined,
+                label: 'Notificaciones',
+                onTap: () => context.go('/notificaciones')),
+            _OpcionPerfil(
+                icon: Icons.chat_bubble_outline,
+                label: 'Soporte / Chat',
+                onTap: () => context.go('/soporte')),
+            _OpcionPerfil(
+                icon: Icons.star_outline,
+                label: 'Mis reseñas',
+                onTap: () => context.go('/mis-resenas')),
             _OpcionPerfil(
                 icon: Icons.location_on_outlined,
                 label: 'Mis direcciones',
-                onTap: () {}),
-            _OpcionPerfil(
-                icon: Icons.payment_outlined,
-                label: 'Métodos de pago',
                 onTap: () {}),
             _OpcionPerfil(
                 icon: Icons.help_outline, label: 'Ayuda y FAQ', onTap: () {}),

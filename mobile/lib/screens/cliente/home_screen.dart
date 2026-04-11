@@ -22,6 +22,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _sidebarIndex = 0;
+  bool _sidebarCollapsed = false;
+  bool _miCuentaExpanded = true;
+  bool _tiendaExpanded = true;
   List<_TarjetaItem> _tarjetas = [];
   bool _loadingTarjetas = false;
 
@@ -42,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _cargarTarjetas(int cliId) async {
     setState(() => _loadingTarjetas = true);
     try {
-      final res = await http.get(
-Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
-      );
+      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final lista = List<Map<String, dynamic>>.from(data['data']);
@@ -57,10 +58,8 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
             final anio = t['ANIO_VENCIMIENTO'] ?? t['anio_vencimiento'] ?? '';
             final esPred = (t['PREDETERMINADA'] ?? t['predeterminada'] ?? 0) == 1;
             return _TarjetaItem(
-              brand: marca,
-              brandLabel: marca.toUpperCase(),
-              number: '**** **** **** $ultimos4',
-              holder: titular.toUpperCase(),
+              brand: marca, brandLabel: marca.toUpperCase(),
+              number: '**** **** **** $ultimos4', holder: titular.toUpperCase(),
               expiry: 'Vence $mes/$anio',
               bgColor: esPred ? const Color(0xFF2C1A0E) : const Color(0xFF5C3D1E),
             );
@@ -71,7 +70,6 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
     setState(() => _loadingTarjetas = false);
   }
 
-  // TODO: Reemplazar por provider real de pedidos
   final List<_PedidoItem> _pedidos = const [
     _PedidoItem('#ORD-0042', 'Sofá 3 plazas Alpino', '12 Abr 2026', 'Q1,890'),
     _PedidoItem('#ORD-0039', 'Mesa de comedor 8p.', '28 Mar 2026', 'Q950'),
@@ -98,42 +96,40 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F2),
+      // Burbuja flotante de Soporte/Chat
+      floatingActionButton: _SoporteFAB(onTap: () => context.go('/soporte')),
       body: isWide
-          ? Row(
-              children: [
-                _Sidebar(
-                  selectedIndex: _sidebarIndex,
-                  nombre: nombre,
-                  correo: correo,
-                  onSelect: (i) => setState(() => _sidebarIndex = i),
+          ? Row(children: [
+              _Sidebar(
+                selectedIndex: _sidebarIndex,
+                nombre: nombre,
+                correo: correo,
+                collapsed: _sidebarCollapsed,
+                miCuentaExpanded: _miCuentaExpanded,
+                tiendaExpanded: _tiendaExpanded,
+                onToggleCollapse: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+                onToggleMiCuenta: () => setState(() => _miCuentaExpanded = !_miCuentaExpanded),
+                onToggleTienda: () => setState(() => _tiendaExpanded = !_tiendaExpanded),
+                onSelect: (i) => setState(() => _sidebarIndex = i),
+                onNavigate: (ruta) => context.go(ruta),
+              ),
+              Expanded(
+                child: _MainContent(
+                  nombre: nombre, correo: correo, carrito: carrito,
+                  pedidos: _pedidos, trackSteps: _trackSteps,
+                  tarjetas: _tarjetas, loadingTarjetas: _loadingTarjetas,
                   onNavigate: (ruta) => context.go(ruta),
+                  onAgregarTarjeta: () => _irATarjetas(context, auth),
                 ),
-                Expanded(
-                  child: _MainContent(
-                    nombre: nombre,
-                    correo: correo,
-                    carrito: carrito,
-                    pedidos: _pedidos,
-                    trackSteps: _trackSteps,
-                    tarjetas: _tarjetas,
-                    loadingTarjetas: _loadingTarjetas,
-                    onNavigate: (ruta) => context.go(ruta),
-                    onAgregarTarjeta: () => _irATarjetas(context, auth),
-                  ),
-                ),
-              ],
-            )
+              ),
+            ])
           : Scaffold(
               backgroundColor: const Color(0xFFFAF6F2),
               appBar: _buildMobileAppBar(context, carrito),
               body: _MainContent(
-                nombre: nombre,
-                correo: correo,
-                carrito: carrito,
-                pedidos: _pedidos,
-                trackSteps: _trackSteps,
-                tarjetas: _tarjetas,
-                loadingTarjetas: _loadingTarjetas,
+                nombre: nombre, correo: correo, carrito: carrito,
+                pedidos: _pedidos, trackSteps: _trackSteps,
+                tarjetas: _tarjetas, loadingTarjetas: _loadingTarjetas,
                 onNavigate: (ruta) => context.go(ruta),
                 onAgregarTarjeta: () => _irATarjetas(context, auth),
               ),
@@ -143,12 +139,8 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
   }
 
   void _irATarjetas(BuildContext context, AuthProvider auth) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const MisTarjetasScreen()),
-    ).then((_) {
-      if (auth.clienteId != null) _cargarTarjetas(auth.clienteId!);
-    });
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const MisTarjetasScreen()))
+        .then((_) { if (auth.clienteId != null) _cargarTarjetas(auth.clienteId!); });
   }
 
   PreferredSizeWidget _buildMobileAppBar(BuildContext context, CarritoProvider carrito) {
@@ -157,15 +149,11 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
       title: const Text('MUEBLES DE LOS ALPES', style: TextStyle(fontSize: 13, letterSpacing: 0.5)),
       actions: [
         badges.Badge(
-          badgeContent: Text('${carrito.totalItems}',
-              style: const TextStyle(color: Colors.white, fontSize: 10)),
+          badgeContent: Text('${carrito.totalItems}', style: const TextStyle(color: Colors.white, fontSize: 10)),
           showBadge: carrito.totalItems > 0,
-          child: IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () => context.go('/carrito'),
-          ),
+          child: IconButton(icon: const Icon(Icons.shopping_cart_outlined), onPressed: () => context.go('/carrito')),
         ),
-        IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+        IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => context.go('/notificaciones')),
         const SizedBox(width: 4),
       ],
     );
@@ -184,111 +172,175 @@ Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$cliId'),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SIDEBAR
+// FAB SOPORTE — burbuja flotante
+// ═══════════════════════════════════════════════════════════════════════════════
+class _SoporteFAB extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SoporteFAB({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56, height: 56,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2C1A0E),
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 24),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIDEBAR COLAPSABLE
 // ═══════════════════════════════════════════════════════════════════════════════
 class _Sidebar extends StatelessWidget {
   final int selectedIndex;
   final String nombre;
   final String correo;
+  final bool collapsed;
+  final bool miCuentaExpanded;
+  final bool tiendaExpanded;
+  final VoidCallback onToggleCollapse;
+  final VoidCallback onToggleMiCuenta;
+  final VoidCallback onToggleTienda;
   final void Function(int) onSelect;
   final void Function(String) onNavigate;
 
   const _Sidebar({
-    required this.selectedIndex,
-    required this.nombre,
-    required this.correo,
-    required this.onSelect,
-    required this.onNavigate,
+    required this.selectedIndex, required this.nombre, required this.correo,
+    required this.collapsed, required this.miCuentaExpanded, required this.tiendaExpanded,
+    required this.onToggleCollapse, required this.onToggleMiCuenta, required this.onToggleTienda,
+    required this.onSelect, required this.onNavigate,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 230,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      width: collapsed ? 58 : 230,
       color: const Color(0xFF2C1A0E),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SafeArea(
+          SafeArea(
             bottom: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(10, 16, 10, 10),
+              child: Row(
                 children: [
-                  Text('Muebles de los Alpes',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                  SizedBox(height: 2),
-                  Text('Portal del Cliente',
-                      style: TextStyle(color: Color(0x66FFFFFF), fontSize: 10)),
+                  if (!collapsed) ...[
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Muebles de los Alpes', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text('Portal del Cliente', style: TextStyle(color: Color(0x66FFFFFF), fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  GestureDetector(
+                    onTap: onToggleCollapse,
+                    child: Icon(collapsed ? Icons.menu : Icons.menu_open, color: Colors.white.withOpacity(0.7), size: 18),
+                  ),
                 ],
               ),
             ),
           ),
           Divider(height: 1, color: Colors.white.withOpacity(0.08)),
-          _SidebarSection('MI CUENTA'),
-          _SidebarItem(icon: Icons.grid_view_rounded, label: 'Inicio', isActive: selectedIndex == 0,
-              onTap: () { onSelect(0); onNavigate('/home'); }),
-          _SidebarItem(icon: Icons.person_outline, label: 'Mi perfil', isActive: selectedIndex == 1,
-              onTap: () { onSelect(1); onNavigate('/perfil'); }),
-          _SidebarItem(icon: Icons.credit_card_outlined, label: 'Mis tarjetas', isActive: selectedIndex == 2,
-              onTap: () { onSelect(2); onNavigate('/mis-tarjetas'); }),
-          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Mis pedidos', badge: '3',
-              isActive: selectedIndex == 3, onTap: () { onSelect(3); onNavigate('/mis-ordenes'); }),
-          _SidebarItem(icon: Icons.location_on_outlined, label: 'Tracking', isActive: selectedIndex == 4,
-              onTap: () { onSelect(4); onNavigate('/seguimiento'); }),
-          _SidebarSection('TIENDA'),
-          _SidebarItem(icon: Icons.store_outlined, label: 'Catálogo', isActive: selectedIndex == 5,
-              onTap: () { onSelect(5); onNavigate('/catalogo'); }),
-          _SidebarItem(icon: Icons.history, label: 'Historial', isActive: selectedIndex == 6,
-              onTap: () { onSelect(6); onNavigate('/mis-ordenes'); }),
-          _SidebarItem(icon: Icons.notifications_outlined, label: 'Notificaciones', badge: '2',
-              isActive: selectedIndex == 7, onTap: () => onSelect(7)),
-          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isActive: selectedIndex == 8,
-              onTap: () => onSelect(8)),
+
+          // MI CUENTA
+          if (!collapsed)
+            _SidebarSectionHeader(label: 'MI CUENTA', expanded: miCuentaExpanded, onTap: onToggleMiCuenta),
+          if (miCuentaExpanded || collapsed) ...[
+            _SidebarItem(icon: Icons.grid_view_rounded, label: 'Inicio', isActive: selectedIndex == 0, collapsed: collapsed,
+                onTap: () { onSelect(0); onNavigate('/home'); }),
+            _SidebarItem(icon: Icons.person_outline, label: 'Mi perfil', isActive: selectedIndex == 1, collapsed: collapsed,
+                onTap: () { onSelect(1); onNavigate('/perfil'); }),
+            _SidebarItem(icon: Icons.credit_card_outlined, label: 'Mis tarjetas', isActive: selectedIndex == 2, collapsed: collapsed,
+                onTap: () { onSelect(2); onNavigate('/mis-tarjetas'); }),
+            _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Mis pedidos', badge: '3', isActive: selectedIndex == 3, collapsed: collapsed,
+                onTap: () { onSelect(3); onNavigate('/mis-ordenes'); }),
+            _SidebarItem(icon: Icons.location_on_outlined, label: 'Tracking', isActive: selectedIndex == 4, collapsed: collapsed,
+                onTap: () { onSelect(4); onNavigate('/seguimiento'); }),
+          ],
+
+          // TIENDA
+          if (!collapsed)
+            _SidebarSectionHeader(label: 'TIENDA', expanded: tiendaExpanded, onTap: onToggleTienda),
+          if (tiendaExpanded || collapsed) ...[
+            _SidebarItem(icon: Icons.store_outlined, label: 'Catálogo', isActive: selectedIndex == 5, collapsed: collapsed,
+                onTap: () { onSelect(5); onNavigate('/catalogo'); }),
+            _SidebarItem(icon: Icons.history, label: 'Historial', isActive: selectedIndex == 6, collapsed: collapsed,
+                onTap: () { onSelect(6); onNavigate('/mis-ordenes'); }),
+            _SidebarItem(icon: Icons.notifications_outlined, label: 'Notificaciones', badge: '2', isActive: selectedIndex == 7, collapsed: collapsed,
+                onTap: () { onSelect(7); onNavigate('/notificaciones'); }),
+            _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isActive: selectedIndex == 8, collapsed: collapsed,
+                onTap: () => onSelect(8)),
+          ],
+
           const Spacer(),
           Divider(height: 1, color: Colors.white.withOpacity(0.08)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 15,
+          if (!collapsed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: const Color(0xFFC8922A),
+                    child: Text(nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
+                        style: const TextStyle(color: Color(0xFF2C1A0E), fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+                        Text(correo, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0x55FFFFFF), fontSize: 9)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: CircleAvatar(
+                  radius: 14,
                   backgroundColor: const Color(0xFFC8922A),
                   child: Text(nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Color(0xFF2C1A0E), fontSize: 12, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(color: Color(0xFF2C1A0E), fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(nombre, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
-                      Text(correo, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0x55FFFFFF), fontSize: 9)),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+              padding: EdgeInsets.fromLTRB(collapsed ? 0 : 14, 4, 14, 14),
               child: GestureDetector(
                 onTap: () async {
                   await context.read<AuthProvider>().logout();
                   if (context.mounted) context.go('/login');
                 },
-                child: const Row(
-                  children: [
-                    Icon(Icons.logout, size: 12, color: Color(0x44FFFFFF)),
-                    SizedBox(width: 6),
-                    Text('Cerrar sesión', style: TextStyle(color: Color(0x44FFFFFF), fontSize: 11)),
-                  ],
-                ),
+                child: collapsed
+                    ? const Center(child: Icon(Icons.logout, size: 14, color: Color(0x44FFFFFF)))
+                    : const Row(children: [
+                        Icon(Icons.logout, size: 12, color: Color(0x44FFFFFF)),
+                        SizedBox(width: 6),
+                        Text('Cerrar sesión', style: TextStyle(color: Color(0x44FFFFFF), fontSize: 11)),
+                      ]),
               ),
             ),
           ),
@@ -298,16 +350,26 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-class _SidebarSection extends StatelessWidget {
+class _SidebarSectionHeader extends StatelessWidget {
   final String label;
-  const _SidebarSection(this.label);
+  final bool expanded;
+  final VoidCallback onTap;
+  const _SidebarSectionHeader({required this.label, required this.expanded, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
-      child: Text(label,
-          style: const TextStyle(color: Color(0x44FFFFFF), fontSize: 9, letterSpacing: 0.8, fontWeight: FontWeight.w500)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+        child: Row(
+          children: [
+            Expanded(child: Text(label,
+                style: const TextStyle(color: Color(0x44FFFFFF), fontSize: 9, letterSpacing: 0.8, fontWeight: FontWeight.w500))),
+            Icon(expanded ? Icons.expand_less : Icons.expand_more, color: const Color(0x44FFFFFF), size: 14),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -316,41 +378,44 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
+  final bool collapsed;
   final String? badge;
   final VoidCallback onTap;
 
   const _SidebarItem({
-    required this.icon, required this.label, required this.isActive, required this.onTap, this.badge,
+    required this.icon, required this.label, required this.isActive,
+    required this.collapsed, required this.onTap, this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFC8922A).withOpacity(0.18) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 15,
-                color: isActive ? const Color(0xFFF0D5A0) : Colors.white.withOpacity(0.5)),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(label,
-                  style: TextStyle(fontSize: 12,
-                      color: isActive ? const Color(0xFFF0D5A0) : Colors.white.withOpacity(0.55))),
-            ),
-            if (badge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFFC86428), borderRadius: BorderRadius.circular(99)),
-                child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
-              ),
-          ],
+    return Tooltip(
+      message: collapsed ? label : '',
+      preferBelow: false,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          padding: EdgeInsets.symmetric(horizontal: collapsed ? 0 : 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFC8922A).withOpacity(0.18) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: collapsed
+              ? Center(child: Icon(icon, size: 16,
+                  color: isActive ? const Color(0xFFF0D5A0) : Colors.white.withOpacity(0.5)))
+              : Row(children: [
+                  Icon(icon, size: 15, color: isActive ? const Color(0xFFF0D5A0) : Colors.white.withOpacity(0.5)),
+                  const SizedBox(width: 9),
+                  Expanded(child: Text(label,
+                      style: TextStyle(fontSize: 12, color: isActive ? const Color(0xFFF0D5A0) : Colors.white.withOpacity(0.55)))),
+                  if (badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFC86428), borderRadius: BorderRadius.circular(99)),
+                      child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
+                    ),
+                ]),
         ),
       ),
     );
@@ -372,15 +437,9 @@ class _MainContent extends StatelessWidget {
   final VoidCallback onAgregarTarjeta;
 
   const _MainContent({
-    required this.nombre,
-    required this.correo,
-    required this.carrito,
-    required this.pedidos,
-    required this.trackSteps,
-    required this.tarjetas,
-    required this.loadingTarjetas,
-    required this.onNavigate,
-    required this.onAgregarTarjeta,
+    required this.nombre, required this.correo, required this.carrito,
+    required this.pedidos, required this.trackSteps, required this.tarjetas,
+    required this.loadingTarjetas, required this.onNavigate, required this.onAgregarTarjeta,
   });
 
   @override
@@ -408,8 +467,7 @@ class _MainContent extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(color: const Color(0xFFC8922A), borderRadius: BorderRadius.circular(99)),
-                    child: const Text('Cliente VIP',
-                        style: TextStyle(color: Color(0xFF2C1A0E), fontSize: 11, fontWeight: FontWeight.w700)),
+                    child: const Text('Cliente VIP', style: TextStyle(color: Color(0xFF2C1A0E), fontSize: 11, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -417,12 +475,11 @@ class _MainContent extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   badges.Badge(
-                    badgeContent: Text('${carrito.totalItems}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    badgeContent: Text('${carrito.totalItems}', style: const TextStyle(color: Colors.white, fontSize: 10)),
                     showBadge: carrito.totalItems > 0,
                     child: IconButton(
                       icon: const Icon(Icons.notifications_outlined, color: Color(0xFF2C1A0E)),
-                      onPressed: () {},
+                      onPressed: () => onNavigate('/notificaciones'),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -460,8 +517,7 @@ class _MainContent extends StatelessWidget {
               ],
             ),
             child: const Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 10, runSpacing: 10,
               children: [
                 _StatBox(icon: Icons.shopping_bag_outlined, iconColor: Color(0xFF1E5FA0), valor: '8', label: 'PEDIDOS\nTOTALES'),
                 _StatBox(icon: Icons.local_shipping_outlined, iconColor: Color(0xFF1E8C5F), valor: '2', label: 'EN CAMINO'),
@@ -483,16 +539,14 @@ class _MainContent extends StatelessWidget {
               ],
             )
           else
-            Column(
-              children: [
-                _PedidosSection(pedidos: pedidos, onNavigate: onNavigate),
-                const SizedBox(height: 16),
-                _TrackingSection(trackSteps: trackSteps),
-              ],
-            ),
+            Column(children: [
+              _PedidosSection(pedidos: pedidos, onNavigate: onNavigate),
+              const SizedBox(height: 16),
+              _TrackingSection(trackSteps: trackSteps),
+            ]),
           const SizedBox(height: 16),
 
-          // TARJETAS REALES
+          // TARJETAS
           _SectionCard(
             header: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -514,76 +568,60 @@ class _MainContent extends StatelessWidget {
               ],
             ),
             child: loadingTarjetas
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: CircularProgressIndicator(color: Color(0xFF2C1A0E), strokeWidth: 2),
-                    ),
-                  )
+                ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 20),
+                    child: CircularProgressIndicator(color: Color(0xFF2C1A0E), strokeWidth: 2)))
                 : tarjetas.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.credit_card_off, size: 36, color: Color(0xFFA0714F)),
-                              const SizedBox(height: 8),
-                              const Text('No tienes tarjetas registradas.',
-                                  style: TextStyle(color: Color(0xFFA0714F), fontSize: 12)),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.add, size: 14),
-                                label: const Text('Agregar tarjeta'),
-                                onPressed: onAgregarTarjeta,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF2C1A0E),
-                                  side: const BorderSide(color: Color(0xFF2C1A0E)),
-                                ),
-                              ),
-                            ],
+                    ? Center(child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Column(children: [
+                          const Icon(Icons.credit_card_off, size: 36, color: Color(0xFFA0714F)),
+                          const SizedBox(height: 8),
+                          const Text('No tienes tarjetas registradas.',
+                              style: TextStyle(color: Color(0xFFA0714F), fontSize: 12)),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.add, size: 14),
+                            label: const Text('Agregar tarjeta'),
+                            onPressed: onAgregarTarjeta,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF2C1A0E),
+                              side: const BorderSide(color: Color(0xFF2C1A0E)),
+                            ),
                           ),
-                        ),
-                      )
+                        ]),
+                      ))
                     : Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                        spacing: 12, runSpacing: 12,
                         children: tarjetas.map((t) => SizedBox(
                           width: isTablet ? 320 : double.infinity,
-                          child: _PayCard(
-                            brand: t.brand,
-                            brandLabel: t.brandLabel,
-                            number: t.number,
-                            holder: t.holder,
-                            expiry: t.expiry,
-                            bgColor: t.bgColor,
-                          ),
+                          child: _PayCard(brand: t.brand, brandLabel: t.brandLabel,
+                              number: t.number, holder: t.holder, expiry: t.expiry, bgColor: t.bgColor),
                         )).toList(),
                       ),
           ),
           const SizedBox(height: 16),
 
-          // ACCESOS RÁPIDOS
+          // ACCESOS RÁPIDOS — más compactos (sin Soporte que ahora es FAB)
           _SectionCard(
             header: const Text('Accesos rápidos',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C1A0E))),
             child: GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: isDesktop ? 6 : 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.0,
+              crossAxisCount: isDesktop ? 5 : 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.3,
               children: [
                 _QuickTile(icon: Icons.person_outline, label: 'Editar perfil', onTap: () => onNavigate('/perfil')),
                 _QuickTile(icon: Icons.credit_card_outlined, label: 'Mis tarjetas', onTap: onAgregarTarjeta),
-                _QuickTile(icon: Icons.notifications_outlined, label: 'Notificaciones', onTap: () {}),
+                _QuickTile(icon: Icons.notifications_outlined, label: 'Notificaciones', onTap: () => onNavigate('/notificaciones')),
                 _QuickTile(icon: Icons.attach_money, label: 'Historial de pagos', onTap: () => onNavigate('/mis-ordenes')),
-                _QuickTile(icon: Icons.chat_bubble_outline, label: 'Soporte / Chat', onTap: () {}),
-                _QuickTile(icon: Icons.star_outline, label: 'Mis reseñas', onTap: () {}),
+                _QuickTile(icon: Icons.star_outline, label: 'Mis reseñas', onTap: () => onNavigate('/mis-resenas')),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -610,23 +648,19 @@ class _PedidosSection extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: const [
-                Expanded(flex: 3, child: _TabHead('PEDIDO')),
-                Expanded(flex: 5, child: _TabHead('PRODUCTO')),
-                Expanded(flex: 3, child: _TabHead('FECHA')),
-                Expanded(flex: 2, child: _TabHead('TOTAL', align: TextAlign.right)),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0x155C3D1E)),
-          ...pedidos.map((p) => _PedidoRow(pedido: p, onTap: () => onNavigate('/mis-ordenes'))),
-        ],
-      ),
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(children: const [
+            Expanded(flex: 3, child: _TabHead('PEDIDO')),
+            Expanded(flex: 5, child: _TabHead('PRODUCTO')),
+            Expanded(flex: 3, child: _TabHead('FECHA')),
+            Expanded(flex: 2, child: _TabHead('TOTAL', align: TextAlign.right)),
+          ]),
+        ),
+        const Divider(height: 1, color: Color(0x155C3D1E)),
+        ...pedidos.map((p) => _PedidoRow(pedido: p, onTap: () => onNavigate('/mis-ordenes'))),
+      ]),
     );
   }
 }
@@ -643,13 +677,11 @@ class _TrackingSection extends StatelessWidget {
         children: [
           const Text('Tracking activo',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C1A0E))),
-          Row(
-            children: [
-              _TabToggle(label: 'Detalle', isActive: true, onTap: () {}),
-              const SizedBox(width: 6),
-              _TabToggle(label: 'Línea', isActive: false, onTap: () {}),
-            ],
-          ),
+          Row(children: [
+            _TabToggle(label: 'Detalle', isActive: true, onTap: () {}),
+            const SizedBox(width: 6),
+            _TabToggle(label: 'Línea', isActive: false, onTap: () {}),
+          ]),
         ],
       ),
       child: Column(
@@ -658,8 +690,8 @@ class _TrackingSection extends StatelessWidget {
           const Text('Pedido #ORD-0042\nSofá 3 plazas Alpino',
               style: TextStyle(fontSize: 11, color: Color(0xFFC8922A), fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
-          ...List.generate(trackSteps.length, (i) =>
-              _TrackStepWidget(step: trackSteps[i], isLast: i == trackSteps.length - 1)),
+          ...List.generate(trackSteps.length,
+              (i) => _TrackStepWidget(step: trackSteps[i], isLast: i == trackSteps.length - 1)),
         ],
       ),
     );
@@ -682,10 +714,8 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0x1A5C3D1E)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [header, const SizedBox(height: 14), child],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [header, const SizedBox(height: 14), child]),
     );
   }
 }
@@ -709,16 +739,13 @@ class _StatBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0x1A5C3D1E)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 18, color: iconColor),
-            const SizedBox(height: 6),
-            Text(valor, style: TextStyle(fontSize: valorSize, fontWeight: FontWeight.w700, color: const Color(0xFF2C1A0E))),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFFA0714F), height: 1.3)),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(height: 6),
+          Text(valor, style: TextStyle(fontSize: valorSize, fontWeight: FontWeight.w700, color: const Color(0xFF2C1A0E))),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFFA0714F), height: 1.3)),
+        ]),
       ),
     );
   }
@@ -747,18 +774,14 @@ class _PedidoRow extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 9),
-        child: Row(
-          children: [
-            Expanded(flex: 3, child: Text(pedido.id,
-                style: const TextStyle(color: Color(0xFFC8922A), fontSize: 11, fontWeight: FontWeight.w600))),
-            Expanded(flex: 5, child: Text(pedido.producto, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF2C1A0E)))),
-            Expanded(flex: 3, child: Text(pedido.fecha,
-                style: const TextStyle(fontSize: 11, color: Color(0xFFA0714F)))),
-            Expanded(flex: 2, child: Text(pedido.total, textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2C1A0E)))),
-          ],
-        ),
+        child: Row(children: [
+          Expanded(flex: 3, child: Text(pedido.id, style: const TextStyle(color: Color(0xFFC8922A), fontSize: 11, fontWeight: FontWeight.w600))),
+          Expanded(flex: 5, child: Text(pedido.producto, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF2C1A0E)))),
+          Expanded(flex: 3, child: Text(pedido.fecha, style: const TextStyle(fontSize: 11, color: Color(0xFFA0714F)))),
+          Expanded(flex: 2, child: Text(pedido.total, textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2C1A0E)))),
+        ]),
       ),
     );
   }
@@ -781,8 +804,7 @@ class _TabToggle extends StatelessWidget {
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: isActive ? const Color(0xFF2C1A0E) : const Color(0x335C3D1E)),
         ),
-        child: Text(label,
-            style: TextStyle(fontSize: 10, color: isActive ? Colors.white : const Color(0xFFA0714F))),
+        child: Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.white : const Color(0xFFA0714F))),
       ),
     );
   }
@@ -823,30 +845,25 @@ class _TrackStepWidget extends StatelessWidget {
         children: [
           SizedBox(
             width: 20,
-            child: Column(
-              children: [
-                Container(
-                  width: 16, height: 16,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
-                  child: Center(child: dotInner ?? const SizedBox.shrink()),
-                ),
-                if (!isLast)
-                  Expanded(child: Container(width: 1, margin: const EdgeInsets.symmetric(vertical: 3), color: const Color(0x1A5C3D1E))),
-              ],
-            ),
+            child: Column(children: [
+              Container(
+                width: 16, height: 16,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                child: Center(child: dotInner ?? const SizedBox.shrink()),
+              ),
+              if (!isLast)
+                Expanded(child: Container(width: 1, margin: const EdgeInsets.symmetric(vertical: 3), color: const Color(0x1A5C3D1E))),
+            ]),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(step.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: labelColor)),
-                  const SizedBox(height: 2),
-                  Text(step.time, style: const TextStyle(fontSize: 10, color: Color(0xFFA0714F))),
-                ],
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(step.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: labelColor)),
+                const SizedBox(height: 2),
+                Text(step.time, style: const TextStyle(fontSize: 10, color: Color(0xFFA0714F))),
+              ]),
             ),
           ),
         ],
@@ -869,27 +886,23 @@ class _PayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(brandLabel ?? brand,
-              style: const TextStyle(color: Color(0x88FFFFFF), fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 6),
-          Text(brand, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
-          const SizedBox(height: 8),
-          Text(number, style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 11, letterSpacing: 2, fontFamily: 'monospace')),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: Text(holder, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0x88FFFFFF), fontSize: 9, letterSpacing: 0.5))),
-              const SizedBox(width: 10),
-              Text(expiry, style: const TextStyle(color: Color(0x66FFFFFF), fontSize: 9)),
-            ],
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(brandLabel ?? brand, style: const TextStyle(color: Color(0x88FFFFFF), fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        Text(brand, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
+        const SizedBox(height: 8),
+        Text(number, style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 11, letterSpacing: 2, fontFamily: 'monospace')),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(holder, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0x88FFFFFF), fontSize: 9, letterSpacing: 0.5))),
+            const SizedBox(width: 10),
+            Text(expiry, style: const TextStyle(color: Color(0x66FFFFFF), fontSize: 9)),
+          ],
+        ),
+      ]),
     );
   }
 }
@@ -907,16 +920,16 @@ class _QuickTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFF5EDE4),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0x0F5C3D1E)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 22, color: const Color(0xFF5C3D1E)),
-            const SizedBox(height: 6),
+            Icon(icon, size: 18, color: const Color(0xFF5C3D1E)),
+            const SizedBox(height: 4),
             Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10, color: Color(0xFF5C3D1E), height: 1.3)),
+                style: const TextStyle(fontSize: 9, color: Color(0xFF5C3D1E), height: 1.3)),
           ],
         ),
       ),

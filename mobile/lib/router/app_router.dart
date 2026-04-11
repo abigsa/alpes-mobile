@@ -20,6 +20,9 @@ import '../screens/cliente/perfil_screen.dart';
 import '../screens/cliente/busqueda_screen.dart';
 import '../screens/cliente/seguimiento_screen.dart';
 import '../screens/cliente/mis_tarjetas_screen.dart';
+import '../screens/cliente/notificaciones_screen.dart';
+import '../screens/cliente/soporte_screen.dart';
+import '../screens/cliente/mis_resenas_screen.dart';
 
 // Screens - Admin
 import '../screens/admin/admin_home_screen.dart';
@@ -87,6 +90,10 @@ class AppRouter {
             envioId: int.parse(state.pathParameters['id']!),
           ),
         ),
+        // Nuevas rutas
+        GoRoute(path: '/notificaciones', builder: (_, __) => const NotificacionesScreen()),
+        GoRoute(path: '/soporte', builder: (_, __) => const SoporteScreen()),
+        GoRoute(path: '/mis-resenas', builder: (_, __) => const MisResenasScreen()),
 
         // Admin
         GoRoute(path: '/admin', builder: (_, __) => const AdminHomeScreen()),

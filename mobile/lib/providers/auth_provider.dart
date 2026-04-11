@@ -109,4 +109,32 @@ class AuthProvider extends ChangeNotifier {
     if (_usuario == null) return null;
     return _usuario!['cli_id'] ?? _usuario!['CLI_ID'];
   }
+
+  // Nombre para mostrar: nombre + apellido si existen, sino username
+  String get nombreCompleto {
+    if (_usuario == null) return 'Administrador';
+    final nombre   = _usuario!['nombre']   ?? _usuario!['NOMBRE']   ?? '';
+    final apellido = _usuario!['apellido'] ?? _usuario!['APELLIDO'] ?? '';
+    final full = '$nombre $apellido'.trim();
+    if (full.isNotEmpty) return full;
+    return _usuario!['USERNAME'] ?? _usuario!['username'] ?? 'Administrador';
+  }
+
+  // Actualiza nombre/apellido/email en memoria y SharedPreferences
+  Future<void> updatePerfil({
+    required String nombre,
+    required String apellido,
+    required String email,
+  }) async {
+    if (_usuario == null) return;
+    _usuario!['nombre']   = nombre;
+    _usuario!['NOMBRE']   = nombre;
+    _usuario!['apellido'] = apellido;
+    _usuario!['APELLIDO'] = apellido;
+    _usuario!['email']    = email;
+    _usuario!['EMAIL']    = email;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('usuario', jsonEncode(_usuario));
+    notifyListeners();
+  }
 }

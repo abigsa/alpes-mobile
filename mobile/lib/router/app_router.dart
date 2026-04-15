@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
 // Screens - Auth
+import '../screens/auth/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/registro_screen.dart';
 
@@ -45,12 +46,13 @@ import '../screens/admin/configuracion/configuracion_screen.dart';
 class AppRouter {
   static GoRouter createRouter(BuildContext context) {
     return GoRouter(
-      initialLocation: '/login',
+      initialLocation: '/splash',
       redirect: (context, state) {
         final auth = context.read<AuthProvider>();
         final isLoggingIn = state.matchedLocation == '/login' ||
             state.matchedLocation == '/registro';
 
+        if (state.matchedLocation == '/splash') return null;
         if (!auth.isLoggedIn && !isLoggingIn) return '/login';
         if (auth.isLoggedIn && isLoggingIn) {
           return auth.isAdmin ? '/admin' : '/home';
@@ -59,6 +61,7 @@ class AppRouter {
       },
       routes: [
         // Auth
+        GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/registro', builder: (_, __) => const RegistroScreen()),
 

@@ -24,9 +24,9 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+        vsync: this, duration: const Duration(milliseconds: 900));
     _fadeAnim  = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
   }
@@ -229,6 +229,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     controller: _userCtrl,
                                     label: 'Usuario',
                                     icon: Icons.person_outline_rounded,
+                                    textInputAction: TextInputAction.next,
                                     validator: (v) => v == null || v.isEmpty
                                         ? 'Ingresa tu usuario' : null,
                                   ),
@@ -240,6 +241,8 @@ class _LoginScreenState extends State<LoginScreen>
                                     label: 'Contraseña',
                                     icon: Icons.lock_outline_rounded,
                                     obscure: !_verPassword,
+                                    textInputAction: TextInputAction.done,
+                                    onFieldSubmitted: (_) => _login(),
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _verPassword
@@ -349,11 +352,15 @@ class _LoginScreenState extends State<LoginScreen>
     required IconData icon,
     bool obscure = false,
     Widget? suffixIcon,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(
           fontSize: 14, color: AlpesColors.cafeOscuro, fontWeight: FontWeight.w500),
       decoration: InputDecoration(

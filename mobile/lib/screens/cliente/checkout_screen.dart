@@ -32,9 +32,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _cargarMetodos() async {
     setState(() => _loading = true);
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}'));
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}'));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) setState(() => _metodos = List<Map<String, dynamic>>.from(data['data']));
+      if (data['ok'] == true)
+        setState(
+            () => _metodos = List<Map<String, dynamic>>.from(data['data']));
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -42,8 +45,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _procesarPago() async {
     if (!_formKey.currentState!.validate()) return;
     if (_metodoPagoId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un método de pago'), backgroundColor: AlpesColors.aviso));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Selecciona un método de pago'),
+          backgroundColor: AlpesColors.aviso));
       return;
     }
     setState(() => _procesando = true);
@@ -110,8 +114,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AlpesColors.rojoColonial));
       }
     }
     setState(() => _procesando = false);
@@ -122,9 +127,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final carrito = context.watch<CarritoProvider>();
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
-      appBar: AppBar(title: const Text('CHECKOUT')),
+      appBar: AppBar(
+        backgroundColor: AlpesColors.cafeOscuro,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.arrow_back_ios_rounded,
+                color: Colors.white, size: 16),
+          ),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/carrito'),
+        ),
+        title: const Text('Checkout',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.3)),
+      ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(
+              child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Form(
@@ -132,19 +161,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Dirección de entrega', style: Theme.of(context).textTheme.titleLarge),
+                    Text('Dirección de entrega',
+                        style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _direccionCtrl,
                       maxLines: 3,
                       decoration: const InputDecoration(
                         labelText: 'Dirección completa',
-                        prefixIcon: Icon(Icons.location_on_outlined, color: AlpesColors.nogalMedio),
+                        prefixIcon: Icon(Icons.location_on_outlined,
+                            color: AlpesColors.nogalMedio),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Ingresa la dirección' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Ingresa la dirección'
+                          : null,
                     ),
                     const SizedBox(height: 24),
-                    Text('Método de pago', style: Theme.of(context).textTheme.titleLarge),
+                    Text('Método de pago',
+                        style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 12),
                     ..._metodos.map((m) {
                       final id = m['METODO_PAGO_ID'] ?? m['metodo_pago_id'];
@@ -158,18 +192,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       );
                     }),
                     const SizedBox(height: 24),
-                    Text('Cupón de descuento', style: Theme.of(context).textTheme.titleLarge),
+                    Text('Cupón de descuento',
+                        style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _cuponCtrl,
-                            decoration: const InputDecoration(labelText: 'Código de cupón'),
+                            decoration: const InputDecoration(
+                                labelText: 'Código de cupón'),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        OutlinedButton(onPressed: () {}, child: const Text('Aplicar')),
+                        OutlinedButton(
+                            onPressed: () {}, child: const Text('Aplicar')),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -190,16 +227,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('IVA (12%):'),
-                                Text('Q${(carrito.total * 0.12).toStringAsFixed(2)}'),
+                                Text(
+                                    'Q${(carrito.total * 0.12).toStringAsFixed(2)}'),
                               ],
                             ),
                             const Divider(),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Total:', style: Theme.of(context).textTheme.titleLarge),
-                                Text('Q${(carrito.total * 1.12).toStringAsFixed(2)}',
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AlpesColors.cafeOscuro)),
+                                Text('Total:',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge),
+                                Text(
+                                    'Q${(carrito.total * 1.12).toStringAsFixed(2)}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                            color: AlpesColors.cafeOscuro)),
                               ],
                             ),
                           ],
@@ -212,8 +257,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       child: ElevatedButton(
                         onPressed: _procesando ? null : _procesarPago,
                         child: _procesando
-                            ? const SizedBox(height: 20, width: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
                             : const Text('CONFIRMAR PEDIDO'),
                       ),
                     ),

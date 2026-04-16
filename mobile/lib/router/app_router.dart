@@ -76,15 +76,19 @@ class AppRouter {
         ),
         GoRoute(path: '/carrito', builder: (_, __) => const CarritoScreen()),
         GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
-        GoRoute(path: '/mis-ordenes', builder: (_, __) => const MisOrdenesScreen()),
-        GoRoute(path: '/mis-tarjetas', builder: (_, __) => const MisTarjetasScreen()),
+        GoRoute(
+            path: '/mis-ordenes', builder: (_, __) => const MisOrdenesScreen()),
+        GoRoute(
+            path: '/mis-tarjetas',
+            builder: (_, __) => const MisTarjetasScreen()),
         GoRoute(
           path: '/orden/:id',
           builder: (_, state) => OrdenDetalleScreen(
             ordenId: int.parse(state.pathParameters['id']!),
           ),
         ),
-        GoRoute(path: '/favoritos', builder: (_, __) => const FavoritosScreen()),
+        GoRoute(
+            path: '/favoritos', builder: (_, __) => const FavoritosScreen()),
         GoRoute(path: '/perfil', builder: (_, __) => const PerfilScreen()),
         GoRoute(path: '/busqueda', builder: (_, __) => const BusquedaScreen()),
         GoRoute(
@@ -94,13 +98,18 @@ class AppRouter {
           ),
         ),
         // Nuevas rutas
-        GoRoute(path: '/notificaciones', builder: (_, __) => const NotificacionesScreen()),
+        GoRoute(
+            path: '/notificaciones',
+            builder: (_, __) => const NotificacionesScreen()),
         GoRoute(path: '/soporte', builder: (_, __) => const SoporteScreen()),
-        GoRoute(path: '/mis-resenas', builder: (_, __) => const MisResenasScreen()),
+        GoRoute(
+            path: '/mis-resenas', builder: (_, __) => const MisResenasScreen()),
 
         // Admin
         GoRoute(path: '/admin', builder: (_, __) => const AdminHomeScreen()),
-        GoRoute(path: '/admin/productos', builder: (_, __) => const ProductosScreen()),
+        GoRoute(
+            path: '/admin/productos',
+            builder: (_, __) => const ProductosScreen()),
         GoRoute(
           path: '/admin/productos/nuevo',
           builder: (_, __) => const ProductoFormScreen(),
@@ -111,16 +120,24 @@ class AppRouter {
             productoId: int.tryParse(state.pathParameters['id']!),
           ),
         ),
-        GoRoute(path: '/admin/inventario', builder: (_, __) => const InventarioScreen()),
-        GoRoute(path: '/admin/ordenes', builder: (_, __) => const OrdenesVentaScreen()),
+        GoRoute(
+            path: '/admin/inventario',
+            builder: (_, __) => const InventarioScreen()),
+        GoRoute(
+            path: '/admin/ordenes',
+            builder: (_, __) => const OrdenesVentaScreen()),
         GoRoute(
           path: '/admin/ordenes/:id',
           builder: (_, state) => OrdenVentaDetalleScreen(
             ordenId: int.parse(state.pathParameters['id']!),
           ),
         ),
-        GoRoute(path: '/admin/clientes', builder: (_, __) => const ClientesScreen()),
-        GoRoute(path: '/admin/empleados', builder: (_, __) => const EmpleadosScreen()),
+        GoRoute(
+            path: '/admin/clientes',
+            builder: (_, __) => const ClientesScreen()),
+        GoRoute(
+            path: '/admin/empleados',
+            builder: (_, __) => const EmpleadosScreen()),
         GoRoute(
           path: '/admin/empleados/nuevo',
           builder: (_, __) => const EmpleadoFormScreen(),
@@ -131,13 +148,26 @@ class AppRouter {
             empleadoId: int.tryParse(state.pathParameters['id']!),
           ),
         ),
-        GoRoute(path: '/admin/nomina', builder: (_, __) => const NominaScreen()),
-        GoRoute(path: '/admin/proveedores', builder: (_, __) => const ProveedoresScreen()),
-        GoRoute(path: '/admin/compras', builder: (_, __) => const OrdenesCompraScreen()),
-        GoRoute(path: '/admin/produccion', builder: (_, __) => const ProduccionScreen()),
-        GoRoute(path: '/admin/marketing', builder: (_, __) => const MarketingScreen()),
-        GoRoute(path: '/admin/reportes', builder: (_, __) => const ReportesScreen()),
-        GoRoute(path: '/admin/configuracion', builder: (_, __) => const ConfiguracionScreen()),
+        GoRoute(
+            path: '/admin/nomina', builder: (_, __) => const NominaScreen()),
+        GoRoute(
+            path: '/admin/proveedores',
+            builder: (_, __) => const ProveedoresScreen()),
+        GoRoute(
+            path: '/admin/compras',
+            builder: (_, __) => const OrdenesCompraScreen()),
+        GoRoute(
+            path: '/admin/produccion',
+            builder: (_, __) => const ProduccionScreen()),
+        GoRoute(
+            path: '/admin/marketing',
+            builder: (_, __) => const MarketingScreen()),
+        GoRoute(
+            path: '/admin/reportes',
+            builder: (_, __) => const ReportesScreen()),
+        GoRoute(
+            path: '/admin/configuracion',
+            builder: (_, __) => const ConfiguracionScreen()),
       ],
     );
   }

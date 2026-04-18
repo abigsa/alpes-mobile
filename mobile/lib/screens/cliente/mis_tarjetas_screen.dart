@@ -145,27 +145,30 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
                           (t['PREDETERMINADA'] ?? t['predeterminada'] ?? 0) ==
                               1;
 
-                      return SizedBox(
-                          height: 160,
-                          child: Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            clipBehavior: Clip.antiAlias,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: esPredeterminada
-                                      ? [
-                                          AlpesColors.cafeOscuro,
-                                          AlpesColors.nogalMedio
-                                        ]
-                                      : [AlpesColors.pergamino, Colors.white],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
+                      return ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: esPredeterminada
+                                  ? [const Color(0xFF1a0e08), AlpesColors.cafeOscuro]
+                                  : [AlpesColors.pergamino, Colors.white],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 16, offset: const Offset(0, 6)),
+                              BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4, offset: const Offset(0, 2))],
+                          ),
+                          child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Header marca + badge
                                   Row(
@@ -316,7 +319,6 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
                                   ),
                                 ],
                               ),
-                            ),
                           ));
                     },
                   ),

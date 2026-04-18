@@ -156,6 +156,11 @@ class PerfilScreen extends StatelessWidget {
                           'Ver historial de órdenes',
                           () => context.go('/mis-ordenes')),
                       _MenuItem(
+                          Icons.credit_card_rounded,
+                          'Mis tarjetas',
+                          'Gestionar métodos de pago',
+                          () => context.go('/mis-tarjetas')),
+                      _MenuItem(
                           Icons.favorite_rounded,
                           'Mis favoritos',
                           'Productos guardados',

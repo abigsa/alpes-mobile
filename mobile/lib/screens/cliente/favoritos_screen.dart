@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/favoritos_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/producto_provider.dart';
 import '../../widgets/producto_card.dart';
 import '../../widgets/bottom_nav_cliente.dart';
@@ -12,10 +13,13 @@ class FavoritosScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final favoritos = context.watch<FavoritosProvider>();
+    final favs     = context.watch<FavoritosProvider>();
+    final auth     = context.read<AuthProvider>();
     final productos = context.watch<ProductoProvider>();
-    final favList = productos.productos
-        .where((p) => favoritos.esFavorito(p.productoId))
+
+    // Filtrar productos que están en favoritosIds
+    final lista = productos.productos
+        .where((p) => favs.favoritosIds.contains(p.productoId))
         .toList();
 
     return Scaffold(
@@ -24,16 +28,15 @@ class FavoritosScreen extends StatelessWidget {
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             pinned: true,
-            expandedHeight: 110,
+            expandedHeight: 100,
             backgroundColor: AlpesColors.cafeOscuro,
-            // ── Botón regresar funcional ──
             leading: IconButton(
               icon: Container(
-                width: 32,
-                height: 32,
+                width: 34, height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.15)),
                 ),
                 child: const Icon(Icons.arrow_back_ios_rounded,
                     color: Colors.white, size: 16),
@@ -42,80 +45,61 @@ class FavoritosScreen extends StatelessWidget {
                   context.canPop() ? context.pop() : context.go('/home'),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              title: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.favorite_rounded,
-                    color: AlpesColors.rojoColonial, size: 16),
-                const SizedBox(width: 6),
-                const Text('Mis favoritos',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-                if (favList.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AlpesColors.rojoColonial.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('${favList.length}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700)),
+              titlePadding:
+                  const EdgeInsets.only(left: 56, bottom: 14),
+              title: Row(children: [
+                const Text('Favoritos',
+                    style: TextStyle(fontSize: 18,
+                        fontWeight: FontWeight.w800, color: Colors.white)),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AlpesColors.rojoColonial.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
+                  child: Text('${lista.length}',
+                      style: const TextStyle(color: Colors.white,
+                          fontSize: 10, fontWeight: FontWeight.w700)),
+                ),
               ]),
-              centerTitle: false,
-              titlePadding: const EdgeInsets.fromLTRB(52, 0, 16, 14),
               background: Stack(children: [
                 Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF2C1810), Color(0xFF3D2416)],
+                      colors: [Color(0xFF3D2416), AlpesColors.cafeOscuro],
                     ),
                   ),
                 ),
-                Positioned(
-                    top: -20,
-                    right: -20,
-                    child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                AlpesColors.rojoColonial.withOpacity(0.08)))),
-                Positioned(
-                    bottom: 0,
-                    left: 100,
-                    child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AlpesColors.oroGuatemalteco
-                                .withOpacity(0.06)))),
+                Positioned(top: -20, right: -20,
+                    child: Container(width: 100, height: 100,
+                        decoration: BoxDecoration(shape: BoxShape.circle,
+                            color: AlpesColors.rojoColonial.withOpacity(0.08)))),
               ]),
             ),
           ),
         ],
-        body: favList.isEmpty
+        body: lista.isEmpty
             ? _emptyState(context)
-            : GridView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 14, 12, 80),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+            : RefreshIndicator(
+                color: AlpesColors.cafeOscuro,
+                onRefresh: () async { if (auth.clienteId != null) await favs.cargarFavoritos(auth.clienteId!); },
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.72,
+                  ),
+                  itemCount: lista.length,
+                  itemBuilder: (_, i) =>
+                      ProductoCard(producto: lista[i]),
                 ),
-                itemCount: favList.length,
-                itemBuilder: (_, i) => ProductoCard(producto: favList[i]),
               ),
       ),
       bottomNavigationBar: const BottomNavCliente(currentIndex: 2),
@@ -123,66 +107,41 @@ class FavoritosScreen extends StatelessWidget {
   }
 
   Widget _emptyState(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
+        child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AlpesColors.rojoColonial.withOpacity(0.08),
-                      AlpesColors.rojoColonial.withOpacity(0.04)
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                      color: AlpesColors.rojoColonial.withOpacity(0.2)),
-                ),
-                child: const Icon(Icons.favorite_border_rounded,
-                    size: 44, color: AlpesColors.rojoColonial),
-              ),
-              const SizedBox(height: 20),
-              const Text('Sin favoritos aún',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AlpesColors.cafeOscuro)),
-              const SizedBox(height: 8),
-              const Text(
-                  'Toca el ♥ en los productos que te gusten\npara guardarlos aquí',
-                  style: TextStyle(
-                      fontSize: 13, color: AlpesColors.nogalMedio, height: 1.5),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 28),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.grid_view_rounded, size: 18),
-                label: const Text('Explorar catálogo'),
-                onPressed: () => context.go('/catalogo'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AlpesColors.cafeOscuro,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/home'),
-                child: const Text('← Volver al inicio',
-                    style:
-                        TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
-              ),
-            ],
+          Container(
+            width: 80, height: 80,
+            decoration: BoxDecoration(
+              color: AlpesColors.rojoColonial.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.favorite_border_rounded,
+                size: 38, color: AlpesColors.rojoColonial.withOpacity(0.5)),
           ),
-        ),
+          const SizedBox(height: 20),
+          const Text('Sin favoritos aún',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
+                  color: AlpesColors.cafeOscuro)),
+          const SizedBox(height: 8),
+          const Text('Guarda los productos que más te gusten\ncon el ♡ en cada tarjeta',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AlpesColors.nogalMedio,
+                  height: 1.5)),
+          const SizedBox(height: 28),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.grid_view_rounded, size: 18),
+            label: const Text('Ver catálogo'),
+            onPressed: () => context.go('/catalogo'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AlpesColors.cafeOscuro,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ]),
       );
 }

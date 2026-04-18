@@ -116,8 +116,9 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
             ),
             child: const Icon(Icons.arrow_back_ios_rounded,
                 color: Colors.white, size: 16),

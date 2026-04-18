@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../config/theme.dart';
@@ -35,7 +36,8 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
-        setState(() => _tarjetas = List<Map<String, dynamic>>.from(data['data']));
+        setState(
+            () => _tarjetas = List<Map<String, dynamic>>.from(data['data']));
       }
     } catch (_) {}
     setState(() => _loading = false);
@@ -60,10 +62,13 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
         title: const Text('Eliminar tarjeta'),
         content: const Text('¿Deseas eliminar esta tarjeta?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: AlpesColors.rojoColonial)),
+            child: const Text('Eliminar',
+                style: TextStyle(color: AlpesColors.rojoColonial)),
           ),
         ],
       ),
@@ -79,20 +84,29 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
-      appBar: AppBar(title: const Text('MIS TARJETAS')),
+      appBar: AppBar(
+        title: const Text('MIS TARJETAS'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/home'),
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AlpesColors.cafeOscuro,
         onPressed: () => _mostrarFormulario(),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(
+              child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : _tarjetas.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.credit_card_off, size: 80, color: AlpesColors.arenaCalida),
+                      const Icon(Icons.credit_card_off,
+                          size: 80, color: AlpesColors.arenaCalida),
                       const SizedBox(height: 16),
                       Text('No tienes tarjetas registradas',
                           style: Theme.of(context).textTheme.titleLarge),
@@ -115,164 +129,197 @@ class _MisTarjetasScreenState extends State<MisTarjetasScreen> {
                     itemCount: _tarjetas.length,
                     itemBuilder: (_, i) {
                       final t = _tarjetas[i];
-                      final id = t['TARJETA_CLIENTE_ID'] ?? t['tarjeta_cliente_id'];
+                      final id =
+                          t['TARJETA_CLIENTE_ID'] ?? t['tarjeta_cliente_id'];
                       final titular = t['TITULAR'] ?? t['titular'] ?? '';
-                      final ultimos4 = t['ULTIMOS_4'] ?? t['ultimos_4'] ?? '****';
+                      final ultimos4 =
+                          t['ULTIMOS_4'] ?? t['ultimos_4'] ?? '****';
                       final marca = t['MARCA'] ?? t['marca'] ?? '';
-                      final alias = t['ALIAS_TARJETA'] ?? t['alias_tarjeta'] ?? '';
-                      final mes = t['MES_VENCIMIENTO'] ?? t['mes_vencimiento'] ?? '';
-                      final anio = t['ANIO_VENCIMIENTO'] ?? t['anio_vencimiento'] ?? '';
-                      final esPredeterminada = (t['PREDETERMINADA'] ?? t['predeterminada'] ?? 0) == 1;
+                      final alias =
+                          t['ALIAS_TARJETA'] ?? t['alias_tarjeta'] ?? '';
+                      final mes =
+                          t['MES_VENCIMIENTO'] ?? t['mes_vencimiento'] ?? '';
+                      final anio =
+                          t['ANIO_VENCIMIENTO'] ?? t['anio_vencimiento'] ?? '';
+                      final esPredeterminada =
+                          (t['PREDETERMINADA'] ?? t['predeterminada'] ?? 0) ==
+                              1;
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        clipBehavior: Clip.antiAlias,
-                        child: Container(
+                      return ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: esPredeterminada
-                                  ? [AlpesColors.cafeOscuro, AlpesColors.nogalMedio]
+                                  ? [const Color(0xFF1a0e08), AlpesColors.cafeOscuro]
                                   : [AlpesColors.pergamino, Colors.white],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 16, offset: const Offset(0, 6)),
+                              BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4, offset: const Offset(0, 2))],
                           ),
-                          padding: const EdgeInsets.all(20),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header marca + badge
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Header marca + badge
                                   Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Icon(Icons.credit_card,
-                                          color: esPredeterminada
-                                              ? AlpesColors.oroGuatemalteco
-                                              : AlpesColors.cafeOscuro,
-                                          size: 28),
-                                      const SizedBox(width: 8),
-                                      Text(marca.toUpperCase(),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 16,
-                                            color: esPredeterminada ? Colors.white : AlpesColors.cafeOscuro,
-                                          )),
-                                    ],
-                                  ),
-                                  if (esPredeterminada)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AlpesColors.oroGuatemalteco,
-                                        borderRadius: BorderRadius.circular(20),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.credit_card,
+                                              color: esPredeterminada
+                                                  ? AlpesColors.oroGuatemalteco
+                                                  : AlpesColors.cafeOscuro,
+                                              size: 20),
+                                          const SizedBox(width: 8),
+                                          Text(marca.toUpperCase(),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                color: esPredeterminada
+                                                    ? Colors.white
+                                                    : AlpesColors.cafeOscuro,
+                                              )),
+                                        ],
                                       ),
-                                      child: const Text('Predeterminada',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: AlpesColors.cafeOscuro,
-                                              fontWeight: FontWeight.w700)),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Número enmascarado
-                              Text(
-                                '**** **** **** $ultimos4',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 3,
-                                  fontFamily: 'monospace',
-                                  color: esPredeterminada ? Colors.white : AlpesColors.cafeOscuro,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Titular y vencimiento
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('TITULAR',
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              color: esPredeterminada
-                                                  ? AlpesColors.arenaCalida
-                                                  : AlpesColors.nogalMedio)),
-                                      Text(titular,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: esPredeterminada
-                                                  ? Colors.white
-                                                  : AlpesColors.cafeOscuro)),
+                                      if (esPredeterminada)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AlpesColors.oroGuatemalteco,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: const Text('Predeterminada',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: AlpesColors.cafeOscuro,
+                                                  fontWeight: FontWeight.w700)),
+                                        ),
                                     ],
                                   ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text('VENCE',
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              color: esPredeterminada
-                                                  ? AlpesColors.arenaCalida
-                                                  : AlpesColors.nogalMedio)),
-                                      Text('$mes/$anio',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: esPredeterminada
-                                                  ? Colors.white
-                                                  : AlpesColors.cafeOscuro)),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                  const SizedBox(height: 10),
 
-                              if (alias.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(alias,
+                                  // Número enmascarado
+                                  Text(
+                                    '**** **** **** $ultimos4',
                                     style: TextStyle(
-                                        fontSize: 12,
-                                        color: esPredeterminada
-                                            ? AlpesColors.arenaCalida
-                                            : AlpesColors.nogalMedio)),
-                              ],
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 3,
+                                      fontFamily: 'monospace',
+                                      color: esPredeterminada
+                                          ? Colors.white
+                                          : AlpesColors.cafeOscuro,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
 
-                              const SizedBox(height: 12),
-                              const Divider(color: Colors.white24),
+                                  // Titular y vencimiento
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('TITULAR',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: esPredeterminada
+                                                      ? AlpesColors.arenaCalida
+                                                      : AlpesColors
+                                                          .nogalMedio)),
+                                          Text(titular,
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: esPredeterminada
+                                                      ? Colors.white
+                                                      : AlpesColors
+                                                          .cafeOscuro)),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text('VENCE',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: esPredeterminada
+                                                      ? AlpesColors.arenaCalida
+                                                      : AlpesColors
+                                                          .nogalMedio)),
+                                          Text('$mes/$anio',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: esPredeterminada
+                                                      ? Colors.white
+                                                      : AlpesColors
+                                                          .cafeOscuro)),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
 
-                              // Acciones
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  if (!esPredeterminada)
-                                    TextButton.icon(
-                                      icon: Icon(Icons.star_outline, size: 16,
-                                          color: esPredeterminada ? Colors.white : AlpesColors.nogalMedio),
-                                      label: Text('Predeterminada',
-                                          style: TextStyle(
+                                  if (alias.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(alias,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: esPredeterminada
+                                                ? AlpesColors.arenaCalida
+                                                : AlpesColors.nogalMedio)),
+                                  ],
+
+                                  const SizedBox(height: 12),
+                                  const Divider(color: Colors.white24),
+
+                                  // Acciones
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (!esPredeterminada)
+                                        TextButton.icon(
+                                          icon: Icon(Icons.star_outline,
+                                              size: 16,
                                               color: esPredeterminada
                                                   ? Colors.white
-                                                  : AlpesColors.nogalMedio)),
-                                      onPressed: () => _marcarPredeterminada(id),
-                                    ),
-                                  IconButton(
-                                    icon: Icon(Icons.delete_outline,
-                                        color: esPredeterminada
-                                            ? Colors.white70
-                                            : AlpesColors.rojoColonial),
-                                    onPressed: () => _eliminar(id),
+                                                  : AlpesColors.nogalMedio),
+                                          label: Text('Predeterminada',
+                                              style: TextStyle(
+                                                  color: esPredeterminada
+                                                      ? Colors.white
+                                                      : AlpesColors
+                                                          .nogalMedio)),
+                                          onPressed: () =>
+                                              _marcarPredeterminada(id),
+                                        ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline,
+                                            color: esPredeterminada
+                                                ? Colors.white70
+                                                : AlpesColors.rojoColonial),
+                                        onPressed: () => _eliminar(id),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
+                          ));
                     },
                   ),
                 ),
@@ -358,18 +405,20 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
               backgroundColor: AlpesColors.exito),
         );
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(data['mensaje'] ?? 'Error al guardar'),
-              backgroundColor: AlpesColors.rojoColonial),
-        );
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(data['mensaje'] ?? 'Error al guardar'),
+                backgroundColor: AlpesColors.rojoColonial),
+          );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error de conexión: $e'),
-            backgroundColor: AlpesColors.rojoColonial),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error de conexión: $e'),
+              backgroundColor: AlpesColors.rojoColonial),
+        );
     }
     setState(() => _guardando = false);
   }
@@ -378,7 +427,9 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
+        left: 16,
+        right: 16,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Form(
@@ -390,14 +441,16 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                       color: AlpesColors.arenaCalida,
                       borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Nueva tarjeta', style: Theme.of(context).textTheme.titleLarge),
+              Text('Nueva tarjeta',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
 
               // Número completo
@@ -408,7 +461,8 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
                 decoration: const InputDecoration(
                   labelText: 'Número de tarjeta',
                   hintText: '1234 5678 9012 3456',
-                  prefixIcon: Icon(Icons.credit_card, color: AlpesColors.nogalMedio),
+                  prefixIcon:
+                      Icon(Icons.credit_card, color: AlpesColors.nogalMedio),
                   counterText: '',
                 ),
                 onChanged: (v) {
@@ -416,7 +470,8 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
                   if (formatted != v) {
                     _numeroCtrl.value = TextEditingValue(
                       text: formatted,
-                      selection: TextSelection.collapsed(offset: formatted.length),
+                      selection:
+                          TextSelection.collapsed(offset: formatted.length),
                     );
                   }
                 },
@@ -433,16 +488,20 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
                 decoration: const InputDecoration(
                   labelText: 'Nombre del titular',
                   hintText: 'Como aparece en la tarjeta',
-                  prefixIcon: Icon(Icons.person_outline, color: AlpesColors.nogalMedio),
+                  prefixIcon:
+                      Icon(Icons.person_outline, color: AlpesColors.nogalMedio),
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Campo requerido' : null,
               ),
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
                 value: _marca,
                 decoration: const InputDecoration(labelText: 'Marca'),
-                items: _marcas.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                items: _marcas
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
                 onChanged: (v) => setState(() => _marca = v ?? 'VISA'),
               ),
               const SizedBox(height: 12),
@@ -458,7 +517,9 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
                           labelText: 'Mes', hintText: 'MM', counterText: ''),
                       validator: (v) {
                         final n = int.tryParse(v ?? '');
-                        return (n == null || n < 1 || n > 12) ? 'Inválido' : null;
+                        return (n == null || n < 1 || n > 12)
+                            ? 'Inválido'
+                            : null;
                       },
                     ),
                   ),
@@ -504,7 +565,8 @@ class _FormularioTarjetaState extends State<_FormularioTarjeta> {
                   onPressed: _guardando ? null : _guardar,
                   child: _guardando
                       ? const SizedBox(
-                          height: 20, width: 20,
+                          height: 20,
+                          width: 20,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
                       : const Text('GUARDAR TARJETA'),

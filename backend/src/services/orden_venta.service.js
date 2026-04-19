@@ -19,4 +19,7 @@ async function eliminar(id) {
   await obtener(id);
   await model.eliminar(id);
 }
-module.exports = { listar, obtener, crear, actualizar, eliminar, buscar };
+async function actualizarEstado(id, estadoOrdenId, observaciones) {
+  await model.actualizarEstado(id, estadoOrdenId, observaciones);
+}
+module.exports = { listar, obtener, crear, actualizar, actualizarEstado, eliminar, buscar };

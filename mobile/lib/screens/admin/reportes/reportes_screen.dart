@@ -802,23 +802,23 @@ class _ReportesScreenState extends State<ReportesScreen>
                             _buildSectionTitle('Resumen ejecutivo'),
                             const SizedBox(height: 12),
                             _buildKpiGrid(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Tendencia de ventas'),
                             const SizedBox(height: 12),
                             _buildTrendCard(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Comparación por trimestre'),
                             const SizedBox(height: 12),
                             _buildQuarterComparisonCard(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Estados de órdenes'),
                             const SizedBox(height: 12),
                             _buildEstadoCharts(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Inventario en vigilancia'),
                             const SizedBox(height: 12),
                             _buildInventarioCard(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Últimas órdenes'),
                             const SizedBox(height: 12),
                             _buildUltimasOrdenesCard(),
@@ -909,37 +909,37 @@ class _ReportesScreenState extends State<ReportesScreen>
         'Ventas totales',
         _formatCompactMoney(_ventasTotales),
         Icons.trending_up_rounded,
-        const [Color(0xFF2C1810), Color(0xFF5A3A26)],
+        const [Color(0xFF0F4C35), Color(0xFF1A7A56)],
       ),
       _KpiData(
         'Órdenes',
         '$_totalOrdenes',
         Icons.receipt_long_rounded,
-        const [Color(0xFF4A301C), Color(0xFF7B5B33)],
+        const [Color(0xFF1A3A5C), Color(0xFF2D6EA8)],
       ),
       _KpiData(
         'Ticket promedio',
         _formatCurrency(_ticketPromedio),
         Icons.payments_rounded,
-        const [Color(0xFF5C4423), Color(0xFF8B6F47)],
+        const [Color(0xFF5C3A00), Color(0xFF9B6B00)],
       ),
       _KpiData(
         'Clientes',
         '$_totalClientes',
         Icons.groups_2_rounded,
-        const [Color(0xFF2C1810), Color(0xFF6A5437)],
+        const [Color(0xFF3A1A5C), Color(0xFF6B2EA8)],
       ),
       _KpiData(
         'Stock bajo ≤5',
         '$_stockBajo',
         Icons.inventory_2_rounded,
-        const [Color(0xFF6A4A28), Color(0xFF9B7341)],
+        const [Color(0xFF1A3A1A), Color(0xFF2E7D32)],
       ),
       _KpiData(
         'Canceladas',
         '$_canceladas',
         Icons.cancel_outlined,
-        const [Color(0xFF5E2020), Color(0xFF8B2E2E)],
+        const [Color(0xFF5E2020), Color(0xFF9B3030)],
       ),
     ];
 
@@ -954,7 +954,7 @@ class _ReportesScreenState extends State<ReportesScreen>
             crossAxisCount: isNarrow ? 1 : 3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: isNarrow ? 2.9 : 3.8,
+            childAspectRatio: isNarrow ? 2.2 : 5.5,
           ),
           itemBuilder: (_, index) => _buildKpiCard(cards[index]),
         );
@@ -966,7 +966,7 @@ class _ReportesScreenState extends State<ReportesScreen>
     return ScaleTransition(
       scale: Tween<double>(begin: .97, end: 1).animate(_fadeAnimation),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: data.gradient,
@@ -988,11 +988,11 @@ class _ReportesScreenState extends State<ReportesScreen>
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(.10),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.white.withOpacity(.10)),
               ),
               child: Icon(
@@ -1024,13 +1024,19 @@ class _ReportesScreenState extends State<ReportesScreen>
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       height: 1,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
+            ),
+            // Indicador visual decorativo
+            Icon(
+              Icons.arrow_upward_rounded,
+              color: Colors.white.withOpacity(0.25),
+              size: 18,
             ),
           ],
         ),
@@ -1110,7 +1116,7 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           const SizedBox(height: 16),
           Container(
-            height: 290,
+            height: 240,
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
             decoration: BoxDecoration(
@@ -1154,9 +1160,9 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           const SizedBox(height: 12),
           Container(
-            height: 124,
+            height: 100,
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
@@ -1638,7 +1644,7 @@ class _ReportesScreenState extends State<ReportesScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AlpesColors.pergamino,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
       ),
       child: DropdownButtonHideUnderline(
@@ -1677,7 +1683,7 @@ class _ReportesScreenState extends State<ReportesScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AlpesColors.pergamino,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
       ),
       child: DropdownButtonHideUnderline(
@@ -1727,7 +1733,7 @@ class _ReportesScreenState extends State<ReportesScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AlpesColors.pergamino,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
       ),
       child: DropdownButtonHideUnderline(
@@ -2178,7 +2184,7 @@ class _ReportesScreenState extends State<ReportesScreen>
                       height: 48,
                       decoration: BoxDecoration(
                         color: riskColor.withOpacity(.12),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.warning_amber_rounded,
@@ -2459,7 +2465,7 @@ class _ReportesScreenState extends State<ReportesScreen>
   Widget _panel({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F5F0),
         borderRadius: BorderRadius.circular(24),
@@ -2769,18 +2775,25 @@ class _SalesTrendPainter extends CustomPainter {
   ) {
     final allZero = currentData.every((e) => e == 0);
 
-    final path = Path();
+    final points = <Offset>[];
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i + spacing / 2;
       final y = allZero
           ? chart.bottom - 2
-          : chart.bottom -
-              ((currentData[i] / maxValue) * chart.height * progress);
+          : chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+      points.add(Offset(x, y));
+    }
 
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
+    // Bezier suave
+    final path = Path();
+    if (points.isNotEmpty) {
+      path.moveTo(points[0].dx, points[0].dy);
+      for (int i = 0; i < points.length - 1; i++) {
+        final cp1x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
+        final cp1y = points[i].dy;
+        final cp2x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
+        final cp2y = points[i+1].dy;
+        path.cubicTo(cp1x, cp1y, cp2x, cp2y, points[i+1].dx, points[i+1].dy);
       }
     }
 
@@ -2838,20 +2851,26 @@ class _SalesTrendPainter extends CustomPainter {
       return;
     }
 
-    final path = Path();
-    final fillPath = Path();
-
+    final areaPoints = <Offset>[];
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i + spacing / 2;
-      final y = chart.bottom -
-          ((currentData[i] / maxValue) * chart.height * progress);
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, chart.bottom);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
+      final y = chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+      areaPoints.add(Offset(x, y));
+    }
+
+    final path = Path();
+    final fillPath = Path();
+    if (areaPoints.isNotEmpty) {
+      path.moveTo(areaPoints[0].dx, areaPoints[0].dy);
+      fillPath.moveTo(areaPoints[0].dx, chart.bottom);
+      fillPath.lineTo(areaPoints[0].dx, areaPoints[0].dy);
+      for (int i = 0; i < areaPoints.length - 1; i++) {
+        final cp1x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
+        final cp1y = areaPoints[i].dy;
+        final cp2x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
+        final cp2y = areaPoints[i+1].dy;
+        path.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
+        fillPath.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
       }
     }
 

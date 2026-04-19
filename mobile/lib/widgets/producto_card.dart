@@ -260,7 +260,7 @@ class _ProductoCardState extends State<ProductoCard>
                                   : const Icon(
                                       Icons.add_shopping_cart_rounded,
                                       color: AlpesColors.oroGuatemalteco,
-                                      size: 18),
+                                      size: 12),
                             ),
                           ),
                         ],
@@ -282,7 +282,7 @@ class _ProductoCardState extends State<ProductoCard>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.chair_alt_rounded,
-                  size: 44,
+                  size: 32,
                   color: AlpesColors.arenaCalida.withOpacity(0.4)),
             ]),
       );

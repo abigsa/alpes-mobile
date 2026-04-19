@@ -16,9 +16,9 @@ class ConfiguracionScreen extends StatefulWidget {
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   List<Map<String, dynamic>> _usuarios = [];
   bool _loading = true;
-  bool _notifVentas   = true;
-  bool _notifStock    = true;
-  bool _notifPedidos  = false;
+  bool _notifVentas  = true;
+  bool _notifStock   = true;
+  bool _notifPedidos = false;
 
   @override
   void initState() { super.initState(); _cargar(); }
@@ -26,11 +26,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   Future<void> _cargar() async {
     setState(() => _loading = true);
     try {
-      final res = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.usuarios));
+      final res  = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.usuarios));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
+      if (data['ok'] == true)
         setState(() => _usuarios = List<Map<String, dynamic>>.from(data['data']));
-      }
     } catch (_) {} finally { setState(() => _loading = false); }
   }
 
@@ -38,14 +37,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Eliminar usuario'),
-        content: const Text('¿Estás seguro de eliminar este usuario?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Eliminar usuario', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial),
+            style: ElevatedButton.styleFrom(backgroundColor: AlpesColors.rojoColonial,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text('Eliminar'),
           ),
         ],
@@ -61,323 +61,414 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _UsuarioForm(item: item, onGuardado: _cargar),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final auth     = context.watch<AuthProvider>();
     final username = auth.usuario?['USERNAME'] ?? auth.usuario?['username'] ?? 'Admin';
     final email    = auth.usuario?['EMAIL']    ?? auth.usuario?['email']    ?? '';
+    final initial  = username.isNotEmpty ? username[0].toUpperCase() : 'A';
 
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
-      appBar: AppBar(
-        title: const Text('CONFIGURACIÓN'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/admin'),
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
-          : RefreshIndicator(
-              color: AlpesColors.cafeOscuro,
-              onRefresh: _cargar,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-                children: [
-                  // ── Perfil actual ──
-                  _sectionLabel('Mi perfil'),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: _cardDeco(),
-                    child: Row(children: [
-                      Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                            color: AlpesColors.oroGuatemalteco,
-                            borderRadius: BorderRadius.circular(14)),
-                        alignment: Alignment.center,
-                        child: Text(
-                          username.isNotEmpty ? username[0].toUpperCase() : 'A',
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700,
-                              color: AlpesColors.cafeOscuro),
+      body: CustomScrollView(
+        slivers: [
+          // ── AppBar ──
+          SliverAppBar(
+            expandedHeight: 160,
+            pinned: true,
+            backgroundColor: AlpesColors.cafeOscuro,
+            leading: IconButton(
+              icon: Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 16),
+              ),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/admin'),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              title: const Text('Configuración',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
+              background: Stack(children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1A0E08), Color(0xFF2C1810), Color(0xFF3D2416)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+                Positioned(top: -30, right: -30,
+                  child: Container(width: 140, height: 140,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.08)))),
+                Positioned(bottom: 0, right: 60,
+                  child: Container(width: 60, height: 60,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.05)))),
+              ]),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // ── Perfil admin ──
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AlpesColors.pergamino),
+                    boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.06),
+                      blurRadius: 10, offset: const Offset(0, 3))],
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 56, height: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFE8B84B), Color(0xFFD4A853)],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(username,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
-                                  color: AlpesColors.cafeOscuro)),
-                          if (email.isNotEmpty)
-                            Text(email,
-                                style: const TextStyle(fontSize: 12, color: AlpesColors.nogalMedio)),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                                color: AlpesColors.oroGuatemalteco.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(20)),
-                            child: const Text('Administrador',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                                    color: AlpesColors.cafeOscuro)),
-                          ),
-                        ]),
+                      alignment: Alignment.center,
+                      child: Text(initial, style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w800, color: AlpesColors.cafeOscuro)),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(username, style: const TextStyle(fontSize: 15,
+                        fontWeight: FontWeight.w700, color: AlpesColors.cafeOscuro)),
+                      if (email.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(email, style: const TextStyle(fontSize: 12, color: AlpesColors.nogalMedio)),
+                      ],
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AlpesColors.cafeOscuro.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Administrador', style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w700, color: AlpesColors.cafeOscuro)),
                       ),
-                    ]),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Notificaciones ──
-                  _sectionLabel('Notificaciones'),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: _cardDeco(),
-                    child: Column(children: [
-                      _switchTile('Alertas de ventas', 'Notificar al registrar una venta',
-                          Icons.receipt_long_rounded, _notifVentas,
-                          (v) => setState(() => _notifVentas = v)),
-                      _divider(),
-                      _switchTile('Stock bajo', 'Alertar cuando el inventario sea bajo',
-                          Icons.inventory_2_rounded, _notifStock,
-                          (v) => setState(() => _notifStock = v)),
-                      _divider(),
-                      _switchTile('Nuevos pedidos', 'Notificar al recibir un pedido',
-                          Icons.shopping_bag_rounded, _notifPedidos,
-                          (v) => setState(() => _notifPedidos = v)),
-                    ]),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Módulos rápidos ──
-                  _sectionLabel('Módulos del sistema'),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: _cardDeco(),
-                    child: Column(children: [
-                      _navTile(Icons.people_alt_rounded,   'Gestión de roles',     '/admin/empleados'),
-                      _divider(),
-                      _navTile(Icons.local_shipping_rounded,'Zonas de envío',      '/admin/proveedores'),
-                      _divider(),
-                      _navTile(Icons.bar_chart_rounded,    'Ver reportes',         '/admin/reportes'),
-                      _divider(),
-                      _navTile(Icons.campaign_rounded,     'Campañas de marketing','/admin/marketing'),
-                    ]),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Usuarios del sistema ──
-                  Row(children: [
-                    Expanded(child: _sectionLabel('Usuarios del sistema')),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Agregar', style: TextStyle(fontSize: 12)),
-                      onPressed: () => _abrirFormUsuario(),
-                      style: TextButton.styleFrom(foregroundColor: AlpesColors.cafeOscuro),
+                    ])),
+                    IconButton(
+                      icon: Container(
+                        width: 34, height: 34,
+                        decoration: BoxDecoration(
+                          color: AlpesColors.cafeOscuro.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.edit_rounded, size: 16, color: AlpesColors.cafeOscuro),
+                      ),
+                      onPressed: () {},
                     ),
                   ]),
-                  const SizedBox(height: 10),
-                  if (_usuarios.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: _cardDeco(),
-                      child: const Center(
-                        child: Text('Sin usuarios registrados',
-                            style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
-                      ),
-                    )
-                  else
-                    Container(
-                      decoration: _cardDeco(),
-                      child: Column(
-                        children: List.generate(_usuarios.length * 2 - 1, (i) {
-                          if (i.isOdd) return _divider();
-                          final u = _usuarios[i ~/ 2];
-                          final uid  = u['USU_ID'] ?? u['usu_id'] ?? u['ID'] ?? u['id'];
-                          final uname= u['USERNAME'] ?? u['username'] ?? '';
-                          final uemail= u['EMAIL'] ?? u['email'] ?? '';
-                          final uinitial = uname.isNotEmpty ? uname[0].toUpperCase() : 'U';
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            leading: Container(
-                              width: 38, height: 38,
-                              decoration: BoxDecoration(
-                                  color: AlpesColors.cafeOscuro.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(9)),
-                              alignment: Alignment.center,
-                              child: Text(uinitial,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-                                      color: AlpesColors.cafeOscuro)),
-                            ),
-                            title: Text(uname,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            subtitle: Text(uemail,
-                                style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
-                            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                              _iconBtn(Icons.edit_outlined, AlpesColors.nogalMedio,
-                                  () => _abrirFormUsuario(u)),
-                              const SizedBox(width: 4),
-                              _iconBtn(Icons.delete_outline, AlpesColors.rojoColonial,
-                                  () => _eliminarUsuario(uid)),
-                            ]),
-                          );
-                        }),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 20),
 
-                  // ── Cerrar sesión ──
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.logout_rounded, color: AlpesColors.rojoColonial),
-                    label: const Text('Cerrar sesión',
-                        style: TextStyle(color: AlpesColors.rojoColonial, fontWeight: FontWeight.w600)),
-                    onPressed: () async {
+                // ── Notificaciones ──
+                _sectionHeader('Notificaciones', Icons.notifications_rounded),
+                const SizedBox(height: 10),
+                _notifCard([
+                  _NotifItem('Ventas nuevas', 'Recibe alertas al recibir un pedido',
+                    Icons.shopping_bag_rounded, _notifVentas,
+                    (v) => setState(() => _notifVentas = v)),
+                  _NotifItem('Stock bajo', 'Alerta cuando un producto baja del mínimo',
+                    Icons.inventory_2_rounded, _notifStock,
+                    (v) => setState(() => _notifStock = v)),
+                  _NotifItem('Pedidos en proceso', 'Actualización de estado de órdenes',
+                    Icons.local_shipping_rounded, _notifPedidos,
+                    (v) => setState(() => _notifPedidos = v)),
+                ]),
+                const SizedBox(height: 20),
+
+                // ── Usuarios del sistema ──
+                Row(children: [
+                  Expanded(child: _sectionHeader('Usuarios del sistema', Icons.people_rounded)),
+                  GestureDetector(
+                    onTap: () => _abrirFormUsuario(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AlpesColors.cafeOscuro,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.add_rounded, size: 14, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text('Nuevo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                      ]),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+
+                _loading
+                  ? const Center(child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(color: AlpesColors.cafeOscuro)))
+                  : _usuarios.isEmpty
+                    ? _emptyState('No hay usuarios registrados')
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AlpesColors.pergamino),
+                          boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05),
+                            blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                        child: Column(children: List.generate(_usuarios.length, (i) {
+                          final u = _usuarios[i];
+                          final uname = '${u['USERNAME'] ?? u['username'] ?? ''}';
+                          final uemail = '${u['EMAIL'] ?? u['email'] ?? ''}';
+                          final rol = '${u['ROL'] ?? u['rol'] ?? 'Usuario'}';
+                          final uid = u['USUARIO_ID'] ?? u['usuario_id'];
+                          final ini = uname.isNotEmpty ? uname[0].toUpperCase() : 'U';
+                          return Column(children: [
+                            ListTile(
+                              leading: Container(
+                                width: 42, height: 42,
+                                decoration: BoxDecoration(
+                                  color: AlpesColors.cafeOscuro.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(ini, style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700,
+                                  color: AlpesColors.cafeOscuro)),
+                              ),
+                              title: Text(uname.isNotEmpty ? uname : 'Sin nombre',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                                  color: AlpesColors.cafeOscuro)),
+                              subtitle: uemail.isNotEmpty
+                                ? Text(uemail, style: const TextStyle(fontSize: 12,
+                                    color: AlpesColors.nogalMedio))
+                                : null,
+                              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(rol, style: const TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w600,
+                                    color: AlpesColors.cafeOscuro)),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _abrirFormUsuario(u),
+                                  child: Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: AlpesColors.cafeOscuro.withOpacity(0.06),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.edit_rounded, size: 14,
+                                      color: AlpesColors.cafeOscuro),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                GestureDetector(
+                                  onTap: () => _eliminarUsuario(uid),
+                                  child: Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: AlpesColors.rojoColonial.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.delete_outline_rounded, size: 14,
+                                      color: AlpesColors.rojoColonial),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                            if (i < _usuarios.length - 1)
+                              const Divider(height: 1, indent: 70, endIndent: 16,
+                                color: AlpesColors.pergamino),
+                          ]);
+                        })),
+                      ),
+                const SizedBox(height: 20),
+
+                // ── Cerrar sesión ──
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AlpesColors.rojoColonial.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AlpesColors.rojoColonial.withOpacity(0.15)),
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                        color: AlpesColors.rojoColonial.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.logout_rounded, color: AlpesColors.rojoColonial, size: 18),
+                    ),
+                    title: const Text('Cerrar sesión',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                        color: AlpesColors.rojoColonial)),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: AlpesColors.rojoColonial),
+                    onTap: () async {
                       await auth.logout();
                       if (context.mounted) context.go('/login');
                     },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AlpesColors.rojoColonial),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 24),
+                Center(child: Text('Muebles de los Alpes v1.0',
+                  style: TextStyle(fontSize: 11, color: AlpesColors.arenaCalida.withOpacity(0.6)))),
+                const SizedBox(height: 16),
+              ]),
             ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _sectionLabel(String label) => Row(children: [
-    Container(width: 3, height: 15,
-        decoration: BoxDecoration(color: AlpesColors.oroGuatemalteco,
-            borderRadius: BorderRadius.circular(2))),
+  Widget _sectionHeader(String title, IconData icon) => Row(children: [
+    Icon(icon, size: 16, color: AlpesColors.oroGuatemalteco),
     const SizedBox(width: 8),
-    Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-        color: AlpesColors.cafeOscuro)),
+    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+      color: AlpesColors.cafeOscuro)),
   ]);
 
-  BoxDecoration _cardDeco() => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: AlpesColors.pergamino),
-    boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05),
+  Widget _notifCard(List<_NotifItem> items) => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AlpesColors.pergamino),
+      boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05),
         blurRadius: 8, offset: const Offset(0, 2))],
+    ),
+    child: Column(children: List.generate(items.length, (i) {
+      final item = items[i];
+      return Column(children: [
+        ListTile(
+          leading: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: AlpesColors.cafeOscuro.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(item.icon, size: 17, color: AlpesColors.cafeOscuro),
+          ),
+          title: Text(item.title, style: const TextStyle(fontSize: 14,
+            fontWeight: FontWeight.w600, color: AlpesColors.cafeOscuro)),
+          subtitle: Text(item.subtitle, style: const TextStyle(fontSize: 11,
+            color: AlpesColors.nogalMedio)),
+          trailing: Switch(
+            value: item.value,
+            onChanged: item.onChanged,
+            activeColor: AlpesColors.cafeOscuro,
+            activeTrackColor: AlpesColors.cafeOscuro.withOpacity(0.3),
+          ),
+        ),
+        if (i < items.length - 1)
+          const Divider(height: 1, indent: 66, endIndent: 16, color: AlpesColors.pergamino),
+      ]);
+    })),
   );
 
-  Widget _divider() => const Divider(height: 1, indent: 16, endIndent: 16,
-      color: AlpesColors.pergamino);
-
-  Widget _switchTile(String title, String subtitle, IconData icon,
-      bool value, ValueChanged<bool> onChanged) =>
-      ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        leading: Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(9)),
-          child: Icon(icon, size: 18, color: AlpesColors.cafeOscuro),
-        ),
-        title: Text(title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
-        trailing: Switch.adaptive(
-          value: value,
-          onChanged: onChanged,
-          activeColor: AlpesColors.cafeOscuro,
-        ),
-      );
-
-  Widget _navTile(IconData icon, String label, String route) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-    leading: Container(
-      width: 36, height: 36,
-      decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(9)),
-      child: Icon(icon, size: 18, color: AlpesColors.cafeOscuro),
-    ),
-    title: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-    trailing: const Icon(Icons.chevron_right_rounded, color: AlpesColors.arenaCalida),
-    onTap: () => context.go(route),
-  );
-
-  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(8),
-    child: Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(8)),
-      child: Icon(icon, size: 16, color: color),
-    ),
+  Widget _emptyState(String msg) => Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white, borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AlpesColors.pergamino)),
+    child: Center(child: Text(msg,
+      style: const TextStyle(color: AlpesColors.nogalMedio))),
   );
 }
 
-// ─── FORM USUARIO ─────────────────────────────────────────
+class _NotifItem {
+  final String title, subtitle;
+  final IconData icon;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _NotifItem(this.title, this.subtitle, this.icon, this.value, this.onChanged);
+}
 
+// ── Formulario de usuario ────────────────────────────────
 class _UsuarioForm extends StatefulWidget {
   final Map<String, dynamic>? item;
   final VoidCallback onGuardado;
   const _UsuarioForm({this.item, required this.onGuardado});
   @override
-  State<_UsuarioForm> createState() => __UsuarioFormState();
+  State<_UsuarioForm> createState() => _UsuarioFormState();
 }
 
-class __UsuarioFormState extends State<_UsuarioForm> {
-  final _formKey = GlobalKey<FormState>();
-  late final Map<String, TextEditingController> _c;
-  bool _guardando = false;
+class _UsuarioFormState extends State<_UsuarioForm> {
+  final _formKey  = GlobalKey<FormState>();
+  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  bool _guardando  = false;
+  bool _verPass    = false;
 
   @override
   void initState() {
     super.initState();
-    _c = {
-      'username': TextEditingController(),
-      'email'   : TextEditingController(),
-      'rol_id'  : TextEditingController(),
-      'estado'  : TextEditingController(),
-    };
     if (widget.item != null) {
-      for (final k in _c.keys) {
-        _c[k]!.text = '${widget.item![k.toUpperCase()] ?? widget.item![k] ?? ''}';
-      }
+      _userCtrl.text  = '${widget.item!['USERNAME'] ?? widget.item!['username'] ?? ''}';
+      _emailCtrl.text = '${widget.item!['EMAIL']    ?? widget.item!['email']    ?? ''}';
     }
   }
 
   @override
-  void dispose() { _c.values.forEach((c) => c.dispose()); super.dispose(); }
+  void dispose() {
+    _userCtrl.dispose(); _emailCtrl.dispose(); _passCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
-      final body = _c.map((k, v) => MapEntry(k, v.text.trim()));
-      final idKey = widget.item?.keys.firstWhere(
-              (k) => k.toLowerCase().contains('id'), orElse: () => '') ?? '';
-      final id = idKey.isNotEmpty ? widget.item![idKey] : null;
-      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}${id != null ? '/$id' : ''}');
-      final res = id != null
-          ? await http.put(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body))
-          : await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
-      final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
-        widget.onGuardado();
-        if (context.mounted) Navigator.pop(context);
+      final body = {
+        'username': _userCtrl.text.trim(),
+        'email':    _emailCtrl.text.trim(),
+        if (_passCtrl.text.isNotEmpty) 'password': _passCtrl.text,
+      };
+      final id = widget.item?['USUARIO_ID'] ?? widget.item?['usuario_id'];
+      if (id != null) {
+        await http.put(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}/$id'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        );
       } else {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['mensaje'] ?? 'Error'),
-                backgroundColor: AlpesColors.rojoColonial));
+        await http.post(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        );
       }
-    } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial));
-    } finally { setState(() => _guardando = false); }
+      if (mounted) { Navigator.pop(context); widget.onGuardado(); }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _guardando = false);
+    }
   }
 
   @override
@@ -385,46 +476,65 @@ class __UsuarioFormState extends State<_UsuarioForm> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(child: Container(width: 36, height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: AlpesColors.pergamino,
-                      borderRadius: BorderRadius.circular(2)))),
-              Text(widget.item == null ? 'Nuevo usuario' : 'Editar usuario',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
-                      color: AlpesColors.cafeOscuro)),
-              const SizedBox(height: 16),
-              TextFormField(controller: _c['username'],
-                  decoration: const InputDecoration(labelText: 'Username'),
-                  validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
-              const SizedBox(height: 12),
-              TextFormField(controller: _c['email'],
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email')),
-              const SizedBox(height: 12),
-              TextFormField(controller: _c['rol_id'],
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Rol ID')),
-              const SizedBox(height: 12),
-              TextFormField(controller: _c['estado'],
-                  decoration: const InputDecoration(labelText: 'Estado',
-                      hintText: 'ACTIVO / INACTIVO')),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _guardando ? null : _guardar,
-                child: _guardando
-                    ? const SizedBox(height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('GUARDAR'),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(color: AlpesColors.pergamino,
+                borderRadius: BorderRadius.circular(2))),
+            Text(widget.item != null ? 'Editar usuario' : 'Nuevo usuario',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
+                color: AlpesColors.cafeOscuro)),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _userCtrl,
+              decoration: const InputDecoration(labelText: 'Usuario',
+                prefixIcon: Icon(Icons.person_rounded)),
+              validator: (v) => v!.isEmpty ? 'Requerido' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _emailCtrl,
+              decoration: const InputDecoration(labelText: 'Correo',
+                prefixIcon: Icon(Icons.email_rounded)),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _passCtrl,
+              obscureText: !_verPass,
+              decoration: InputDecoration(
+                labelText: widget.item != null ? 'Nueva contraseña (opcional)' : 'Contraseña',
+                prefixIcon: const Icon(Icons.lock_rounded),
+                suffixIcon: IconButton(
+                  icon: Icon(_verPass ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                  onPressed: () => setState(() => _verPass = !_verPass),
+                ),
               ),
-            ],
-          ),
+              validator: (v) {
+                if (widget.item == null && (v == null || v.isEmpty)) return 'Requerido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity, height: 50,
+              child: ElevatedButton(
+                onPressed: _guardando ? null : _guardar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AlpesColors.cafeOscuro,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _guardando
+                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                  : Text(widget.item != null ? 'Actualizar' : 'Crear usuario',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            ),
+          ]),
         ),
       ),
     );

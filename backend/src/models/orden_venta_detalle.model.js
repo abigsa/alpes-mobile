@@ -79,4 +79,23 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+
+async function buscar(criterio, valor) {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT od.*, 
+              p.NOMBRE,
+              p.IMAGEN_URL
+       FROM ORDEN_VENTA_DETALLE od
+       LEFT JOIN PRODUCTO p ON p.PRODUCTO_ID = od.PRODUCTO_ID
+       WHERE od.ORDEN_VENTA_ID = :p_valor
+       ORDER BY od.ORDEN_VENTA_DET_ID`,
+      { p_valor: Number(valor) },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows || [];
+  } finally { await closeConn(conn); }
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

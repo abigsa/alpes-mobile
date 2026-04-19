@@ -71,7 +71,6 @@ const _navSections = [
       _NavEntry(label: 'Órdenes compra',   icon: Icons.shopping_bag_rounded, route: '/admin/compras'),
     ]),
     _NavEntry(label: 'Producción', icon: Icons.factory_rounded,  route: '/admin/produccion'),
-    _NavEntry(label: 'Config.',    icon: Icons.settings_rounded, route: '/admin/configuracion'),
   ]),
 ];
 
@@ -87,7 +86,6 @@ const _modules = [
   {'label': 'Proveedores', 'icon': Icons.local_shipping_rounded,  'route': '/admin/proveedores'},
   {'label': 'Compras',     'icon': Icons.shopping_bag_rounded,    'route': '/admin/compras'},
   {'label': 'Producción',  'icon': Icons.factory_rounded,         'route': '/admin/produccion'},
-  {'label': 'Config.',     'icon': Icons.settings_rounded,        'route': '/admin/configuracion'},
 ];
 
 // ─────────────────────────────────────────────────────────

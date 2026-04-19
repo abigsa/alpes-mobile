@@ -115,13 +115,17 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
   }
 
   String _mapearEstadoVisual(String value) {
-    final clean = value.trim().toLowerCase();
-    if (clean == 'completada' || clean == 'completado') return 'Entregado';
-    if (clean == 'cancelada') return 'Cancelado';
+    final clean = value.trim().toLowerCase().replaceAll('_', ' ');
+    if (clean.contains('complet') || clean.contains('entreg') || clean.contains('finaliz')) return 'Entregado';
+    if (clean.contains('cancel')) return 'Cancelado';
+    if (clean.contains('proceso') || clean.contains('prepar') || clean.contains('camino') || clean.contains('produccion')) return 'En proceso';
+    if (clean.contains('pendiente') || clean.contains('pend')) return 'Pendiente';
+    if (clean.contains('ingres') || clean.contains('nueva') || clean.contains('creada') || clean.contains('activ')) return 'Pendiente';
     return _capitalizar(value);
   }
 
   String _resolverEstadoOrden(dynamic estadoOrdenId) {
+    // Primero buscar en tabla de estados
     for (final e in _estadosOrden) {
       if ('${e['ESTADO_ORDEN_ID']}' == '$estadoOrdenId') {
         final codigo = '${e['CODIGO'] ?? e['codigo'] ?? ''}'.trim();
@@ -129,6 +133,28 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
       }
     }
     return '';
+  }
+
+  // Resolver estado — observaciones tienen prioridad sobre ESTADO_ORDEN_ID
+  String _resolverEstadoCompleto(Map<String, dynamic> o) {
+    // PRIORIDAD 1: prefijo [CLAVE] en observaciones (refleja el último cambio manual)
+    final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ""}';
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    if (match != null) {
+      final clave = match.group(1)!;
+      const mapa = {
+        'INGRESADA': 'Pendiente',
+        'PENDIENTE': 'Pendiente',
+        'EN_PROCESO': 'En proceso',
+        'ENTREGADA': 'Entregado',
+        'CANCELADA': 'Cancelado',
+      };
+      if (mapa.containsKey(clave)) return mapa[clave]!;
+    }
+    // PRIORIDAD 2: ESTADO_ORDEN_ID de la tabla
+    final porId = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']);
+    if (porId.isNotEmpty) return porId;
+    return 'Pendiente';
   }
 
   String _resolverCliente(dynamic cliId) {
@@ -178,7 +204,7 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
     setState(() {
       _filtradas = _ordenes.where((o) {
         final num = '${o['NUM_ORDEN'] ?? o['num_orden'] ?? ''}'.toLowerCase();
-        final estadoReal = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']);
+        final estadoReal = _resolverEstadoCompleto(o);
         final estadoTxt = estadoReal.isEmpty ? '' : estadoReal;
         final cliente = _resolverCliente(o['CLI_ID'] ?? o['cli_id']).toLowerCase();
         final metodo = _resolverMetodoPago(o['METODO_PAGO_ID'] ?? o['metodo_pago_id']).toLowerCase();
@@ -190,7 +216,7 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
             metodo.contains(q) ||
             obs.contains(q) ||
             direccion.contains(q);
-        final matchE = _filtroEstado == 'Todos' || estadoTxt == _filtroEstado;
+        final matchE = _filtroEstado == 'Todos' || estadoTxt.toLowerCase().trim() == _filtroEstado.toLowerCase().trim();
         return matchQ && matchE;
       }).toList();
     });
@@ -235,7 +261,7 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
   Map<String, int> get _countsPorEstado {
     final counts = <String, int>{};
     for (final o in _ordenes) {
-      final raw = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']);
+      final raw = _resolverEstadoCompleto(o);
       final e = raw.isEmpty ? 'Sin estado' : raw;
       counts[e] = (counts[e] ?? 0) + 1;
     }
@@ -248,12 +274,12 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
       );
 
   int get _pendientes => _filtradas.where((o) {
-        final estado = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']).toLowerCase();
+        final estado = _resolverEstadoCompleto(o).toLowerCase();
         return estado == 'pendiente';
       }).length;
 
   int get _canceladas => _filtradas.where((o) {
-        final estado = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']).toLowerCase();
+        final estado = _resolverEstadoCompleto(o).toLowerCase();
         return estado == 'cancelado';
       }).length;
 
@@ -532,7 +558,7 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
                           int count = 0;
                           if (label != 'Todos') {
                             count = _ordenes.where((o) {
-                              final r = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']);
+                              final r = _resolverEstadoCompleto(o);
                               return r == label;
                             }).length;
                           }
@@ -651,7 +677,7 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
                       final descuento = double.tryParse('${o['DESCUENTO'] ?? o['descuento'] ?? 0}') ?? 0;
                       final impuesto = double.tryParse('${o['IMPUESTO'] ?? o['impuesto'] ?? 0}') ?? 0;
                       final fecha = _normalizarFecha(o['FECHA_ORDEN'] ?? o['fecha_orden']);
-                      final estadoReal = _resolverEstadoOrden(o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id']);
+                      final estadoReal = _resolverEstadoCompleto(o);
                       final estado = estadoReal.isEmpty ? 'Sin estado' : estadoReal;
                       final cliId = o['CLI_ID'] ?? o['cli_id'];
                       final cliente = _resolverCliente(cliId);

@@ -97,13 +97,28 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
   }
 
   @override
+  String _resolverEstado(Map<String, dynamic> o) {
+    final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ''}';
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    if (match != null) {
+      const mapa = {
+        'INGRESADA':  'Pendiente',
+        'PENDIENTE':  'Pendiente',
+        'EN_PROCESO': 'En proceso',
+        'ENTREGADA':  'Entregado',
+        'CANCELADA':  'Cancelado',
+      };
+      return mapa[match.group(1)!] ?? 'Pendiente';
+    }
+    return (o['ESTADO'] ?? o['estado'] ?? 'Pendiente').toString();
+  }
+
+  @override
   Widget build(BuildContext context) {
     var filtradas = _filtro == 'Todos'
         ? _ordenes
         : _ordenes
-            .where((o) =>
-                (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase() ==
-                _filtro.toLowerCase())
+            .where((o) => _resolverEstado(o).toLowerCase() == _filtro.toLowerCase())
             .toList();
 
     return Scaffold(
@@ -221,8 +236,24 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
     final id = o['ORDEN_VENTA_ID'] ?? o['orden_venta_id'];
     final num = o['NUM_ORDEN'] ?? o['num_orden'] ?? '#$id';
     final total = double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
-    final estado = (o['ESTADO'] ?? o['estado'] ?? 'Pendiente').toString();
     final fecha = o['FECHA_ORDEN'] ?? o['fecha_orden'] ?? '';
+
+    // Leer estado real — prioridad: prefijo [CLAVE] en observaciones
+    final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ''}';
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    String estado;
+    if (match != null) {
+      const mapa = {
+        'INGRESADA':  'Pendiente',
+        'PENDIENTE':  'Pendiente',
+        'EN_PROCESO': 'En proceso',
+        'ENTREGADA':  'Entregado',
+        'CANCELADA':  'Cancelado',
+      };
+      estado = mapa[match.group(1)!] ?? 'Pendiente';
+    } else {
+      estado = (o['ESTADO'] ?? o['estado'] ?? 'Pendiente').toString();
+    }
 
     return GestureDetector(
       onTap: () => context.go('/orden/$id'),

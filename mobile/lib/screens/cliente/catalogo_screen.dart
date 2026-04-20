@@ -270,10 +270,10 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                               const EdgeInsets.fromLTRB(14, 12, 14, 100),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.72,
+                            crossAxisCount: 5,
+                            mainAxisSpacing: 6,
+                            crossAxisSpacing: 6,
+                            childAspectRatio: 0.70,
                           ),
                           itemCount: lista.length,
                           itemBuilder: (_, i) =>

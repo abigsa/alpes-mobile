@@ -155,121 +155,178 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Dirección de entrega',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _direccionCtrl,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Dirección completa',
-                        prefixIcon: Icon(Icons.location_on_outlined,
-                            color: AlpesColors.nogalMedio),
+                    // ── Dirección ──
+                    _sectionLabel(Icons.location_on_rounded, 'Dirección de entrega'),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: _cardDeco(),
+                      padding: const EdgeInsets.all(14),
+                      child: TextFormField(
+                        controller: _direccionCtrl,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Dirección completa',
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          prefixIcon: Icon(Icons.location_on_outlined,
+                              color: AlpesColors.nogalMedio),
+                          filled: false,
+                        ),
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Ingresa la dirección'
+                            : null,
                       ),
-                      validator: (v) => v == null || v.isEmpty
-                          ? 'Ingresa la dirección'
-                          : null,
                     ),
-                    const SizedBox(height: 24),
-                    Text('Método de pago',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    ..._metodos.map((m) {
-                      final id = m['METODO_PAGO_ID'] ?? m['metodo_pago_id'];
-                      final nombre = m['NOMBRE'] ?? m['nombre'] ?? '';
-                      return RadioListTile<int>(
-                        value: id,
-                        groupValue: _metodoPagoId,
-                        onChanged: (v) => setState(() => _metodoPagoId = v),
-                        title: Text(nombre),
-                        activeColor: AlpesColors.cafeOscuro,
-                      );
-                    }),
-                    const SizedBox(height: 24),
-                    Text('Cupón de descuento',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _cuponCtrl,
-                            decoration: const InputDecoration(
-                                labelText: 'Código de cupón'),
+                    const SizedBox(height: 20),
+
+                    // ── Método de pago ──
+                    _sectionLabel(Icons.payment_rounded, 'Método de pago'),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: _cardDeco(),
+                      child: Column(children: _metodos.map((m) {
+                        final id     = m['METODO_PAGO_ID'] ?? m['metodo_pago_id'];
+                        final nombre = m['NOMBRE'] ?? m['nombre'] ?? '';
+                        final sel    = _metodoPagoId == id;
+                        return ListTile(
+                          leading: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: sel ? AlpesColors.cafeOscuro : AlpesColors.cremaFondo,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.credit_card_rounded, size: 17,
+                              color: sel ? Colors.white : AlpesColors.nogalMedio),
                           ),
+                          title: Text(nombre, style: TextStyle(fontSize: 14,
+                              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                              color: AlpesColors.cafeOscuro)),
+                          trailing: Radio<int>(
+                            value: id,
+                            groupValue: _metodoPagoId,
+                            onChanged: (v) => setState(() => _metodoPagoId = v),
+                            activeColor: AlpesColors.cafeOscuro,
+                          ),
+                          onTap: () => setState(() => _metodoPagoId = id),
+                        );
+                      }).toList()),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Cupón ──
+                    _sectionLabel(Icons.discount_rounded, 'Cupón de descuento'),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: _cardDeco(),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      child: Row(children: [
+                        Expanded(child: TextFormField(
+                          controller: _cuponCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Código de cupón',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            prefixIcon: Icon(Icons.local_offer_rounded,
+                                color: AlpesColors.nogalMedio, size: 18),
+                          ),
+                        )),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text('Aplicar',
+                              style: TextStyle(fontWeight: FontWeight.w700,
+                                  color: AlpesColors.cafeOscuro)),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                            onPressed: () {}, child: const Text('Aplicar')),
-                      ],
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Resumen ──
+                    _sectionLabel(Icons.receipt_rounded, 'Resumen del pedido'),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: _cardDeco(),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(children: [
+                        _resumenRow('Subtotal',
+                            'Q ${carrito.total.toStringAsFixed(2)}', false),
+                        const SizedBox(height: 10),
+                        _resumenRow('IVA (12%)',
+                            'Q ${(carrito.total * 0.12).toStringAsFixed(2)}', false),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(color: AlpesColors.pergamino),
+                        ),
+                        _resumenRow('Total',
+                            'Q ${(carrito.total * 1.12).toStringAsFixed(2)}', true),
+                      ]),
                     ),
                     const SizedBox(height: 24),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Subtotal:'),
-                                Text('Q${carrito.total.toStringAsFixed(2)}'),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('IVA (12%):'),
-                                Text(
-                                    'Q${(carrito.total * 0.12).toStringAsFixed(2)}'),
-                              ],
-                            ),
-                            const Divider(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Total:',
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge),
-                                Text(
-                                    'Q${(carrito.total * 1.12).toStringAsFixed(2)}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                            color: AlpesColors.cafeOscuro)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+
+                    // ── Botón confirmar ──
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
+                      height: 54,
+                      child: ElevatedButton.icon(
                         onPressed: _procesando ? null : _procesarPago,
-                        child: _procesando
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
+                        icon: _procesando
+                            ? const SizedBox(width: 18, height: 18,
                                 child: CircularProgressIndicator(
                                     color: Colors.white, strokeWidth: 2))
-                            : const Text('CONFIRMAR PEDIDO'),
+                            : const Icon(Icons.check_circle_rounded, size: 20),
+                        label: Text(_procesando ? 'Procesando...' : 'Confirmar pedido',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AlpesColors.cafeOscuro,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
     );
   }
+  // ── Helpers de diseño ──
+  BoxDecoration _cardDeco() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(18),
+    border: Border.all(color: AlpesColors.pergamino),
+    boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05),
+        blurRadius: 10, offset: const Offset(0, 3))],
+  );
+
+  Widget _sectionLabel(IconData icon, String label) => Row(children: [
+    Container(width: 32, height: 32,
+        decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(9)),
+        child: Icon(icon, size: 15, color: AlpesColors.cafeOscuro)),
+    const SizedBox(width: 10),
+    Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+        color: AlpesColors.cafeOscuro)),
+  ]);
+
+  Widget _resumenRow(String label, String value, bool highlight) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label, style: TextStyle(fontSize: highlight ? 15 : 13,
+          fontWeight: highlight ? FontWeight.w700 : FontWeight.w400,
+          color: highlight ? AlpesColors.cafeOscuro : AlpesColors.nogalMedio)),
+      Text(value, style: TextStyle(fontSize: highlight ? 18 : 13,
+          fontWeight: FontWeight.w800,
+          color: AlpesColors.cafeOscuro)),
+    ],
+  );
+
 }

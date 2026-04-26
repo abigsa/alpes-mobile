@@ -1213,6 +1213,79 @@ class __ClientesFormState extends State<_ClientesForm> {
   final _formKey = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _c;
   bool _guardando = false;
+  
+  // Lista estática de departamentos de Guatemala
+  final List<String> _departamentos = [
+    'Alta Verapaz',
+    'Baja Verapaz',
+    'Chimaltenango',
+    'Chiquimula',
+    'El Progreso',
+    'Escuintla',
+    'Guatemala',
+    'Huehuetenango',
+    'Izabal',
+    'Jalapa',
+    'Jutiapa',
+    'Petén',
+    'Quetzaltenango',
+    'Quiché',
+    'Retalhuleu',
+    'Sacatepéquez',
+    'San Marcos',
+    'Santa Rosa',
+    'Sololá',
+    'Suchitepéquez',
+    'Totonicapán',
+    'Zacapa',
+  ];
+  
+  String? _selectedDepartamento;
+
+  // Campos obligatorios
+  final List<String> _camposObligatorios = [
+    'tipo_documento',
+    'num_documento',
+    'nombres',
+    'apellidos',
+    'email',
+    'tel_celular',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _c = {
+      'tipo_documento': TextEditingController(),
+      'num_documento': TextEditingController(),
+      'nombres': TextEditingController(),
+      'apellidos': TextEditingController(),
+      'email': TextEditingController(),
+      'tel_celular': TextEditingController(),
+      'pais': TextEditingController(text: 'Guatemala'),
+      'departamento': TextEditingController(),
+      'ciudad': TextEditingController(),
+      'direccion': TextEditingController(),
+    };
+    
+    if (widget.item != null) {
+      for (final k in _c.keys) {
+        if (k == 'pais' && _isPendingText(widget.item!['PAIS'] ?? widget.item![k] ?? '')) {
+          _c[k]!.text = 'Guatemala';
+        } else if (k == 'departamento') {
+          final deptoActual = widget.item!['DEPARTAMENTO'] ?? widget.item![k] ?? '';
+          if (!_isPendingText(deptoActual)) {
+            _selectedDepartamento = deptoActual;
+            _c[k]!.text = deptoActual;
+          }
+        } else {
+          _c[k]!.text = _cleanInitialValue(
+            widget.item![k.toUpperCase()] ?? widget.item![k] ?? '',
+          );
+        }
+      }
+    }
+  }
 
   bool _isPendingText(dynamic value) {
     final text = (value ?? '').toString().trim().toLowerCase();
@@ -1230,30 +1303,6 @@ class __ClientesFormState extends State<_ClientesForm> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _c = {
-      'tipo_documento': TextEditingController(),
-      'num_documento': TextEditingController(),
-      'nombres': TextEditingController(),
-      'apellidos': TextEditingController(),
-      'email': TextEditingController(),
-      'tel_celular': TextEditingController(),
-      'pais': TextEditingController(),
-      'departamento': TextEditingController(),
-      'ciudad': TextEditingController(),
-      'direccion': TextEditingController(),
-    };
-    if (widget.item != null) {
-      for (final k in _c.keys) {
-        _c[k]!.text = _cleanInitialValue(
-          widget.item![k.toUpperCase()] ?? widget.item![k] ?? '',
-        );
-      }
-    }
-  }
-
-  @override
   void dispose() {
     for (final c in _c.values) {
       c.dispose();
@@ -1266,8 +1315,42 @@ class __ClientesFormState extends State<_ClientesForm> {
     return v.isEmpty ? 'Pendiente de completar' : v;
   }
 
+  String? _validarCampo(String? value, String nombreCampo) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El campo $nombreCampo es obligatorio';
+    }
+    return null;
+  }
+
+  String? _validarEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El campo email es obligatorio';
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Ingresa un email válido';
+    }
+    return null;
+  }
+
+  String? _validarTelefono(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El campo teléfono es obligatorio';
+    }
+    if (value.trim().length < 8) {
+      return 'Ingresa un número de teléfono válido (mínimo 8 dígitos)';
+    }
+    return null;
+  }
+
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Asignar el departamento seleccionado al controlador
+    if (_selectedDepartamento != null) {
+      _c['departamento']!.text = _selectedDepartamento!;
+    }
+    
     setState(() => _guardando = true);
     try {
       final body = {
@@ -1335,19 +1418,126 @@ class __ClientesFormState extends State<_ClientesForm> {
     }
   }
 
-  Widget _campo(
+  Widget _campoObligatorio(
     String label,
     String key, {
     TextInputType? type,
+    String? Function(String?)? validator,
+    int maxLines = 1,
   }) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextFormField(
           controller: _c[key],
           keyboardType: type,
-          decoration: InputDecoration(labelText: label),
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(color: AlpesColors.nogalMedio),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: AlpesColors.oroGuatemalteco.withOpacity(0.8),
+                width: 1.5,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: AlpesColors.arenaCalida.withOpacity(0.5),
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AlpesColors.rojoColonial),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AlpesColors.rojoColonial, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+          validator: validator ??
+              (value) => _validarCampo(value, label.toLowerCase()),
         ),
       );
+
+  Widget _campoOpcional(
+    String label,
+    String key, {
+    TextInputType? type,
+    int maxLines = 1,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: _c[key],
+          keyboardType: type,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(color: AlpesColors.nogalMedio),
+            hintText: 'Opcional',
+            hintStyle: const TextStyle(color: AlpesColors.arenaCalida, fontSize: 12),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: AlpesColors.oroGuatemalteco.withOpacity(0.8),
+                width: 1.5,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: AlpesColors.arenaCalida.withOpacity(0.5),
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+      );
+
+  Widget _campoDepartamento() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: 'Departamento',
+          labelStyle: const TextStyle(color: AlpesColors.nogalMedio),
+          hintText: 'Selecciona un departamento',
+          hintStyle: const TextStyle(color: AlpesColors.arenaCalida, fontSize: 12),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(
+              color: AlpesColors.oroGuatemalteco.withOpacity(0.8),
+              width: 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(
+              color: AlpesColors.arenaCalida.withOpacity(0.5),
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        value: _selectedDepartamento,
+        items: _departamentos.map((depto) {
+          return DropdownMenuItem<String>(
+            value: depto,
+            child: Text(depto),
+          );
+        }).toList(),
+        onChanged: (value) {
+          setState(() {
+            _selectedDepartamento = value;
+          });
+        },
+        isExpanded: true,
+        validator: (value) => null, // Es opcional, puede estar vacío
+      ),
+    );
+  }
 
   Widget _seccion(String label) => Padding(
         padding: const EdgeInsets.only(bottom: 10, top: 4),
@@ -1434,7 +1624,7 @@ class __ClientesFormState extends State<_ClientesForm> {
                     ),
                   ),
                   child: const Text(
-                    'Puedes guardar aunque falten datos. Cualquier campo vacío se marcará como "Pendiente de completar" y aparecerá en el bloque de seguimiento.',
+                    'Los campos marcados con * son obligatorios. El país se autocompleta con Guatemala pero puedes cambiarlo.',
                     style: TextStyle(
                       fontSize: 11.8,
                       color: AlpesColors.nogalMedio,
@@ -1443,34 +1633,65 @@ class __ClientesFormState extends State<_ClientesForm> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _seccion('Identificación'),
+                _seccion('Identificación *'),
                 Row(
                   children: [
-                    Expanded(child: _campo('Tipo doc.', 'tipo_documento')),
+                    Expanded(
+                      child: _campoObligatorio(
+                        'Tipo doc.',
+                        'tipo_documento',
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Expanded(child: _campo('No. documento', 'num_documento')),
+                    Expanded(
+                      child: _campoObligatorio(
+                        'No. documento',
+                        'num_documento',
+                      ),
+                    ),
                   ],
                 ),
-                _seccion('Datos personales'),
+                _seccion('Datos personales *'),
                 Row(
                   children: [
-                    Expanded(child: _campo('Nombres', 'nombres')),
+                    Expanded(
+                      child: _campoObligatorio(
+                        'Nombres',
+                        'nombres',
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Expanded(child: _campo('Apellidos', 'apellidos')),
+                    Expanded(
+                      child: _campoObligatorio(
+                        'Apellidos',
+                        'apellidos',
+                      ),
+                    ),
                   ],
                 ),
-                _campo('Email', 'email', type: TextInputType.emailAddress),
-                _campo('Teléfono', 'tel_celular', type: TextInputType.phone),
+                _campoObligatorio(
+                  'Email',
+                  'email',
+                  type: TextInputType.emailAddress,
+                  validator: _validarEmail,
+                ),
+                _campoObligatorio(
+                  'Teléfono',
+                  'tel_celular',
+                  type: TextInputType.phone,
+                  validator: _validarTelefono,
+                ),
                 _seccion('Ubicación'),
-                _campo('País', 'pais'),
+                _campoOpcional('País', 'pais'),
+                _campoDepartamento(),
                 Row(
                   children: [
-                    Expanded(child: _campo('Departamento', 'departamento')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _campo('Ciudad', 'ciudad')),
+                    Expanded(
+                      child: _campoOpcional('Ciudad', 'ciudad'),
+                    ),
                   ],
                 ),
-                _campo('Dirección', 'direccion'),
+                _campoOpcional('Dirección', 'direccion', maxLines: 2),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 50,

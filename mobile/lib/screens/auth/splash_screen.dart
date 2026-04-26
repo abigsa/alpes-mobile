@@ -11,113 +11,31 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-
-  // ── Controladores por etapa ──
-  late AnimationController _bgCtrl;       // 1. Fondo aparece
-  late AnimationController _logoCtrl;     // 2. Logo entra
-  late AnimationController _glowCtrl;     // 3. Halo dorado pulsa
-  late AnimationController _textCtrl;     // 4. Texto y subtítulo
-  late AnimationController _lineCtrl;     // 5. Línea decorativa
-  late AnimationController _exitCtrl;     // 6. Salida elegante
-
-  // Animaciones
-  late Animation<double>  _bgFade;
-  late Animation<double>  _logoScale;
-  late Animation<double>  _logoFade;
-  late Animation<double>  _logoY;
-  late Animation<double>  _glowRadius;
-  late Animation<double>  _glowOpacity;
-  late Animation<double>  _textFade;
-  late Animation<double>  _textY;
-  late Animation<double>  _lineWidth;
-  late Animation<double>  _taglineFade;
-  late Animation<double>  _exitFade;
-  late Animation<double>  _exitScale;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _logoScale;
+  late Animation<double> _logoFade;
+  late Animation<double> _textFade;
+  late Animation<Offset> _textSlide;
 
   @override
   void initState() {
     super.initState();
-    _setupAnimations();
-    _runSequence();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
+    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.6, curve: Curves.elasticOut)));
+    _logoFade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.4, curve: Curves.easeOut));
+    _textFade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.9, curve: Curves.easeOut));
+    _textSlide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+        CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.9, curve: Curves.easeOutCubic)));
+    _ctrl.forward();
+    _navigate();
   }
 
-  void _setupAnimations() {
-    // Fondo
-    _bgCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 600));
-    _bgFade = CurvedAnimation(parent: _bgCtrl, curve: Curves.easeIn);
-
-    // Logo
-    _logoCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 700));
-    _logoScale = Tween<double>(begin: 0.3, end: 1.0)
-        .animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
-    _logoFade  = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOut));
-    _logoY     = Tween<double>(begin: 40.0, end: 0.0)
-        .animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutCubic));
-
-    // Glow
-    _glowCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1800))
-      ..repeat(reverse: true);
-    _glowRadius  = Tween<double>(begin: 30.0, end: 60.0)
-        .animate(CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
-    _glowOpacity = Tween<double>(begin: 0.25, end: 0.55)
-        .animate(CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
-
-    // Texto nombre
-    _textCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 600));
-    _textFade = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut));
-    _textY    = Tween<double>(begin: 20.0, end: 0.0)
-        .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOutCubic));
-
-    // Línea separadora
-    _lineCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 500));
-    _lineWidth   = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _lineCtrl, curve: Curves.easeOutCubic));
-    _taglineFade = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _lineCtrl, curve: Curves.easeOut));
-
-    // Salida
-    _exitCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 500));
-    _exitFade  = Tween<double>(begin: 1.0, end: 0.0)
-        .animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeInCubic));
-    _exitScale = Tween<double>(begin: 1.0, end: 1.08)
-        .animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
-  }
-
-  Future<void> _runSequence() async {
-    // 1. Fondo aparece
-    await _bgCtrl.forward();
-
-    // 2. Logo entra con elasticidad
-    await Future.delayed(const Duration(milliseconds: 100));
-    await _logoCtrl.forward();
-
-    // 3. Texto entra
-    await Future.delayed(const Duration(milliseconds: 200));
-    await _textCtrl.forward();
-
-    // 4. Línea y tagline
-    await Future.delayed(const Duration(milliseconds: 100));
-    await _lineCtrl.forward();
-
-    // 5. Esperar a que termine de verse
-    await Future.delayed(const Duration(milliseconds: 1400));
-
-    // 6. Salida elegante
-    _glowCtrl.stop();
-    await _exitCtrl.forward();
-
-    // 7. Navegar
-    if (!mounted) return;
+  Future<void> _navigate() async {
     final auth = context.read<AuthProvider>();
+    await Future.delayed(const Duration(milliseconds: 2400));
+    if (!mounted) return;
     if (auth.isLoggedIn) {
       context.go(auth.isAdmin ? '/admin' : '/home');
     } else {
@@ -126,253 +44,76 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
-  void dispose() {
-    _bgCtrl.dispose();
-    _logoCtrl.dispose();
-    _glowCtrl.dispose();
-    _textCtrl.dispose();
-    _lineCtrl.dispose();
-    _exitCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: AnimatedBuilder(
-        animation: Listenable.merge([
-          _bgCtrl, _logoCtrl, _glowCtrl, _textCtrl, _lineCtrl, _exitCtrl
-        ]),
-        builder: (_, __) {
-          return FadeTransition(
-            opacity: _exitFade,
-            child: ScaleTransition(
-              scale: _exitScale,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // ── FONDO ──────────────────────────────
-                  FadeTransition(
-                    opacity: _bgFade,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(0, -0.2),
-                          radius: 1.4,
-                          colors: [
-                            Color(0xFF3D2416),
-                            Color(0xFF2C1810),
-                            Color(0xFF180C06),
-                          ],
-                          stops: [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                    ),
+  Widget build(BuildContext context) => Scaffold(
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -0.3), radius: 1.5,
+          colors: [Color(0xFF3D2416), Color(0xFF2C1810), Color(0xFF0A0604)],
+          stops: [0.0, 0.5, 1.0],
+        ),
+      ),
+      child: Stack(children: [
+        Positioned(top: -100, right: -80,
+          child: _circle(280, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+        Positioned(bottom: -80, left: -60,
+          child: _circle(220, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+        Positioned(top: 180, left: -30,
+          child: _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.03))),
+        Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          ScaleTransition(scale: _logoScale,
+            child: FadeTransition(opacity: _logoFade,
+              child: Container(
+                width: 110, height: 110,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE8B84B), Color(0xFFD4A853), Color(0xFFB8922A)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
                   ),
-
-                  // ── PARTÍCULAS DECORATIVAS ──────────────
-                  FadeTransition(
-                    opacity: _bgFade,
-                    child: Stack(children: [
-                      _circle(260, 260, const Offset(-80, -80),
-                          AlpesColors.oroGuatemalteco.withOpacity(0.06)),
-                      _circle(180, 180, Offset(
-                          MediaQuery.of(context).size.width + 40,
-                          MediaQuery.of(context).size.height * 0.2),
-                          AlpesColors.oroGuatemalteco.withOpacity(0.05)),
-                      _circle(120, 120, Offset(
-                          MediaQuery.of(context).size.width * 0.15,
-                          MediaQuery.of(context).size.height * 0.72),
-                          Colors.white.withOpacity(0.03)),
-                      _circle(80, 80, Offset(
-                          MediaQuery.of(context).size.width * 0.78,
-                          MediaQuery.of(context).size.height * 0.8),
-                          AlpesColors.oroGuatemalteco.withOpacity(0.07)),
-                    ]),
-                  ),
-
-                  // ── CONTENIDO CENTRAL ───────────────────
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-
-                        // Glow + Logo
-                        Transform.translate(
-                          offset: Offset(0, _logoY.value),
-                          child: Opacity(
-                            opacity: _logoFade.value,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Halo pulsante
-                                Container(
-                                  width: _glowRadius.value * 2 + 80,
-                                  height: _glowRadius.value * 2 + 80,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AlpesColors.oroGuatemalteco
-                                        .withOpacity(_glowOpacity.value * 0.15),
-                                  ),
-                                ),
-                                // Halo medio
-                                Container(
-                                  width: 110, height: 110,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AlpesColors.oroGuatemalteco
-                                        .withOpacity(_glowOpacity.value * 0.12),
-                                  ),
-                                ),
-                                // Logo principal
-                                Transform.scale(
-                                  scale: _logoScale.value,
-                                  child: Container(
-                                    width: 88, height: 88,
-                                    decoration: BoxDecoration(
-                                      color: AlpesColors.oroGuatemalteco,
-                                      borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AlpesColors.oroGuatemalteco
-                                              .withOpacity(_glowOpacity.value),
-                                          blurRadius: _glowRadius.value,
-                                          spreadRadius: 2,
-                                        ),
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.chair_alt_rounded,
-                                      size: 44,
-                                      color: AlpesColors.cafeOscuro,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Nombre empresa
-                        Transform.translate(
-                          offset: Offset(0, _textY.value),
-                          child: Opacity(
-                            opacity: _textFade.value,
-                            child: const Text(
-                              'MUEBLES DE LOS ALPES',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 3.5,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Línea dorada animada
-                        Opacity(
-                          opacity: _taglineFade.value,
-                          child: SizedBox(
-                            width: 240,
-                            child: Row(
-                              children: [
-                                // Línea izquierda
-                                Expanded(
-                                  child: FractionallySizedBox(
-                                    widthFactor: _lineWidth.value,
-                                    alignment: Alignment.centerRight,
-                                    child: Container(height: 1,
-                                        color: AlpesColors.oroGuatemalteco.withOpacity(0.5)),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                  child: Container(
-                                    width: 5, height: 5,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AlpesColors.oroGuatemalteco,
-                                      boxShadow: [BoxShadow(
-                                        color: AlpesColors.oroGuatemalteco.withOpacity(0.6),
-                                        blurRadius: 6,
-                                      )],
-                                    ),
-                                  ),
-                                ),
-                                // Línea derecha
-                                Expanded(
-                                  child: FractionallySizedBox(
-                                    widthFactor: _lineWidth.value,
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(height: 1,
-                                        color: AlpesColors.oroGuatemalteco.withOpacity(0.5)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Tagline
-                        Opacity(
-                          opacity: _taglineFade.value,
-                          child: const Text(
-                            'Artesanía  ·  Calidad  ·  Elegancia',
-                            style: TextStyle(
-                              color: AlpesColors.arenaCalida,
-                              fontSize: 12,
-                              letterSpacing: 2.5,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 80),
-
-                        // Loading indicator sutil
-                        Opacity(
-                          opacity: _taglineFade.value,
-                          child: SizedBox(
-                            width: 40,
-                            child: LinearProgressIndicator(
-                              backgroundColor: Colors.white.withOpacity(0.1),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AlpesColors.oroGuatemalteco.withOpacity(0.7)),
-                              minHeight: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.5),
+                        blurRadius: 40, offset: const Offset(0, 16)),
+                    BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.2),
+                        blurRadius: 80, offset: const Offset(0, 30)),
+                  ],
+                ),
+                child: const Icon(Icons.chair_alt_rounded, size: 56, color: AlpesColors.cafeOscuro),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+          const SizedBox(height: 36),
+          SlideTransition(position: _textSlide,
+            child: FadeTransition(opacity: _textFade,
+              child: Column(children: [
+                const Text('Muebles de los Alpes',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800,
+                        color: Colors.white, letterSpacing: 0.4)),
+                const SizedBox(height: 8),
+                Text('Elegancia en cada espacio',
+                    style: TextStyle(fontSize: 13, color: AlpesColors.oroGuatemalteco.withOpacity(0.85),
+                        letterSpacing: 2.0, fontWeight: FontWeight.w400)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 80),
+          FadeTransition(opacity: _textFade,
+            child: SizedBox(width: 48, height: 2,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.white.withOpacity(0.1),
+                valueColor: const AlwaysStoppedAnimation(AlpesColors.oroGuatemalteco),
+              ),
+            ),
+          ),
+        ])),
+      ]),
+    ),
+  );
 
-  Widget _circle(double w, double h, Offset offset, Color color) =>
-      Positioned(
-        left: offset.dx,
-        top: offset.dy,
-        child: Container(
-          width: w, height: h,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
-      );
+  Widget _circle(double size, Color color) => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(shape: BoxShape.circle, color: color));
 }

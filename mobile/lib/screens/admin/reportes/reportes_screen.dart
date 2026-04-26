@@ -25,8 +25,10 @@ class _ReportesScreenState extends State<ReportesScreen>
   final List<Map<String, dynamic>> _clientes = [];
   final List<Map<String, dynamic>> _inventario = [];
   final List<Map<String, dynamic>> _productos = [];
+  List<Map<String, dynamic>> _ultimasOrdenesCache = [];
 
   bool _loading = true;
+  bool _recargandoUltimasOrdenes = false;
   String? _error;
   bool _apiConectada = false;
 
@@ -38,6 +40,26 @@ class _ReportesScreenState extends State<ReportesScreen>
   int _selectedYear = DateTime.now().year;
   int? _compareYear;
   _TrendChartMode _chartMode = _TrendChartMode.linea;
+
+  // Nuevo: mes seleccionado para filtro de trimestre (0 = Enero, 11 = Diciembre, -1 = Anual)
+  int _selectedMonth = -1; // -1 significa "Anual"
+
+  // Lista de meses con opción anual
+  final List<MapEntry<String, int>> _monthOptions = [
+    const MapEntry('📅 Anual', -1),
+    const MapEntry('Ene', 0),
+    const MapEntry('Feb', 1),
+    const MapEntry('Mar', 2),
+    const MapEntry('Abr', 3),
+    const MapEntry('May', 4),
+    const MapEntry('Jun', 5),
+    const MapEntry('Jul', 6),
+    const MapEntry('Ago', 7),
+    const MapEntry('Sep', 8),
+    const MapEntry('Oct', 9),
+    const MapEntry('Nov', 10),
+    const MapEntry('Dic', 11),
+  ];
 
   final Map<int, List<double>> _ventasPorAnio = {};
   final Map<int, List<int>> _usuariosActivosPorAnio = {};
@@ -125,6 +147,7 @@ class _ReportesScreenState extends State<ReportesScreen>
       _cargarLista(_productos, decoded[5]['data']);
 
       _calcularMetricas();
+      _ultimasOrdenesCache = _computeUltimasOrdenes(_ordenes);
     } catch (e) {
       _apiConectada = false;
       _error =
@@ -364,13 +387,51 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   String _prettyEstado(String raw) {
     final normalized = raw.trim().toLowerCase();
-    if (normalized.contains('proceso')) return 'En proceso';
-    if (normalized.contains('entreg')) return 'Entregado';
-    if (normalized.contains('cancel')) return 'Cancelado';
+    if (normalized.isEmpty) return 'Pendiente';
+    if (normalized.contains('entreg') ||
+        normalized.contains('complet') ||
+        normalized.contains('finaliz') ||
+        normalized.contains('cerrad')) {
+      return 'Entregado';
+    }
+    if (normalized.contains('cancel') ||
+        normalized.contains('anulad') ||
+        normalized.contains('rechaz')) {
+      return 'Cancelado';
+    }
+    if (normalized.contains('proceso') ||
+        normalized.contains('prepar') ||
+        normalized.contains('despach') ||
+        normalized.contains('camino') ||
+        normalized.contains('curso')) {
+      return 'En proceso';
+    }
+    if (normalized.contains('pend') ||
+        normalized.contains('ingres') ||
+        normalized.contains('nueva') ||
+        normalized.contains('nuevo') ||
+        normalized.contains('cread')) {
+      return 'Pendiente';
+    }
     return 'Pendiente';
   }
 
   String _resolverEstado(Map<String, dynamic> orden) {
+    final observaciones = (_readValue(
+              orden,
+              const ['OBSERVACIONES', 'observaciones'],
+            ) ??
+            '')
+        .toString()
+        .trim();
+    if (observaciones.isNotEmpty) {
+      final pretty = _prettyEstado(observaciones);
+      if (pretty != 'Pendiente' ||
+          observaciones.toLowerCase().contains('pend')) {
+        return observaciones;
+      }
+    }
+
     final estadoId = _readValue(
       orden,
       const ['ESTADO_ORDEN_ID', 'estado_orden_id'],
@@ -384,13 +445,28 @@ class _ReportesScreenState extends State<ReportesScreen>
         if ('$id' == '$estadoId') {
           final codigo = _readValue(estado, const ['CODIGO', 'codigo']);
           final nombre = _readValue(estado, const ['NOMBRE', 'nombre']);
-          final raw = (codigo ?? nombre ?? '').toString();
+          final descripcion = _readValue(
+            estado,
+            const ['DESCRIPCION', 'descripcion'],
+          );
+          final raw = (codigo ?? nombre ?? descripcion ?? '')
+              .toString()
+              .trim();
           if (raw.isNotEmpty) return raw;
         }
       }
     }
-    return (_readValue(orden, const ['ESTADO', 'estado']) ?? 'Pendiente')
-        .toString();
+
+    final directo = (_readValue(
+              orden,
+              const ['ESTADO', 'estado', 'STATUS', 'status'],
+            ) ??
+            '')
+        .toString()
+        .trim();
+    if (directo.isNotEmpty) return directo;
+
+    return 'Pendiente';
   }
 
   int _itemsPorOrden(Map<String, dynamic> orden) {
@@ -527,8 +603,124 @@ class _ReportesScreenState extends State<ReportesScreen>
     return ((current - previous) / previous) * 100;
   }
 
-  List<Map<String, dynamic>> get _ultimasOrdenes {
-    final copia = [..._ordenes];
+  // Obtener el trimestre del mes seleccionado
+  int _getQuarterFromMonth(int monthIndex) {
+    if (monthIndex < 0) return -1; // Anual
+    return (monthIndex ~/ 3) + 1;
+  }
+
+  // Obtener los índices de los meses del trimestre
+  List<int> _getMonthsInQuarter(int quarter) {
+    switch (quarter) {
+      case 1:
+        return [0, 1, 2];
+      case 2:
+        return [3, 4, 5];
+      case 3:
+        return [6, 7, 8];
+      case 4:
+        return [9, 10, 11];
+      default:
+        return [0, 1, 2];
+    }
+  }
+
+  // Obtener suma de ventas del trimestre para un año
+  double _getQuarterSales(int year, int quarter) {
+    final months = _getMonthsInQuarter(quarter);
+    final sales = _salesForYear(year);
+    double total = 0;
+    for (final month in months) {
+      if (month < sales.length) {
+        total += sales[month];
+      }
+    }
+    return total;
+  }
+
+  // Obtener suma de usuarios activos del trimestre para un año (suma total, no promedio)
+  int _getQuarterActiveUsers(int year, int quarter) {
+    final months = _getMonthsInQuarter(quarter);
+    final users = _activeUsersForYear(year);
+    int total = 0;
+    for (final month in months) {
+      if (month < users.length) {
+        total += users[month];
+      }
+    }
+    return total;
+  }
+
+  // Obtener datos de ventas por mes para un trimestre específico
+  List<double> _getMonthlySalesForQuarter(int year, int quarter) {
+    final months = _getMonthsInQuarter(quarter);
+    final sales = _salesForYear(year);
+    final List<double> result = [];
+    for (final month in months) {
+      if (month < sales.length) {
+        result.add(sales[month]);
+      } else {
+        result.add(0);
+      }
+    }
+    return result;
+  }
+
+  // Obtener datos de usuarios por mes para un trimestre específico
+  List<int> _getMonthlyUsersForQuarter(int year, int quarter) {
+    final months = _getMonthsInQuarter(quarter);
+    final users = _activeUsersForYear(year);
+    final List<int> result = [];
+    for (final month in months) {
+      if (month < users.length) {
+        result.add(users[month]);
+      } else {
+        result.add(0);
+      }
+    }
+    return result;
+  }
+
+  String _getQuarterName(int quarter) {
+    switch (quarter) {
+      case 1:
+        return 'Q1 (Ene-Mar)';
+      case 2:
+        return 'Q2 (Abr-Jun)';
+      case 3:
+        return 'Q3 (Jul-Sep)';
+      case 4:
+        return 'Q4 (Oct-Dic)';
+      default:
+        return 'Q1';
+    }
+  }
+
+  String _getMonthName(int monthIndex) {
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
+    ];
+    if (monthIndex >= 0 && monthIndex < months.length) {
+      return months[monthIndex];
+    }
+    return '';
+  }
+
+  List<Map<String, dynamic>> _computeUltimasOrdenes(
+    List<Map<String, dynamic>> source,
+  ) {
+    final copia = [...source];
     copia.sort((a, b) {
       final fechaA = _parseDate(
             _readValue(a, const ['FECHA_ORDEN', 'fecha_orden']),
@@ -541,6 +733,47 @@ class _ReportesScreenState extends State<ReportesScreen>
       return fechaB.compareTo(fechaA);
     });
     return copia.take(10).toList();
+  }
+
+  Future<void> _recargarUltimasOrdenes() async {
+    if (_recargandoUltimasOrdenes) return;
+
+    setState(() => _recargandoUltimasOrdenes = true);
+
+    try {
+      final responses = await Future.wait([
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}')),
+      ]);
+
+      final decoded = responses.map((response) {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception('HTTP ${response.statusCode}');
+        }
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }).toList();
+
+      _cargarLista(_ordenes, decoded[0]['data']);
+      _cargarLista(_detallesOrden, decoded[1]['data']);
+      _cargarLista(_estadosOrden, decoded[2]['data']);
+
+      if (!mounted) return;
+      setState(() {
+        _apiConectada = true;
+        _error = null;
+        _ultimasOrdenesCache = _computeUltimasOrdenes(_ordenes);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _apiConectada = false;
+        _error = 'No se pudieron recargar las últimas órdenes.';
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() => _recargandoUltimasOrdenes = false);
+    }
   }
 
   List<Map<String, dynamic>> get _inventarioVigilancia {
@@ -575,7 +808,7 @@ class _ReportesScreenState extends State<ReportesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AlpesColors.cremaFondo,
+      backgroundColor: const Color(0xFFF6F1EA),
       body: RefreshIndicator(
         color: AlpesColors.oroGuatemalteco,
         onRefresh: _cargarDatos,
@@ -585,7 +818,7 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           slivers: [
             SliverAppBar(
-              expandedHeight: 138,
+              expandedHeight: 168,
               pinned: true,
               backgroundColor: AlpesColors.cafeOscuro,
               elevation: 0,
@@ -601,49 +834,69 @@ class _ReportesScreenState extends State<ReportesScreen>
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsetsDirectional.only(
                   start: 18,
-                  bottom: 16,
+                  bottom: 18,
                 ),
-                title: const Text(
-                  'Reportes',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: .3,
-                  ),
+                title: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reportes',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .3,
+                        fontSize: 18,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Dashboard administrativo de órdenes y rendimiento',
+                      style: TextStyle(
+                        color: Color(0xFFE9DDD1),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 10.8,
+                      ),
+                    ),
+                  ],
                 ),
                 background: Stack(
                   children: [
                     Container(
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AlpesColors.cafeOscuro, Color(0xFF3B2419)],
+                          colors: [
+                            Color(0xFF2D1B12),
+                            Color(0xFF4F3427),
+                            Color(0xFF7B5A45),
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
                     ),
                     Positioned(
-                      top: -26,
-                      right: -12,
+                      top: -30,
+                      right: -20,
                       child: _decorativeCircle(
-                        118,
-                        AlpesColors.oroGuatemalteco.withOpacity(.12),
+                        150,
+                        AlpesColors.oroGuatemalteco.withOpacity(.14),
                       ),
                     ),
                     Positioned(
-                      bottom: -36,
-                      left: -18,
+                      bottom: -42,
+                      left: -16,
                       child: _decorativeCircle(
-                        90,
-                        AlpesColors.oroGuatemalteco.withOpacity(.10),
+                        110,
+                        const Color(0xFFFBF4E6).withOpacity(.12),
                       ),
                     ),
                     Positioned(
-                      top: 42,
-                      right: 70,
+                      top: 58,
+                      right: 96,
                       child: _decorativeCircle(
-                        22,
-                        AlpesColors.oroGuatemalteco.withOpacity(.16),
+                        28,
+                        AlpesColors.oroGuatemalteco.withOpacity(.22),
                       ),
                     ),
                   ],
@@ -668,19 +921,23 @@ class _ReportesScreenState extends State<ReportesScreen>
                             _buildSectionTitle('Resumen ejecutivo'),
                             const SizedBox(height: 12),
                             _buildKpiGrid(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Tendencia de ventas'),
                             const SizedBox(height: 12),
                             _buildTrendCard(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
+                            _buildSectionTitle('Comparación por trimestre'),
+                            const SizedBox(height: 12),
+                            _buildQuarterComparisonCard(),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Estados de órdenes'),
                             const SizedBox(height: 12),
                             _buildEstadoCharts(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Inventario en vigilancia'),
                             const SizedBox(height: 12),
                             _buildInventarioCard(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _buildSectionTitle('Últimas órdenes'),
                             const SizedBox(height: 12),
                             _buildUltimasOrdenesCard(),
@@ -705,35 +962,71 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   Widget _buildConnectionBanner() {
     final isError = !_apiConectada || _error != null;
-    final bg = isError ? const Color(0xFFF7E2DE) : const Color(0xFFE8F1E7);
-    final fg = isError ? AlpesColors.rojoColonial : AlpesColors.exito;
+    final bg = isError ? const Color(0xFFFFF1EC) : const Color(0xFFFFFAF0);
+    final fg = isError ? AlpesColors.rojoColonial : const Color(0xFF8A6515);
     final text = isError
         ? (_error ?? 'No se pudo establecer conexión con la API.')
-        : 'Conexión activa con la API. Datos sincronizados para órdenes, clientes, productos e inventario.';
+        : 'Conexión activa con la API. Los indicadores se muestran con la información disponible en este momento.';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: fg.withOpacity(.20)),
+        gradient: LinearGradient(
+          colors: [bg, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withOpacity(.18)),
+        boxShadow: [
+          BoxShadow(
+            color: AlpesColors.cafeOscuro.withOpacity(.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(
-            isError ? Icons.wifi_off_rounded : Icons.cloud_done_rounded,
-            color: fg,
-            size: 20,
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: fg.withOpacity(.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isError ? Icons.wifi_off_rounded : Icons.sync_rounded,
+              color: fg,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: fg,
-                fontSize: 12.8,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isError
+                      ? 'Sincronización con inconvenientes'
+                      : 'Sincronización lista',
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 13.4,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: fg.withOpacity(.88),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -742,26 +1035,52 @@ class _ReportesScreenState extends State<ReportesScreen>
   }
 
   Widget _buildSectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AlpesColors.oroGuatemalteco,
-            borderRadius: BorderRadius.circular(8),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF5EBDD), const Color(0xFFE8D6BD)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AlpesColors.cafeOscuro,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFC6A57D).withOpacity(.42),
         ),
-      ],
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7B5A45).withOpacity(.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6D5BC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.auto_graph_rounded,
+              size: 18,
+              color: AlpesColors.cafeOscuro,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AlpesColors.cafeOscuro,
+              fontSize: 15.4,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -771,37 +1090,37 @@ class _ReportesScreenState extends State<ReportesScreen>
         'Ventas totales',
         _formatCompactMoney(_ventasTotales),
         Icons.trending_up_rounded,
-        const [Color(0xFF2C1810), Color(0xFF5A3A26)],
+        const [Color(0xFF0F4C35), Color(0xFF1A7A56)],
       ),
       _KpiData(
         'Órdenes',
         '$_totalOrdenes',
         Icons.receipt_long_rounded,
-        const [Color(0xFF4A301C), Color(0xFF7B5B33)],
+        const [Color(0xFF1A3A5C), Color(0xFF2D6EA8)],
       ),
       _KpiData(
         'Ticket promedio',
         _formatCurrency(_ticketPromedio),
         Icons.payments_rounded,
-        const [Color(0xFF5C4423), Color(0xFF8B6F47)],
+        const [Color(0xFF5C3A00), Color(0xFF9B6B00)],
       ),
       _KpiData(
         'Clientes',
         '$_totalClientes',
         Icons.groups_2_rounded,
-        const [Color(0xFF2C1810), Color(0xFF6A5437)],
+        const [Color(0xFF3A1A5C), Color(0xFF6B2EA8)],
       ),
       _KpiData(
         'Stock bajo ≤5',
         '$_stockBajo',
         Icons.inventory_2_rounded,
-        const [Color(0xFF6A4A28), Color(0xFF9B7341)],
+        const [Color(0xFF1A3A1A), Color(0xFF2E7D32)],
       ),
       _KpiData(
         'Canceladas',
         '$_canceladas',
         Icons.cancel_outlined,
-        const [Color(0xFF5E2020), Color(0xFF8B2E2E)],
+        const [Color(0xFF5E2020), Color(0xFF9B3030)],
       ),
     ];
 
@@ -816,7 +1135,7 @@ class _ReportesScreenState extends State<ReportesScreen>
             crossAxisCount: isNarrow ? 1 : 3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: isNarrow ? 2.9 : 3.8,
+            childAspectRatio: isNarrow ? 2.2 : 5.5,
           ),
           itemBuilder: (_, index) => _buildKpiCard(cards[index]),
         );
@@ -826,56 +1145,55 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   Widget _buildKpiCard(_KpiData data) {
     return ScaleTransition(
-      scale: Tween<double>(begin: .97, end: 1).animate(_fadeAnimation),
+      scale: Tween<double>(begin: .96, end: 1).animate(_fadeAnimation),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: data.gradient,
+            colors: [
+              data.gradient.first.withOpacity(.98),
+              data.gradient.last.withOpacity(.98),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: AlpesColors.oroGuatemalteco.withOpacity(.22),
+            color: AlpesColors.oroGuatemalteco.withOpacity(.24),
           ),
           boxShadow: [
             BoxShadow(
-              color: AlpesColors.cafeOscuro.withOpacity(.08),
-              blurRadius: 14,
-              offset: const Offset(0, 8),
+              color: data.gradient.last.withOpacity(.20),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.10),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(.10)),
+                color: Colors.white.withOpacity(.14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(.18)),
               ),
-              child: Icon(
-                data.icon,
-                color: AlpesColors.oroGuatemalteco,
-                size: 20,
-              ),
+              child: Icon(data.icon, color: Colors.white, size: 26),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     data.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFE8E0D5),
-                      fontSize: 12.5,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(.86),
+                      fontSize: 12.6,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -886,9 +1204,9 @@ class _ReportesScreenState extends State<ReportesScreen>
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
-                      height: 1,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .2,
                     ),
                   ),
                 ],
@@ -972,7 +1290,7 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           const SizedBox(height: 16),
           Container(
-            height: 290,
+            height: 240,
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
             decoration: BoxDecoration(
@@ -1016,9 +1334,9 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           const SizedBox(height: 12),
           Container(
-            height: 124,
+            height: 100,
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
@@ -1122,12 +1440,424 @@ class _ReportesScreenState extends State<ReportesScreen>
     );
   }
 
+  // Tarjeta de comparación por trimestre mejorada
+  Widget _buildQuarterComparisonCard() {
+    final compareYear = _previousYear;
+    final isAnnualView = _selectedMonth == -1;
+    final currentQuarter = isAnnualView ? -1 : _getQuarterFromMonth(_selectedMonth);
+
+    // Datos para la gráfica de barras de los 4 trimestres
+    final List<double> currentQuarterSalesList = [];
+    final List<double> compareQuarterSalesList = [];
+    for (int q = 1; q <= 4; q++) {
+      currentQuarterSalesList.add(_getQuarterSales(_selectedYear, q));
+      if (compareYear != null) {
+        compareQuarterSalesList.add(_getQuarterSales(compareYear, q));
+      } else {
+        compareQuarterSalesList.add(0);
+      }
+    }
+
+    final quarterLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Comparación por trimestre',
+                  style: TextStyle(
+                    color: AlpesColors.cafeOscuro,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _buildMonthSelector(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: isAnnualView
+                ? _buildAnnualQuarterView(
+                    currentQuarterSalesList,
+                    compareQuarterSalesList,
+                    quarterLabels,
+                    compareYear,
+                  )
+                : _buildDetailedQuarterView(
+                    currentQuarter,
+                    compareYear,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Vista anual con todos los trimestres
+  Widget _buildAnnualQuarterView(
+    List<double> currentSales,
+    List<double> compareSales,
+    List<String> labels,
+    int? compareYear,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.18)),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Ventas por trimestre - Comparación anual',
+            style: TextStyle(
+              color: AlpesColors.cafeOscuro,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 250,
+            child: AnimatedBuilder(
+              animation: _chartsAnimation,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _QuarterComparisonPainter(
+                    currentData: currentSales,
+                    previousData: compareSales,
+                    labels: labels,
+                    progress: _chartsAnimation.value,
+                    currentColor: const Color(0xFF0F7B5F),
+                    compareColor: const Color(0xFF2F6FB2),
+                    gridColor: AlpesColors.arenaCalida.withOpacity(.20),
+                    textColor: AlpesColors.nogalMedio,
+                    highlightedQuarter: -1,
+                  ),
+                  child: const SizedBox.expand(),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            alignment: WrapAlignment.center,
+            children: [
+              _legendDot(const Color(0xFF0F7B5F), '$_selectedYear'),
+              if (compareYear != null)
+                _legendDot(const Color(0xFF2F6FB2), '$compareYear'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Vista detallada del trimestre seleccionado
+  Widget _buildDetailedQuarterView(int quarter, int? compareYear) {
+    final quarterName = _getQuarterName(quarter);
+    final monthsInQuarter = _getMonthsInQuarter(quarter);
+    final monthNames = monthsInQuarter.map((m) => _getMonthName(m)).toList();
+
+    final currentSales = _getQuarterSales(_selectedYear, quarter);
+    final compareSales = compareYear != null ? _getQuarterSales(compareYear, quarter) : 0.0;
+    final currentUsers = _getQuarterActiveUsers(_selectedYear, quarter);
+    final compareUsers = compareYear != null ? _getQuarterActiveUsers(compareYear, quarter) : 0;
+
+    final currentMonthlySales = _getMonthlySalesForQuarter(_selectedYear, quarter);
+    final compareMonthlySales = compareYear != null ? _getMonthlySalesForQuarter(compareYear, quarter) : [0.0, 0.0, 0.0];
+    final currentMonthlyUsers = _getMonthlyUsersForQuarter(_selectedYear, quarter);
+    final compareMonthlyUsers = compareYear != null ? _getMonthlyUsersForQuarter(compareYear, quarter) : [0, 0, 0];
+
+    final double salesDelta = compareSales > 0 ? ((currentSales - compareSales) / compareSales) * 100 : (currentSales > 0 ? 100 : 0);
+    final double usersDelta = compareUsers > 0 ? ((currentUsers - compareUsers) / compareUsers) * 100 : (currentUsers > 0 ? 100 : 0);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.18)),
+      ),
+      child: Column(
+        children: [
+          // Encabezado del trimestre
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AlpesColors.oroGuatemalteco.withOpacity(.15), Colors.transparent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_month, color: AlpesColors.oroGuatemalteco, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        quarterName,
+                        style: const TextStyle(
+                          color: AlpesColors.cafeOscuro,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${monthNames[0]} - ${monthNames[2]}',
+                        style: TextStyle(
+                          color: AlpesColors.nogalMedio,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AlpesColors.exito.withOpacity(.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.trending_up, size: 14, color: AlpesColors.exito),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${salesDelta >= 0 ? '+' : ''}${salesDelta.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          color: salesDelta >= 0 ? AlpesColors.exito : AlpesColors.rojoColonial,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Tarjetas de resumen
+          Row(
+            children: [
+              Expanded(
+                child: _quarterMetricCard(
+                  title: 'Ventas $_selectedYear',
+                  value: _formatCompactMoney(currentSales),
+                  delta: salesDelta,
+                  isCurrent: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quarterMetricCard(
+                  title: 'Ventas ${compareYear ?? 'N/A'}',
+                  value: compareYear != null ? _formatCompactMoney(compareSales) : 'Sin dato',
+                  delta: salesDelta,
+                  isCurrent: false,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _quarterMetricCard(
+                  title: 'Usuarios $_selectedYear',
+                  value: '$currentUsers',
+                  delta: usersDelta,
+                  isCurrent: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quarterMetricCard(
+                  title: 'Usuarios ${compareYear ?? 'N/A'}',
+                  value: compareYear != null ? '$compareUsers' : 'Sin dato',
+                  delta: usersDelta,
+                  isCurrent: false,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Gráfica mensual del trimestre
+          const Divider(),
+          const SizedBox(height: 12),
+          const Text(
+            'Desglose mensual del trimestre',
+            style: TextStyle(
+              color: AlpesColors.cafeOscuro,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 180,
+            child: AnimatedBuilder(
+              animation: _chartsAnimation,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _MonthlyQuarterPainter(
+                    currentSales: currentMonthlySales,
+                    previousSales: compareMonthlySales,
+                    currentUsers: currentMonthlyUsers,
+                    previousUsers: compareMonthlyUsers,
+                    labels: monthNames,
+                    progress: _chartsAnimation.value,
+                    currentColor: const Color(0xFF0F7B5F),
+                    compareColor: const Color(0xFF2F6FB2),
+                    gridColor: AlpesColors.arenaCalida.withOpacity(.20),
+                    textColor: AlpesColors.nogalMedio,
+                  ),
+                  child: const SizedBox.expand(),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            alignment: WrapAlignment.center,
+            children: [
+              _legendDot(const Color(0xFF0F7B5F), '$_selectedYear'),
+              if (compareYear != null)
+                _legendDot(const Color(0xFF2F6FB2), '$compareYear'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quarterMetricCard({
+    required String title,
+    required String value,
+    required double delta,
+    required bool isCurrent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isCurrent
+            ? const Color(0xFF0F7B5F).withOpacity(.08)
+            : const Color(0xFF2F6FB2).withOpacity(.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (isCurrent ? const Color(0xFF0F7B5F) : const Color(0xFF2F6FB2))
+              .withOpacity(.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: AlpesColors.nogalMedio,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: isCurrent ? const Color(0xFF0F7B5F) : const Color(0xFF2F6FB2),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (delta != 0.0 && isCurrent && value != 'Sin dato')
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: (delta >= 0.0 ? AlpesColors.exito : AlpesColors.rojoColonial)
+                    .withOpacity(.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${delta >= 0.0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: delta >= 0.0 ? AlpesColors.exito : AlpesColors.rojoColonial,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AlpesColors.pergamino,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _selectedMonth,
+          icon: const Icon(
+            Icons.calendar_month_rounded,
+            color: AlpesColors.cafeOscuro,
+            size: 18,
+          ),
+          style: const TextStyle(
+            color: AlpesColors.cafeOscuro,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+          items: _monthOptions.map((entry) {
+            return DropdownMenuItem<int>(
+              value: entry.value,
+              child: Text(entry.key),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedMonth = value;
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildYearSelector() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AlpesColors.pergamino,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
       ),
       child: DropdownButtonHideUnderline(
@@ -1177,15 +1907,16 @@ class _ReportesScreenState extends State<ReportesScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AlpesColors.pergamino,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.45)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: selectedValue,
           icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
+            Icons.compare_arrows_rounded,
             color: AlpesColors.cafeOscuro,
+            size: 18,
           ),
           style: const TextStyle(
             color: AlpesColors.cafeOscuro,
@@ -1195,7 +1926,13 @@ class _ReportesScreenState extends State<ReportesScreen>
               .map(
                 (year) => DropdownMenuItem<int>(
                   value: year,
-                  child: Text('$year'),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 14),
+                      const SizedBox(width: 6),
+                      Text('$year'),
+                    ],
+                  ),
                 ),
               )
               .toList(),
@@ -1332,7 +2069,8 @@ class _ReportesScreenState extends State<ReportesScreen>
   }
 
   Widget _buildEstadoCharts() {
-    final total = _conteoEstados.values.fold<int>(0, (sum, value) => sum + value);
+    final total =
+        _conteoEstados.values.fold<int>(0, (sum, value) => sum + value);
 
     return _panel(
       child: Column(
@@ -1587,7 +2325,8 @@ class _ReportesScreenState extends State<ReportesScreen>
           else
             ...items.map((item) {
               final stock = _toInt(
-                _readValue(item, const ['STOCK', 'stock', 'CANTIDAD', 'cantidad']),
+                _readValue(
+                    item, const ['STOCK', 'stock', 'CANTIDAD', 'cantidad']),
               );
               final reservado = _toInt(
                 _readValue(item, const ['STOCK_RESERVADO', 'stock_reservado']),
@@ -1619,7 +2358,7 @@ class _ReportesScreenState extends State<ReportesScreen>
                       height: 48,
                       decoration: BoxDecoration(
                         color: riskColor.withOpacity(.12),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.warning_amber_rounded,
@@ -1750,128 +2489,267 @@ class _ReportesScreenState extends State<ReportesScreen>
   }
 
   Widget _buildUltimasOrdenesCard() {
-    final rows = _ultimasOrdenes;
+    final rows = _ultimasOrdenesCache;
 
     return _panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Últimas 10 órdenes',
-            style: TextStyle(
-              color: AlpesColors.cafeOscuro,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Últimas 10 órdenes',
+                      style: TextStyle(
+                        color: AlpesColors.cafeOscuro,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Monitorea el estado real de las órdenes más recientes y actualiza solo esta tabla cuando cambie.',
+                      style: TextStyle(
+                        color: AlpesColors.nogalMedio,
+                        fontSize: 12.8,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: _recargandoUltimasOrdenes ? null : _recargarUltimasOrdenes,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AlpesColors.cafeOscuro,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: _recargandoUltimasOrdenes
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(
+                  _recargandoUltimasOrdenes
+                      ? 'Actualizando...'
+                      : 'Recargar estados',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           if (rows.isEmpty)
             _buildEmptyState('No hay órdenes disponibles para mostrar.')
           else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final minTableWidth = math.max(constraints.maxWidth, 980.0);
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.94),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: AlpesColors.oroGuatemalteco.withOpacity(.16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AlpesColors.cafeOscuro.withOpacity(.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final minTableWidth = math.max(constraints.maxWidth, 1040.0);
 
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: minTableWidth),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(
-                          const Color(0xFFF2ECE4),
-                        ),
-                        dataRowMinHeight: 58,
-                        dataRowMaxHeight: 66,
-                        horizontalMargin: 18,
-                        columnSpacing: 70,
-                        headingTextStyle: const TextStyle(
-                          color: AlpesColors.cafeOscuro,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        columns: const [
-                          DataColumn(label: Text('Orden')),
-                          DataColumn(label: Text('Fecha')),
-                          DataColumn(label: Text('Items')),
-                          DataColumn(label: Text('Total')),
-                          DataColumn(label: Text('Estado')),
-                        ],
-                        rows: rows.map((orden) {
-                          final numero = (_readValue(
-                                    orden,
-                                    const [
-                                      'NUM_ORDEN',
-                                      'num_orden',
-                                      'ORDEN_VENTA_ID',
-                                      'orden_venta_id',
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: minTableWidth),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: DataTable(
+                          headingRowHeight: 56,
+                          headingRowColor: MaterialStateProperty.all(
+                            const Color(0xFFF2E9DA),
+                          ),
+                          dataRowMinHeight: 62,
+                          dataRowMaxHeight: 70,
+                          horizontalMargin: 18,
+                          columnSpacing: 64,
+                          dividerThickness: .6,
+                          headingTextStyle: const TextStyle(
+                            color: AlpesColors.cafeOscuro,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .2,
+                          ),
+                          columns: const [
+                            DataColumn(label: Text('Orden')),
+                            DataColumn(label: Text('Fecha')),
+                            DataColumn(label: Text('Items')),
+                            DataColumn(label: Text('Total')),
+                            DataColumn(label: Text('Estado actual')),
+                          ],
+                          rows: rows.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final orden = entry.value;
+                            final numero = (_readValue(
+                                      orden,
+                                      const [
+                                        'NUM_ORDEN',
+                                        'num_orden',
+                                        'ORDEN_VENTA_ID',
+                                        'orden_venta_id',
+                                      ],
+                                    ) ??
+                                    '—')
+                                .toString();
+                            final fecha = _parseDate(
+                              _readValue(
+                                orden,
+                                const ['FECHA_ORDEN', 'fecha_orden'],
+                              ),
+                            );
+                            final total = _toDouble(
+                              _readValue(orden, const ['TOTAL', 'total']),
+                            );
+                            final estado = _prettyEstado(_resolverEstado(orden));
+                            final color = _estadoColor(estado);
+                            final items = _itemsPorOrden(orden);
+
+                            return DataRow.byIndex(
+                              index: index,
+                              color: MaterialStateProperty.all(
+                                index.isEven
+                                    ? Colors.white
+                                    : const Color(0xFFFCF8F2),
+                              ),
+                              cells: [
+                                DataCell(
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        numero,
+                                        style: const TextStyle(
+                                          color: AlpesColors.cafeOscuro,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Orden registrada',
+                                        style: TextStyle(
+                                          color: AlpesColors.nogalMedio
+                                              .withOpacity(.85),
+                                          fontSize: 11.4,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
-                                  ) ??
-                                  '—')
-                              .toString();
-                          final fecha = _parseDate(
-                            _readValue(
-                              orden,
-                              const ['FECHA_ORDEN', 'fecha_orden'],
-                            ),
-                          );
-                          final total = _toDouble(
-                            _readValue(orden, const ['TOTAL', 'total']),
-                          );
-                          final estado = _prettyEstado(_resolverEstado(orden));
-                          final color = _estadoColor(estado);
-                          final items = _itemsPorOrden(orden);
-
-                          return DataRow(
-                            cells: [
-                              DataCell(
-                                Text(
-                                  numero,
-                                  style: const TextStyle(
-                                    color: AlpesColors.cafeOscuro,
-                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                              DataCell(Text(_formatDate(fecha))),
-                              DataCell(Text('$items')),
-                              DataCell(
-                                Text(
-                                  _formatCurrency(total),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              DataCell(
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 7,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(.12),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    estado,
-                                    style: TextStyle(
-                                      color: color,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
+                                DataCell(
+                                  Text(
+                                    _formatDate(fecha),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF5EEE3),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      '$items items',
+                                      style: const TextStyle(
+                                        color: AlpesColors.cafeOscuro,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    _formatCurrency(total),
+                                    style: const TextStyle(
+                                      color: AlpesColors.cafeOscuro,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(.12),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: color.withOpacity(.16),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: color,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          estado,
+                                          style: TextStyle(
+                                            color: color,
+                                            fontSize: 12.2,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
         ],
       ),
@@ -1900,16 +2778,27 @@ class _ReportesScreenState extends State<ReportesScreen>
   Widget _panel({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F5F0),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.16)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFCF8), Color(0xFFF5EEE5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: const Color(0xFFD8C1A2).withOpacity(.55),
+        ),
         boxShadow: [
           BoxShadow(
-            color: AlpesColors.cafeOscuro.withOpacity(.06),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
+            color: AlpesColors.cafeOscuro.withOpacity(.05),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(.75),
+            blurRadius: 10,
+            offset: const Offset(-2, -2),
           ),
         ],
       ),
@@ -2210,18 +3099,25 @@ class _SalesTrendPainter extends CustomPainter {
   ) {
     final allZero = currentData.every((e) => e == 0);
 
-    final path = Path();
+    final points = <Offset>[];
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i + spacing / 2;
       final y = allZero
           ? chart.bottom - 2
-          : chart.bottom -
-              ((currentData[i] / maxValue) * chart.height * progress);
+          : chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+      points.add(Offset(x, y));
+    }
 
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
+    // Bezier suave
+    final path = Path();
+    if (points.isNotEmpty) {
+      path.moveTo(points[0].dx, points[0].dy);
+      for (int i = 0; i < points.length - 1; i++) {
+        final cp1x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
+        final cp1y = points[i].dy;
+        final cp2x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
+        final cp2y = points[i+1].dy;
+        path.cubicTo(cp1x, cp1y, cp2x, cp2y, points[i+1].dx, points[i+1].dy);
       }
     }
 
@@ -2279,20 +3175,26 @@ class _SalesTrendPainter extends CustomPainter {
       return;
     }
 
-    final path = Path();
-    final fillPath = Path();
-
+    final areaPoints = <Offset>[];
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i + spacing / 2;
-      final y = chart.bottom -
-          ((currentData[i] / maxValue) * chart.height * progress);
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, chart.bottom);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
+      final y = chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+      areaPoints.add(Offset(x, y));
+    }
+
+    final path = Path();
+    final fillPath = Path();
+    if (areaPoints.isNotEmpty) {
+      path.moveTo(areaPoints[0].dx, areaPoints[0].dy);
+      fillPath.moveTo(areaPoints[0].dx, chart.bottom);
+      fillPath.lineTo(areaPoints[0].dx, areaPoints[0].dy);
+      for (int i = 0; i < areaPoints.length - 1; i++) {
+        final cp1x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
+        final cp1y = areaPoints[i].dy;
+        final cp2x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
+        final cp2y = areaPoints[i+1].dy;
+        path.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
+        fillPath.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
       }
     }
 
@@ -2556,5 +3458,276 @@ class _EstadoChartPainter extends CustomPainter {
     return oldDelegate.data != data ||
         oldDelegate.progress != progress ||
         oldDelegate.holeFraction != holeFraction;
+  }
+}
+
+// Painter para la comparación por trimestre (vista anual)
+class _QuarterComparisonPainter extends CustomPainter {
+  final List<double> currentData;
+  final List<double> previousData;
+  final List<String> labels;
+  final double progress;
+  final Color currentColor;
+  final Color compareColor;
+  final Color gridColor;
+  final Color textColor;
+  final int highlightedQuarter;
+
+  _QuarterComparisonPainter({
+    required this.currentData,
+    required this.previousData,
+    required this.labels,
+    required this.progress,
+    required this.currentColor,
+    required this.compareColor,
+    required this.gridColor,
+    required this.textColor,
+    required this.highlightedQuarter,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double left = 30;
+    const double right = 12;
+    const double top = 12;
+    const double bottom = 28;
+
+    final chart = Rect.fromLTWH(
+      left,
+      top,
+      size.width - left - right,
+      size.height - top - bottom,
+    );
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    for (int i = 0; i <= 4; i++) {
+      final y = chart.top + chart.height * (i / 4);
+      canvas.drawLine(
+        Offset(chart.left, y),
+        Offset(chart.right, y),
+        gridPaint,
+      );
+    }
+
+    final double maxCurrent =
+        currentData.isEmpty ? 0.0 : currentData.reduce(math.max).toDouble();
+    final double maxPrevious =
+        previousData.isEmpty ? 0.0 : previousData.reduce(math.max).toDouble();
+    final double maxValue = math.max(maxCurrent, maxPrevious).toDouble();
+    final double safeMax = maxValue <= 0 ? 1.0 : maxValue;
+
+    final spacing = chart.width / labels.length;
+    final barWidth = spacing * 0.35;
+    final groupSpacing = (spacing - barWidth * 2) / 3;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    for (int i = 0; i < labels.length; i++) {
+      final x = chart.left + spacing * i + spacing / 2;
+      textPainter.text = TextSpan(
+        text: labels[i],
+        style: TextStyle(
+          color: textColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+      textPainter.layout(maxWidth: spacing);
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, chart.bottom + 6),
+      );
+
+      final isHighlighted = highlightedQuarter == (i + 1);
+
+      // Barra del año comparado
+      if (i < previousData.length) {
+        final prevHeight = (previousData[i] / safeMax) * chart.height * progress;
+        final prevRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            x - barWidth - groupSpacing,
+            chart.bottom - prevHeight,
+            barWidth,
+            math.max(prevHeight, 2),
+          ),
+          const Radius.circular(6),
+        );
+        final prevPaint = Paint()..color = compareColor.withOpacity(0.85);
+        canvas.drawRRect(prevRect, prevPaint);
+      }
+
+      // Barra del año seleccionado
+      if (i < currentData.length) {
+        final currHeight = (currentData[i] / safeMax) * chart.height * progress;
+        final currRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            x + groupSpacing,
+            chart.bottom - currHeight,
+            barWidth,
+            math.max(currHeight, 2),
+          ),
+          const Radius.circular(6),
+        );
+
+        final currPaint = Paint()
+          ..shader = LinearGradient(
+            colors: isHighlighted
+                ? [currentColor, currentColor.withOpacity(0.7)]
+                : [currentColor.withOpacity(0.85), currentColor.withOpacity(0.55)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ).createShader(currRect.outerRect);
+
+        canvas.drawRRect(currRect, currPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _QuarterComparisonPainter oldDelegate) {
+    return oldDelegate.currentData != currentData ||
+        oldDelegate.previousData != previousData ||
+        oldDelegate.progress != progress ||
+        oldDelegate.highlightedQuarter != highlightedQuarter;
+  }
+}
+
+// Nuevo painter para el desglose mensual del trimestre
+class _MonthlyQuarterPainter extends CustomPainter {
+  final List<double> currentSales;
+  final List<double> previousSales;
+  final List<int> currentUsers;
+  final List<int> previousUsers;
+  final List<String> labels;
+  final double progress;
+  final Color currentColor;
+  final Color compareColor;
+  final Color gridColor;
+  final Color textColor;
+
+  _MonthlyQuarterPainter({
+    required this.currentSales,
+    required this.previousSales,
+    required this.currentUsers,
+    required this.previousUsers,
+    required this.labels,
+    required this.progress,
+    required this.currentColor,
+    required this.compareColor,
+    required this.gridColor,
+    required this.textColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double left = 30;
+    const double right = 12;
+    const double top = 12;
+    const double bottom = 28;
+
+    final chart = Rect.fromLTWH(
+      left,
+      top,
+      size.width - left - right,
+      size.height - top - bottom,
+    );
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    for (int i = 0; i <= 4; i++) {
+      final y = chart.top + chart.height * (i / 4);
+      canvas.drawLine(
+        Offset(chart.left, y),
+        Offset(chart.right, y),
+        gridPaint,
+      );
+    }
+
+    final double maxCurrentSales =
+        currentSales.isEmpty ? 0.0 : currentSales.reduce(math.max).toDouble();
+    final double maxPreviousSales =
+        previousSales.isEmpty ? 0.0 : previousSales.reduce(math.max).toDouble();
+    final double maxSales = math.max(maxCurrentSales, maxPreviousSales).toDouble();
+    final double safeMax = maxSales <= 0 ? 1.0 : maxSales;
+
+    final spacing = chart.width / labels.length;
+    final barWidth = spacing * 0.35;
+    final groupSpacing = (spacing - barWidth * 2) / 3;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    for (int i = 0; i < labels.length; i++) {
+      final x = chart.left + spacing * i + spacing / 2;
+      textPainter.text = TextSpan(
+        text: labels[i],
+        style: TextStyle(
+          color: textColor,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+      textPainter.layout(maxWidth: spacing);
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, chart.bottom + 6),
+      );
+
+      // Barra del año comparado
+      if (i < previousSales.length) {
+        final prevHeight = (previousSales[i] / safeMax) * chart.height * progress;
+        final prevRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            x - barWidth - groupSpacing,
+            chart.bottom - prevHeight,
+            barWidth,
+            math.max(prevHeight, 2),
+          ),
+          const Radius.circular(6),
+        );
+        final prevPaint = Paint()..color = compareColor.withOpacity(0.85);
+        canvas.drawRRect(prevRect, prevPaint);
+      }
+
+      // Barra del año seleccionado
+      if (i < currentSales.length) {
+        final currHeight = (currentSales[i] / safeMax) * chart.height * progress;
+        final currRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            x + groupSpacing,
+            chart.bottom - currHeight,
+            barWidth,
+            math.max(currHeight, 2),
+          ),
+          const Radius.circular(6),
+        );
+
+        final currPaint = Paint()
+          ..shader = LinearGradient(
+            colors: [currentColor.withOpacity(0.85), currentColor.withOpacity(0.55)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ).createShader(currRect.outerRect);
+
+        canvas.drawRRect(currRect, currPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MonthlyQuarterPainter oldDelegate) {
+    return oldDelegate.currentSales != currentSales ||
+        oldDelegate.previousSales != previousSales ||
+        oldDelegate.progress != progress;
   }
 }

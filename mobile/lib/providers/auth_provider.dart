@@ -51,7 +51,7 @@ class AuthProvider extends ChangeNotifier {
         _usuario = data['data'];
         // Determinar rol: si rol_id == 1 o tiene flag de admin
         final rolId = _usuario?['rol_id'] ?? _usuario?['ROL_ID'];
-        _role = (rolId != null && rolId != 3) ? UserRole.admin : UserRole.cliente;
+_role = (rolId == 27 || rolId == 28) ? UserRole.admin : UserRole.cliente;
         _isLoggedIn = true;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('usuario', jsonEncode(_usuario));

@@ -24,7 +24,6 @@ dependencies:
   badges: ^3.1.2
   carousel_slider: ^4.2.1
   flutter_rating_bar: ^4.0.1
-  image_picker: ^1.2.1
 
   # 📸 Media
   image_picker: ^1.2.2

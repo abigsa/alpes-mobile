@@ -13,5 +13,4 @@ router.get("/me", authenticateToken, ctrl.obtenerPerfil);
 router.post("/logout", authenticateToken, ctrl.logout);
 
 module.exports = router;
-```
 

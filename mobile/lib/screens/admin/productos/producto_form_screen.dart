@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -16,18 +18,19 @@ class ProductoFormScreen extends StatefulWidget {
 }
 
 class _ProductoFormScreenState extends State<ProductoFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nombreCtrl    = TextEditingController();
-  final _descCtrl      = TextEditingController();
-  final _tipoCtrl      = TextEditingController();
-  final _materialCtrl  = TextEditingController();
-  final _colorCtrl     = TextEditingController();
-  final _precioCtrl    = TextEditingController();
+  final _formKey      = GlobalKey<FormState>();
+  final _nombreCtrl   = TextEditingController();
+  final _descCtrl     = TextEditingController();
+  final _tipoCtrl     = TextEditingController();
+  final _materialCtrl = TextEditingController();
+  final _colorCtrl    = TextEditingController();
+  final _precioCtrl   = TextEditingController();
 
   bool _guardando      = false;
   bool _subiendoImagen = false;
-  String? _imagenUrl;
-  File?   _imagenLocal;
+  String?    _imagenUrl;
+  File?      _imagenLocal;   // solo móvil
+  Uint8List? _imagenBytes;   // solo web
   int?    _productoIdGuardado;
   Map<String, dynamic>? _producto;
 
@@ -49,21 +52,34 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     final data = jsonDecode(res.body);
     if (data['ok'] == true) {
       _producto = data['data'];
-      _nombreCtrl.text   = _producto!['NOMBRE']       ?? _producto!['nombre']       ?? '';
-      _descCtrl.text     = _producto!['DESCRIPCION']  ?? _producto!['descripcion']  ?? '';
-      _tipoCtrl.text     = _producto!['TIPO']         ?? _producto!['tipo']         ?? '';
-      _materialCtrl.text = _producto!['MATERIAL']     ?? _producto!['material']     ?? '';
-      _colorCtrl.text    = _producto!['COLOR']        ?? _producto!['color']        ?? '';
-      _imagenUrl         = _producto!['IMAGEN_URL']   ?? _producto!['imagen_url'];
+      _nombreCtrl.text   = _producto!['NOMBRE']      ?? _producto!['nombre']      ?? '';
+      _descCtrl.text     = _producto!['DESCRIPCION'] ?? _producto!['descripcion'] ?? '';
+      _tipoCtrl.text     = _producto!['TIPO']        ?? _producto!['tipo']        ?? '';
+      _materialCtrl.text = _producto!['MATERIAL']    ?? _producto!['material']    ?? '';
+      _colorCtrl.text    = _producto!['COLOR']       ?? _producto!['color']       ?? '';
+      _imagenUrl         = _producto!['IMAGEN_URL']  ?? _producto!['imagen_url'];
       setState(() {});
     }
   }
 
-  // ── Seleccionar imagen de galería o cámara ──────────────────
+  // ── Seleccionar imagen ─────────────────────────────────
   Future<void> _seleccionarImagen(ImageSource source) async {
     final picked = await _picker.pickImage(source: source, imageQuality: 85);
     if (picked == null) return;
-    setState(() => _imagenLocal = File(picked.path));
+    if (kIsWeb) {
+      // Web: leer bytes, NUNCA asignar File
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _imagenBytes = bytes;
+        _imagenLocal = null;
+      });
+    } else {
+      // Móvil: usar File, NUNCA asignar bytes
+      setState(() {
+        _imagenLocal = File(picked.path);
+        _imagenBytes = null;
+      });
+    }
   }
 
   void _mostrarOpcionesImagen() {
@@ -101,14 +117,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
-            if (_imagenUrl != null)
+            if (_imagenUrl != null || _imagenLocal != null || _imagenBytes != null)
               ListTile(
                 leading: const Icon(Icons.delete, color: AlpesColors.rojoColonial),
-                title: const Text('Eliminar imagen', style: TextStyle(color: AlpesColors.rojoColonial)),
+                title: const Text('Eliminar imagen',
+                    style: TextStyle(color: AlpesColors.rojoColonial)),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() {
                     _imagenLocal = null;
+                    _imagenBytes = null;
                     _imagenUrl   = null;
                   });
                 },
@@ -120,18 +138,29 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     );
   }
 
-  // ── Subir imagen al backend → Cloudinary ───────────────────
+  // ── Subir imagen ───────────────────────────────────────
   Future<void> _subirImagen(int productoId) async {
-    if (_imagenLocal == null) return;
+    if (_imagenBytes == null && _imagenLocal == null) return;
     setState(() => _subiendoImagen = true);
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/upload/producto/$productoId');
       final request = http.MultipartRequest('POST', uri);
-      request.files.add(await http.MultipartFile.fromPath(
-        'imagen',
-        _imagenLocal!.path,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+
+      if (kIsWeb && _imagenBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'imagen',
+          _imagenBytes!,
+          filename: 'producto_$productoId.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      } else if (!kIsWeb && _imagenLocal != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'imagen',
+          _imagenLocal!.path,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      }
+
       final streamed = await request.send();
       final res      = await http.Response.fromStream(streamed);
       final data     = jsonDecode(res.body);
@@ -147,20 +176,20 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     }
   }
 
-  // ── Guardar producto ───────────────────────────────────────
+  // ── Guardar producto ───────────────────────────────────
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
       final body = {
-        'nombre':          _nombreCtrl.text,
-        'descripcion':     _descCtrl.text,
-        'tipo':            _tipoCtrl.text,
-        'material':        _materialCtrl.text,
-        'color':           _colorCtrl.text,
+        'nombre':           _nombreCtrl.text,
+        'descripcion':      _descCtrl.text,
+        'tipo':             _tipoCtrl.text,
+        'material':         _materialCtrl.text,
+        'color':            _colorCtrl.text,
         'unidad_medida_id': 1,
-        'categoria_id':    1,
-        'lote_producto':   'LOTE-001',
+        'categoria_id':     1,
+        'lote_producto':    'LOTE-001',
       };
 
       http.Response res;
@@ -181,12 +210,12 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
-        // Obtener el ID del producto guardado
-        final id = widget.productoId ?? data['data']?['PRODUCTO_ID'] ?? data['data']?['producto_id'];
+        final id = widget.productoId ??
+            data['data']?['PRODUCTO_ID'] ??
+            data['data']?['producto_id'];
         if (id != null) {
           _productoIdGuardado = id;
-          // Si hay imagen local pendiente, subirla ahora
-          if (_imagenLocal != null) {
+          if (_imagenBytes != null || _imagenLocal != null) {
             await _subirImagen(id);
           }
         }
@@ -228,12 +257,69 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     super.dispose();
   }
 
+  // ── Preview imagen ─────────────────────────────────────
+  Widget _buildImagePreview() {
+    if (_subiendoImagen) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AlpesColors.cafeOscuro),
+            SizedBox(height: 12),
+            Text('Subiendo imagen...',
+                style: TextStyle(color: AlpesColors.nogalMedio)),
+          ],
+        ),
+      );
+    }
+
+    // Web: mostrar desde bytes
+    if (kIsWeb && _imagenBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          _imagenBytes!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    // Móvil: mostrar desde File
+    if (!kIsWeb && _imagenLocal != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          _imagenLocal!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    // Imagen desde Cloudinary
+    if (_imagenUrl != null && _imagenUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          _imagenUrl!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => _placeholderImagen(),
+        ),
+      );
+    }
+
+    return _placeholderImagen();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
       appBar: AppBar(
-        title: Text(widget.productoId == null ? 'NUEVO PRODUCTO' : 'EDITAR PRODUCTO'),
+        title: Text(
+            widget.productoId == null ? 'NUEVO PRODUCTO' : 'EDITAR PRODUCTO'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => context.pop(),
@@ -247,7 +333,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
 
-              // ── Selector de imagen ──────────────────────────
+              // ── Selector de imagen ──────────────────
               GestureDetector(
                 onTap: _mostrarOpcionesImagen,
                 child: Container(
@@ -257,41 +343,17 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AlpesColors.arenaCalida),
                   ),
-                  child: _subiendoImagen
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(color: AlpesColors.cafeOscuro),
-                              SizedBox(height: 12),
-                              Text('Subiendo imagen...', style: TextStyle(color: AlpesColors.nogalMedio)),
-                            ],
-                          ),
-                        )
-                      : _imagenLocal != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(_imagenLocal!, fit: BoxFit.cover, width: double.infinity),
-                            )
-                          : _imagenUrl != null && _imagenUrl!.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    _imagenUrl!,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    errorBuilder: (_, __, ___) => _placeholderImagen(),
-                                  ),
-                                )
-                              : _placeholderImagen(),
+                  child: _buildImagePreview(),
                 ),
               ),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _mostrarOpcionesImagen,
-                icon: const Icon(Icons.add_photo_alternate, color: AlpesColors.cafeOscuro),
+                icon: const Icon(Icons.add_photo_alternate,
+                    color: AlpesColors.cafeOscuro),
                 label: Text(
-                  _imagenLocal != null || (_imagenUrl != null && _imagenUrl!.isNotEmpty)
+                  (_imagenBytes != null || _imagenLocal != null) ||
+                          (_imagenUrl != null && _imagenUrl!.isNotEmpty)
                       ? 'Cambiar imagen'
                       : 'Agregar imagen',
                   style: const TextStyle(color: AlpesColors.cafeOscuro),
@@ -302,7 +364,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               const Divider(),
               const SizedBox(height: 12),
 
-              // ── Campos del formulario ───────────────────────
+              // ── Campos del formulario ───────────────
               TextFormField(
                 controller: _nombreCtrl,
                 decoration: const InputDecoration(labelText: 'Nombre *'),
@@ -332,21 +394,26 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
               const SizedBox(height: 32),
 
-              // ── Botón guardar ───────────────────────────────
+              // ── Botón guardar ───────────────────────
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AlpesColors.cafeOscuro,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: _guardando || _subiendoImagen ? null : _guardar,
                 child: _guardando
                     ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text('GUARDAR PRODUCTO', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                    : const Text('GUARDAR PRODUCTO',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, letterSpacing: 1)),
               ),
 
               const SizedBox(height: 20),
@@ -361,11 +428,14 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     return const Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 48, color: AlpesColors.arenaCalida),
+        Icon(Icons.add_photo_alternate_outlined,
+            size: 48, color: AlpesColors.arenaCalida),
         SizedBox(height: 8),
-        Text('Toca para agregar imagen', style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
+        Text('Toca para agregar imagen',
+            style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
         SizedBox(height: 4),
-        Text('Galería o cámara', style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 11)),
+        Text('Galería o cámara',
+            style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 11)),
       ],
     );
   }

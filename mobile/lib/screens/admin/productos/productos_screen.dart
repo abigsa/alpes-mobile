@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -7,7 +9,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
-import 'package:flutter/foundation.dart';
+
 class ProductosScreen extends StatefulWidget {
   const ProductosScreen({super.key});
 
@@ -186,7 +188,6 @@ class _ProductosScreenState extends State<ProductosScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          // Miniatura de imagen
                           leading: imagenUrl.toString().isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
@@ -236,8 +237,7 @@ class _ProductosScreenState extends State<ProductosScreen> {
                               IconButton(
                                 icon: const Icon(Icons.delete_outline,
                                     color: AlpesColors.rojoColonial),
-                                onPressed:
-                                    id > 0 ? () => _eliminar(id) : null,
+                                onPressed: id > 0 ? () => _eliminar(id) : null,
                               ),
                             ],
                           ),
@@ -274,9 +274,10 @@ class __ProductosFormState extends State<_ProductosForm> {
   bool _guardando = false;
   bool _subiendoImagen = false;
 
-  // Imagen
+  // Imagen — web usa bytes, móvil usa File
   String? _imagenUrl;
-  File? _imagenLocal;
+  File? _imagenLocal;       // solo móvil
+  Uint8List? _imagenBytes;  // solo web
   final _picker = ImagePicker();
 
   // Catalogos
@@ -354,11 +355,25 @@ class __ProductosFormState extends State<_ProductosForm> {
     }
   }
 
-  // ── Imagen ─────────────────────────────────────────────
+  // ── Seleccionar imagen ─────────────────────────────────
   Future<void> _seleccionarImagen(ImageSource source) async {
     final picked = await _picker.pickImage(source: source, imageQuality: 85);
     if (picked == null) return;
-    setState(() => _imagenLocal = File(picked.path));
+
+    if (kIsWeb) {
+      // Web: leer bytes, NO asignar File
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _imagenBytes = bytes;
+        _imagenLocal = null;
+      });
+    } else {
+      // Móvil: usar File, NO asignar bytes
+      setState(() {
+        _imagenLocal = File(picked.path);
+        _imagenBytes = null;
+      });
+    }
   }
 
   void _mostrarOpcionesImagen() {
@@ -380,8 +395,8 @@ class __ProductosFormState extends State<_ProductosForm> {
                   borderRadius: BorderRadius.circular(2)),
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: AlpesColors.cafeOscuro),
+              leading: const Icon(Icons.photo_library,
+                  color: AlpesColors.cafeOscuro),
               title: const Text('Galería'),
               onTap: () {
                 Navigator.pop(context);
@@ -397,7 +412,7 @@ class __ProductosFormState extends State<_ProductosForm> {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
-            if (_imagenUrl != null || _imagenLocal != null)
+            if (_imagenUrl != null || _imagenLocal != null || _imagenBytes != null)
               ListTile(
                 leading:
                     const Icon(Icons.delete, color: AlpesColors.rojoColonial),
@@ -407,6 +422,7 @@ class __ProductosFormState extends State<_ProductosForm> {
                   Navigator.pop(context);
                   setState(() {
                     _imagenLocal = null;
+                    _imagenBytes = null;
                     _imagenUrl = null;
                   });
                 },
@@ -418,18 +434,32 @@ class __ProductosFormState extends State<_ProductosForm> {
     );
   }
 
+  // ── Subir imagen ───────────────────────────────────────
   Future<void> _subirImagen(int productoId) async {
-    if (_imagenLocal == null) return;
+    if (_imagenBytes == null && _imagenLocal == null) return;
     setState(() => _subiendoImagen = true);
     try {
       final uri =
           Uri.parse('${ApiConfig.baseUrl}/upload/producto/$productoId');
       final request = http.MultipartRequest('POST', uri);
-      request.files.add(await http.MultipartFile.fromPath(
-        'imagen',
-        _imagenLocal!.path,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+
+      if (kIsWeb && _imagenBytes != null) {
+        // Web: subir desde bytes
+        request.files.add(http.MultipartFile.fromBytes(
+          'imagen',
+          _imagenBytes!,
+          filename: 'producto_$productoId.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      } else if (!kIsWeb && _imagenLocal != null) {
+        // Móvil: subir desde File
+        request.files.add(await http.MultipartFile.fromPath(
+          'imagen',
+          _imagenLocal!.path,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      }
+
       final streamed = await request.send();
       final res = await http.Response.fromStream(streamed);
       final data = jsonDecode(res.body);
@@ -498,11 +528,12 @@ class __ProductosFormState extends State<_ProductosForm> {
 
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
-        // Obtener ID para subir imagen
         final productoId = id ??
-            _toInt(data['data']?['PRODUCTO_ID'] ?? data['data']?['producto_id']);
+            _toInt(data['data']?['PRODUCTO_ID'] ??
+                data['data']?['producto_id']);
 
-        if (productoId != null && _imagenLocal != null) {
+        if (productoId != null &&
+            (_imagenBytes != null || _imagenLocal != null)) {
           await _subirImagen(productoId);
         }
 
@@ -547,6 +578,78 @@ class __ProductosFormState extends State<_ProductosForm> {
     super.dispose();
   }
 
+  // ── Preview de imagen ──────────────────────────────────
+  Widget _buildImagePreview() {
+    if (_subiendoImagen) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AlpesColors.cafeOscuro),
+            SizedBox(height: 8),
+            Text('Subiendo imagen...',
+                style: TextStyle(color: AlpesColors.nogalMedio)),
+          ],
+        ),
+      );
+    }
+
+    // Web: mostrar desde bytes
+    if (kIsWeb && _imagenBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          _imagenBytes!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    // Móvil: mostrar desde File
+    if (!kIsWeb && _imagenLocal != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          _imagenLocal!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    // Imagen desde Cloudinary (URL en Oracle)
+    if (_imagenUrl != null && _imagenUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          _imagenUrl!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => _placeholder(),
+        ),
+      );
+    }
+
+    return _placeholder();
+  }
+
+  Widget _placeholder() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_photo_alternate_outlined,
+            size: 48, color: AlpesColors.arenaCalida),
+        SizedBox(height: 8),
+        Text('Toca para agregar imagen',
+            style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
+        SizedBox(height: 4),
+        Text('Galería o cámara',
+            style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 11)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -577,38 +680,7 @@ class __ProductosFormState extends State<_ProductosForm> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AlpesColors.arenaCalida),
                     ),
-                    child: _subiendoImagen
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(
-                                    color: AlpesColors.cafeOscuro),
-                                SizedBox(height: 8),
-                                Text('Subiendo imagen...',
-                                    style: TextStyle(
-                                        color: AlpesColors.nogalMedio)),
-                              ],
-                            ),
-                          )
-                        : _imagenLocal != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(_imagenLocal!,
-                                    fit: BoxFit.cover, width: double.infinity),
-                              )
-                            : _imagenUrl != null && _imagenUrl!.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      _imagenUrl!,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      errorBuilder: (_, __, ___) =>
-                                          _placeholder(),
-                                    ),
-                                  )
-                                : _placeholder(),
+                    child: _buildImagePreview(),
                   ),
                 ),
                 TextButton.icon(
@@ -616,7 +688,7 @@ class __ProductosFormState extends State<_ProductosForm> {
                   icon: const Icon(Icons.add_photo_alternate,
                       color: AlpesColors.cafeOscuro),
                   label: Text(
-                    _imagenLocal != null ||
+                    (_imagenBytes != null || _imagenLocal != null) ||
                             (_imagenUrl != null && _imagenUrl!.isNotEmpty)
                         ? 'Cambiar imagen'
                         : 'Agregar imagen',
@@ -633,8 +705,7 @@ class __ProductosFormState extends State<_ProductosForm> {
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Requerido' : null),
                 _campo('Descripcion', 'descripcion'),
-                _campo('Tipo (INTERIOR o EXTERIOR)', 'tipo',
-                    validator: (v) {
+                _campo('Tipo (INTERIOR o EXTERIOR)', 'tipo', validator: (v) {
                   final val = v?.trim().toUpperCase() ?? '';
                   if (val.isEmpty) return 'Requerido';
                   if (val != 'INTERIOR' && val != 'EXTERIOR')
@@ -643,30 +714,29 @@ class __ProductosFormState extends State<_ProductosForm> {
                 }),
                 _campo('Material', 'material'),
                 _campo('Alto cm', 'alto_cm',
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
+                    keyboardType: TextInputType.number, validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Requerido';
-                  if (double.tryParse(v.trim()) == null) return 'Número inválido';
+                  if (double.tryParse(v.trim()) == null)
+                    return 'Número inválido';
                   return null;
                 }),
                 _campo('Ancho cm', 'ancho_cm',
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
+                    keyboardType: TextInputType.number, validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Requerido';
-                  if (double.tryParse(v.trim()) == null) return 'Número inválido';
+                  if (double.tryParse(v.trim()) == null)
+                    return 'Número inválido';
                   return null;
                 }),
                 _campo('Profundidad cm', 'profundidad_cm',
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
+                    keyboardType: TextInputType.number, validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Requerido';
-                  if (double.tryParse(v.trim()) == null) return 'Número inválido';
+                  if (double.tryParse(v.trim()) == null)
+                    return 'Número inválido';
                   return null;
                 }),
                 _campo('Color', 'color'),
                 _campo('Peso gramos', 'peso_gramos',
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
+                    keyboardType: TextInputType.number, validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Requerido';
                   if (int.tryParse(v.trim()) == null) return 'Número inválido';
                   return null;
@@ -685,15 +755,19 @@ class __ProductosFormState extends State<_ProductosForm> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: DropdownButtonFormField<int>(
-                              value: _validDropdownValue(_unidadMedidaId,
-                                  _unidades, 'UNIDAD_MEDIDA_ID', 'unidad_medida_id'),
+                              value: _validDropdownValue(
+                                  _unidadMedidaId,
+                                  _unidades,
+                                  'UNIDAD_MEDIDA_ID',
+                                  'unidad_medida_id'),
                               decoration: const InputDecoration(
                                   labelText: 'Unidad de Medida'),
                               items: _unidades.map((u) {
                                 final id = _toInt(u['UNIDAD_MEDIDA_ID'] ??
                                     u['unidad_medida_id']);
-                                final nombre = (u['NOMBRE'] ?? u['nombre'] ?? '')
-                                    .toString();
+                                final nombre =
+                                    (u['NOMBRE'] ?? u['nombre'] ?? '')
+                                        .toString();
                                 if (id == null || nombre.isEmpty) return null;
                                 return DropdownMenuItem<int>(
                                     value: id, child: Text(nombre));
@@ -713,10 +787,11 @@ class __ProductosFormState extends State<_ProductosForm> {
                               decoration: const InputDecoration(
                                   labelText: 'Categoría'),
                               items: _categorias.map((c) {
-                                final id = _toInt(c['CATEGORIA_ID'] ??
-                                    c['categoria_id']);
+                                final id = _toInt(
+                                    c['CATEGORIA_ID'] ?? c['categoria_id']);
                                 final nombre =
-                                    (c['NOMBRE'] ?? c['nombre'] ?? '').toString();
+                                    (c['NOMBRE'] ?? c['nombre'] ?? '')
+                                        .toString();
                                 if (id == null || nombre.isEmpty) return null;
                                 return DropdownMenuItem<int>(
                                     value: id, child: Text(nombre));
@@ -755,22 +830,6 @@ class __ProductosFormState extends State<_ProductosForm> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _placeholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_photo_alternate_outlined,
-            size: 48, color: AlpesColors.arenaCalida),
-        SizedBox(height: 8),
-        Text('Toca para agregar imagen',
-            style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
-        SizedBox(height: 4),
-        Text('Galería o cámara',
-            style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 11)),
-      ],
     );
   }
 }

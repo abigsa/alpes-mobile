@@ -43,6 +43,9 @@ import '../screens/admin/marketing/marketing_screen.dart';
 import '../screens/admin/reportes/reportes_screen.dart';
 import '../screens/admin/configuracion/configuracion_screen.dart';
 
+// Screens - Home Pública
+import '../screens/home_publica_screen.dart';
+
 class AppRouter {
   static GoRouter createRouter(BuildContext context) {
     return GoRouter(
@@ -51,15 +54,22 @@ class AppRouter {
         final auth = context.read<AuthProvider>();
         final isLoggingIn = state.matchedLocation == '/login' ||
             state.matchedLocation == '/registro';
+        final isPublica = state.matchedLocation == '/home-publica';
 
         if (state.matchedLocation == '/splash') return null;
-        if (!auth.isLoggedIn && !isLoggingIn) return '/login';
+        if (isPublica) return null;
+        if (!auth.isLoggedIn && !isLoggingIn) return '/home-publica';
         if (auth.isLoggedIn && isLoggingIn) {
           return auth.isAdmin ? '/admin' : '/home';
         }
         return null;
       },
       routes: [
+        // Home Pública
+        GoRoute(
+            path: '/home-publica',
+            builder: (_, __) => const HomePublicaScreen()),
+
         // Auth
         GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
@@ -97,7 +107,6 @@ class AppRouter {
             envioId: int.parse(state.pathParameters['id']!),
           ),
         ),
-        // Nuevas rutas
         GoRoute(
             path: '/notificaciones',
             builder: (_, __) => const NotificacionesScreen()),

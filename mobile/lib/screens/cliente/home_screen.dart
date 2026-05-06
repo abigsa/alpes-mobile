@@ -10,6 +10,7 @@ import '../../providers/carrito_provider.dart';
 import '../../providers/producto_provider.dart';
 import '../../providers/favoritos_provider.dart';
 import '../../widgets/bottom_nav_cliente.dart';
+import '../../widgets/producto_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -155,8 +156,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    _buildBannerBienvenida(context, auth),
+                                    const SizedBox(height: 14),
                                     _buildBuscadorProductos(context),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 14),
                                     _buildKpiRow(),
                                     const SizedBox(height: 20),
                                     Row(
@@ -181,6 +184,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ],
                                     const SizedBox(height: 16),
                                     _buildAccesosRapidos(context),
+                                    const SizedBox(height: 20),
+                                    _buildProductosParaTi(context),
+                                    const SizedBox(height: 16),
+                                    _buildTodosLosProductos(context),
                                   ],
                                 ),
                               ),
@@ -483,41 +490,103 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
             if (showHamburger)
-              IconButton(
-                icon: const Icon(Icons.menu_rounded,
-                    color: AlpesColors.cafeOscuro),
-                onPressed: () =>
-                    _showMobileDrawer(context, auth, nombre, initial),
+              GestureDetector(
+                onTap: () => _showMobileDrawer(context, auth, nombre, initial),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: AlpesColors.cremaFondo,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: AlpesColors.pergamino),
+                  ),
+                  child: const Icon(Icons.menu_rounded,
+                      color: AlpesColors.cafeOscuro, size: 18),
+                ),
               ),
             Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Bienvenida, $nombre',
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AlpesColors.cafeOscuro)),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AlpesColors.oroGuatemalteco.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text('Cliente VIP',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(children: [
+                    Text('Hola, ${nombre.split(' ').first}',
+                        style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AlpesColors.cafeOscuro,
+                            letterSpacing: -0.3)),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AlpesColors.oroGuatemalteco.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AlpesColors.oroGuatemalteco.withOpacity(0.3)),
+                      ),
+                      child: const Text('VIP',
+                          style: TextStyle(
+                              fontFamily: 'Poppins',
+                              color: AlpesColors.oroGuatemalteco,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5)),
+                    ),
+                  ]),
+                  const Text('Muebles de los Alpes',
                       style: TextStyle(
-                          color: AlpesColors.oroGuatemalteco,
+                          fontFamily: 'Poppins',
                           fontSize: 10,
-                          fontWeight: FontWeight.w700)),
+                          color: AlpesColors.arenaCalida,
+                          fontWeight: FontWeight.w400)),
+                ],
+              ),
+            ),
+            // Carrito con badge
+            GestureDetector(
+              onTap: () => context.go('/carrito'),
+              child: Container(
+                width: 36, height: 36,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: AlpesColors.cremaFondo,
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: AlpesColors.pergamino),
                 ),
-              ],
-            )),
-            // ── Campana con panel burbuja ──
+                child: Stack(alignment: Alignment.center, children: [
+                  const Icon(Icons.shopping_cart_outlined,
+                      color: AlpesColors.cafeOscuro, size: 18),
+                  Consumer<CarritoProvider>(
+                    builder: (_, c, __) {
+                      final total = c.totalItems;
+                      if (total == 0) return const SizedBox.shrink();
+                      return Positioned(
+                        top: 4, right: 4,
+                        child: Container(
+                          width: 14, height: 14,
+                          decoration: const BoxDecoration(
+                              color: AlpesColors.rojoColonial,
+                              shape: BoxShape.circle),
+                          alignment: Alignment.center,
+                          child: Text('$total',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      );
+                    },
+                  ),
+                ]),
+              ),
+            ),
+            // Campana
             _NotifBellBtn(count: _enCamino),
-            const SizedBox(width: 8),
-            // ── Avatar → menú perfil ──
+            const SizedBox(width: 6),
+            // Avatar
             _PerfilMenuBtn(initial: initial, nombre: nombre, auth: auth),
           ]),
         ),
@@ -657,6 +726,111 @@ class _HomeScreenState extends State<HomeScreen> {
           ]),
         ),
     ]);
+  }
+
+  // ── BANNER BIENVENIDA ────────────────────────────────────
+  Widget _buildBannerBienvenida(BuildContext context, AuthProvider auth) {
+    final nombre = auth.nombreCompleto.split(' ').first;
+    final hora = DateTime.now().hour;
+    final saludo = hora < 12 ? 'Buenos dias' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2C1810), Color(0xFF1C0F08)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFF2C1810).withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(saludo,
+                style: TextStyle(
+                    fontFamily: 'Poppins',
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400)),
+            const SizedBox(height: 2),
+            Text(nombre,
+                style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AlpesColors.oroGuatemalteco.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                    color: AlpesColors.oroGuatemalteco.withOpacity(0.3)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 5, height: 5,
+                  decoration: const BoxDecoration(
+                      color: AlpesColors.oroGuatemalteco,
+                      shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 6),
+                const Text('Cliente activo',
+                    style: TextStyle(
+                        fontFamily: 'Poppins',
+                        color: AlpesColors.oroGuatemalteco,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ]),
+        ),
+        // Acciones rapidas en el banner
+        Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          GestureDetector(
+            onTap: () => context.go('/catalogo'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: AlpesColors.oroGuatemalteco,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.grid_view_rounded,
+                    color: AlpesColors.cafeOscuro, size: 14),
+                SizedBox(width: 5),
+                Text('Ver catalogo',
+                    style: TextStyle(
+                        fontFamily: 'Poppins',
+                        color: AlpesColors.cafeOscuro,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800)),
+              ]),
+            ),
+          ),
+        ]),
+        // Circulo decorativo
+        Positioned(
+          top: 0, right: 0,
+          child: Container(
+            width: 60, height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AlpesColors.oroGuatemalteco.withOpacity(0.05),
+            ),
+          ),
+        ),
+      ]),
+    );
   }
 
   Widget _buildKpiRow() {
@@ -1179,6 +1353,268 @@ class _HomeScreenState extends State<HomeScreen> {
         height: size,
         decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       );
+
+  // ── PRODUCTOS PARA TI — recomendados por algoritmo ───────
+  Widget _buildProductosParaTi(BuildContext context) {
+    final provider = context.watch<ProductoProvider>();
+    final auth     = context.read<AuthProvider>();
+    final favs     = context.watch<FavoritosProvider>();
+    final carrito  = context.read<CarritoProvider>();
+
+    final lista = provider.recomendados.isNotEmpty
+        ? provider.recomendados
+        : provider.productos.take(8).toList();
+
+    if (lista.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(children: [
+          Container(width: 3, height: 14,
+              decoration: BoxDecoration(
+                  color: AlpesColors.oroGuatemalteco,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          const Text('Para ti',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  color: AlpesColors.cafeOscuro)),
+          const SizedBox(width: 8),
+          if (provider.recomendados.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AlpesColors.oroGuatemalteco.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('Basado en tu actividad',
+                  style: TextStyle(fontSize: 9,
+                      color: AlpesColors.oroGuatemalteco,
+                      fontWeight: FontWeight.w600)),
+            ),
+        ]),
+        TextButton(
+          onPressed: () => context.go('/catalogo'),
+          child: const Text('Ver todo',
+              style: TextStyle(fontSize: 12, color: AlpesColors.nogalMedio)),
+        ),
+      ]),
+      const SizedBox(height: 10),
+      SizedBox(
+        height: 210,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: lista.length,
+          itemBuilder: (_, i) {
+            final p     = lista[i];
+            final esFav = favs.esFavorito(p.productoId);
+            return GestureDetector(
+              onTap: () => context.push('/producto/${p.productoId}'),
+              child: Container(
+                width: 140,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AlpesColors.pergamino),
+                  boxShadow: [BoxShadow(
+                      color: AlpesColors.cafeOscuro.withOpacity(0.05),
+                      blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Expanded(
+                    flex: 5,
+                    child: Stack(fit: StackFit.expand, children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12)),
+                        child: p.imagenUrl != null
+                            ? Image.network(p.imagenUrl!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _prodPlaceholder())
+                            : _prodPlaceholder(),
+                      ),
+                      Positioned(
+                        top: 6, right: 6,
+                        child: GestureDetector(
+                          onTap: () async {
+                            if (auth.clienteId == null) return;
+                            await favs.toggleFavorito(
+                              clienteId: auth.clienteId!,
+                              productoId: p.productoId,
+                            );
+                          },
+                          child: Container(
+                            width: 26, height: 26,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              esFav ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                              size: 14,
+                              color: esFav
+                                  ? AlpesColors.rojoColonial
+                                  : AlpesColors.arenaCalida,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(p.nombre,
+                              style: const TextStyle(fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AlpesColors.cafeOscuro),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 3),
+                          Text(
+                            p.precio != null
+                                ? 'Q ${p.precio!.toStringAsFixed(0)}'
+                                : 'Consultar',
+                            style: const TextStyle(fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AlpesColors.cafeOscuro),
+                          ),
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () async {
+                              if (auth.clienteId == null) return;
+                              await carrito.agregarItem(
+                                clienteId:  auth.clienteId!,
+                                productoId: p.productoId,
+                                nombre:     p.nombre,
+                                precio:     p.precio ?? 0,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${p.nombre} agregado'),
+                                    backgroundColor: AlpesColors.verdeSelva,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AlpesColors.cafeOscuro,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_shopping_cart_rounded,
+                                      size: 11,
+                                      color: AlpesColors.oroGuatemalteco),
+                                  SizedBox(width: 4),
+                                  Text('Agregar',
+                                      style: TextStyle(fontSize: 9,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            );
+          },
+        ),
+      ),
+    ]);
+  }
+
+  // ── TODOS LOS PRODUCTOS — grid visual 2 columnas ──────────
+  Widget _buildTodosLosProductos(BuildContext context) {
+    final provider  = context.watch<ProductoProvider>();
+    final productos = provider.productos.take(6).toList();
+    if (productos.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(children: [
+          Container(width: 3, height: 14,
+              decoration: BoxDecoration(
+                  color: AlpesColors.verdeSelva,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          const Text('Productos',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  color: AlpesColors.cafeOscuro)),
+        ]),
+        TextButton(
+          onPressed: () => context.go('/catalogo'),
+          child: const Text('Catalogo completo',
+              style: TextStyle(fontSize: 12, color: AlpesColors.nogalMedio)),
+        ),
+      ]),
+      const SizedBox(height: 10),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: productos.length,
+        itemBuilder: (_, i) => ProductoCard(producto: productos[i]),
+      ),
+      const SizedBox(height: 14),
+      GestureDetector(
+        onTap: () => context.go('/catalogo'),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(color: AlpesColors.cafeOscuro, width: 1.2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Ver catalogo completo',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                      color: AlpesColors.cafeOscuro)),
+              SizedBox(width: 8),
+              Icon(Icons.arrow_forward_rounded,
+                  size: 16, color: AlpesColors.cafeOscuro),
+            ],
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _prodPlaceholder() => Container(
+    color: AlpesColors.cremaFondo,
+    child: Center(
+      child: Icon(Icons.chair_outlined,
+          size: 28, color: AlpesColors.arenaCalida.withOpacity(0.4)),
+    ),
+  );
+
 }
 
 // ─────────────────────────────────────────────────────────

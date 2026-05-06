@@ -43,7 +43,30 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
-      appBar: AppBar(title: const Text('DETALLE DE ORDEN')),
+      appBar: AppBar(
+        backgroundColor: AlpesColors.cafeOscuro,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.arrow_back_ios_rounded,
+                color: Colors.white, size: 16),
+          ),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/mis-ordenes'),
+        ),
+        title: const Text('Detalle de Orden',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.3)),
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))

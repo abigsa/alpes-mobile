@@ -5,5 +5,6 @@ router.get("/buscar", ctrl.buscar);
 router.get("/:id", ctrl.obtener);
 router.post("/", ctrl.crear);
 router.put("/:id", ctrl.actualizar);
+router.patch("/:id/estado", ctrl.actualizarEstado);
 router.delete("/:id", ctrl.eliminar);
 module.exports = router;

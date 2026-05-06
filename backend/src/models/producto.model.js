@@ -88,10 +88,18 @@ async function listar() {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `BEGIN ${PKG}.SP_LISTAR_PRODUCTOS(:p_cursor); END;`,
-      { p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR } }
+      `SELECT p.*,
+              (SELECT ph.PRECIO 
+               FROM PRECIO_HISTORICO ph 
+               WHERE ph.PRODUCTO_ID = p.PRODUCTO_ID 
+                 AND (ph.VIGENCIA_FIN IS NULL OR ph.VIGENCIA_FIN >= SYSDATE)
+               ORDER BY ph.VIGENCIA_INICIO DESC
+               FETCH FIRST 1 ROWS ONLY) AS PRECIO
+       FROM PRODUCTO p ORDER BY p.PRODUCTO_ID`,
+      {},
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    return await readCursor(result.outBinds.p_cursor);
+    return result.rows || [];
   } finally { await closeConn(conn); }
 }
 

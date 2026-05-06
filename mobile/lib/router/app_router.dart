@@ -43,6 +43,10 @@ import '../screens/admin/marketing/marketing_screen.dart';
 import '../screens/admin/reportes/reportes_screen.dart';
 import '../screens/admin/configuracion/configuracion_screen.dart';
 
+// Screens - Home Pública
+import '../screens/home_publica_screen.dart';
+import '../screens/catalogo_publico_screen.dart';
+
 class AppRouter {
   static GoRouter createRouter(BuildContext context) {
     return GoRouter(
@@ -51,23 +55,49 @@ class AppRouter {
         final auth = context.read<AuthProvider>();
         final isLoggingIn = state.matchedLocation == '/login' ||
             state.matchedLocation == '/registro';
+        final isPublica = state.matchedLocation == '/home-publica' ||
+            state.matchedLocation.startsWith('/catalogo-publico');
 
         if (state.matchedLocation == '/splash') return null;
-        if (!auth.isLoggedIn && !isLoggingIn) return '/login';
+        if (isPublica) return null;
+        if (!auth.isLoggedIn && !isLoggingIn) return '/home-publica';
         if (auth.isLoggedIn && isLoggingIn) {
           return auth.isAdmin ? '/admin' : '/home';
         }
         return null;
       },
       routes: [
+        // Home Pública
+        GoRoute(
+            path: '/home-publica',
+            builder: (_, __) => const HomePublicaScreen()),
+
+        // Catálogo público (sin login)
+        GoRoute(
+          path: '/catalogo-publico',
+          builder: (_, state) => CatalogoPublicoScreen(
+            categoriaInicial: state.extra as String?,
+          ),
+        ),
+
         // Auth
         GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-        GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(
+          path: '/login',
+          builder: (_, state) => LoginScreen(
+            categoriaDestino: state.extra as String?,
+          ),
+        ),
         GoRoute(path: '/registro', builder: (_, __) => const RegistroScreen()),
 
         // Cliente
         GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-        GoRoute(path: '/catalogo', builder: (_, __) => const CatalogoScreen()),
+        GoRoute(
+          path: '/catalogo',
+          builder: (_, state) => CatalogoScreen(
+            categoriaInicial: state.extra as String?,
+          ),
+        ),
         GoRoute(
           path: '/producto/:id',
           builder: (_, state) => ProductoDetalleScreen(
@@ -97,7 +127,6 @@ class AppRouter {
             envioId: int.parse(state.pathParameters['id']!),
           ),
         ),
-        // Nuevas rutas
         GoRoute(
             path: '/notificaciones',
             builder: (_, __) => const NotificacionesScreen()),

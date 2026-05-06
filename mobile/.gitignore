@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /lib/config/api_config.dart
+<<<<<<< HEAD
+=======
+
+>>>>>>> 629343fb98a6b56364534573fc17cc754698dc47

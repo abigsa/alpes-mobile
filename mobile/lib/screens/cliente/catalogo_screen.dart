@@ -13,30 +13,32 @@ import '../../widgets/bottom_nav_cliente.dart';
 // ═══════════════════════════════════════════════════════════════════════════
 
 class CatalogoScreen extends StatefulWidget {
-  const CatalogoScreen({super.key});
+  final String? categoriaInicial;
+  const CatalogoScreen({super.key, this.categoriaInicial});
   @override
   State<CatalogoScreen> createState() => _CatalogoScreenState();
 }
 
 class _CatalogoScreenState extends State<CatalogoScreen>
     with SingleTickerProviderStateMixin {
-  String _filtroTipo = 'Todos';
-  String _busqueda   = '';
-  String _orden      = 'nombre';
-  bool   _vistaGrid  = true;
-  final _searchCtrl  = TextEditingController();
+  late String _filtroTipo;
+  String _busqueda = '';
+  String _orden = 'nombre';
+  bool _vistaGrid = true;
+  final _searchCtrl = TextEditingController();
   TabController? _tabCtrl;
   List<String> _tipos = ['Todos'];
 
   final _ordenes = {
-    'nombre':      'Nombre A–Z',
-    'precio_asc':  'Precio menor',
+    'nombre': 'Nombre A–Z',
+    'precio_asc': 'Precio menor',
     'precio_desc': 'Precio mayor',
   };
 
   @override
   void initState() {
     super.initState();
+    _filtroTipo = widget.categoriaInicial?.trim().toUpperCase() ?? 'Todos';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductoProvider>().cargarProductos().then((_) {
         _inicializarTipos();
@@ -62,7 +64,13 @@ class _CatalogoScreenState extends State<CatalogoScreen>
     if (_tipos.length != nuevosTipos.length ||
         !_tipos.every((t) => nuevosTipos.contains(t))) {
       _tabCtrl?.dispose();
-      _tabCtrl = TabController(length: nuevosTipos.length, vsync: this);
+      final indexInicial = nuevosTipos.indexOf(_filtroTipo);
+      _tabCtrl = TabController(
+        length: nuevosTipos.length,
+        vsync: this,
+        initialIndex: indexInicial >= 0 ? indexInicial : 0,
+      );
+      if (indexInicial < 0) _filtroTipo = 'Todos';
       _tabCtrl!.addListener(() {
         if (!_tabCtrl!.indexIsChanging) {
           setState(() => _filtroTipo = _tipos[_tabCtrl!.index]);
@@ -113,9 +121,13 @@ class _CatalogoScreenState extends State<CatalogoScreen>
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductoProvider>();
-    final lista    = _listaFiltrada(provider);
-    final w        = MediaQuery.of(context).size.width;
-    final cols     = w > 900 ? 4 : w > 600 ? 3 : 2;
+    final lista = _listaFiltrada(provider);
+    final w = MediaQuery.of(context).size.width;
+    final cols = w > 900
+        ? 4
+        : w > 600
+            ? 3
+            : 2;
 
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
@@ -129,7 +141,8 @@ class _CatalogoScreenState extends State<CatalogoScreen>
             elevation: 0,
             leading: IconButton(
               icon: Container(
-                width: 34, height: 34,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(9),
@@ -143,8 +156,8 @@ class _CatalogoScreenState extends State<CatalogoScreen>
             ),
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsets.only(left: 56, bottom: 14),
-              title: Row(crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
+              title:
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 const Text('Catalogo',
                     style: TextStyle(
                         fontFamily: 'Poppins',
@@ -155,8 +168,8 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                 const SizedBox(width: 8),
                 if (!provider.loading)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: AlpesColors.oroGuatemalteco.withOpacity(0.18),
                       borderRadius: BorderRadius.circular(20),
@@ -180,8 +193,12 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                   ),
                 ),
                 child: Stack(children: [
-                  Positioned(top: -20, right: -20,
-                      child: Container(width: 100, height: 100,
+                  Positioned(
+                      top: -20,
+                      right: -20,
+                      child: Container(
+                          width: 100,
+                          height: 100,
                           decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: AlpesColors.oroGuatemalteco
@@ -194,23 +211,26 @@ class _CatalogoScreenState extends State<CatalogoScreen>
               IconButton(
                 onPressed: () => setState(() => _vistaGrid = !_vistaGrid),
                 icon: Container(
-                  width: 34, height: 34,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(color: Colors.white.withOpacity(0.15)),
                   ),
                   child: Icon(
-                    _vistaGrid
-                        ? Icons.view_list_rounded
-                        : Icons.grid_view_rounded,
-                    color: Colors.white, size: 17),
+                      _vistaGrid
+                          ? Icons.view_list_rounded
+                          : Icons.grid_view_rounded,
+                      color: Colors.white,
+                      size: 17),
                 ),
               ),
               // Ordenar
               PopupMenuButton<String>(
                 icon: Container(
-                  width: 34, height: 34,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(9),
@@ -224,39 +244,41 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                     borderRadius: BorderRadius.circular(12)),
                 color: Colors.white,
                 elevation: 8,
-                itemBuilder: (_) => _ordenes.entries.map((e) =>
-                    PopupMenuItem(
-                      value: e.key,
-                      child: Row(children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 18, height: 18,
-                          decoration: BoxDecoration(
-                            color: _orden == e.key
-                                ? AlpesColors.cafeOscuro
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(5),
-                            border: Border.all(
+                itemBuilder: (_) => _ordenes.entries
+                    .map((e) => PopupMenuItem(
+                          value: e.key,
+                          child: Row(children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
                                 color: _orden == e.key
                                     ? AlpesColors.cafeOscuro
-                                    : AlpesColors.arenaCalida),
-                          ),
-                          child: _orden == e.key
-                              ? const Icon(Icons.check_rounded,
-                                  size: 11, color: Colors.white)
-                              : null,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(e.value,
-                            style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontWeight: _orden == e.key
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                                color: AlpesColors.cafeOscuro,
-                                fontSize: 13)),
-                      ]),
-                    )).toList(),
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(
+                                    color: _orden == e.key
+                                        ? AlpesColors.cafeOscuro
+                                        : AlpesColors.arenaCalida),
+                              ),
+                              child: _orden == e.key
+                                  ? const Icon(Icons.check_rounded,
+                                      size: 11, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(e.value,
+                                style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontWeight: _orden == e.key
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                    color: AlpesColors.cafeOscuro,
+                                    fontSize: 13)),
+                          ]),
+                        ))
+                    .toList(),
               ),
               const SizedBox(width: 6),
             ],
@@ -269,7 +291,8 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                       color: AlpesColors.cafeOscuro,
                       child: const Center(
                         child: SizedBox(
-                          width: 16, height: 16,
+                          width: 16,
+                          height: 16,
                           child: CircularProgressIndicator(
                               color: AlpesColors.oroGuatemalteco,
                               strokeWidth: 1.5),
@@ -286,8 +309,7 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                         indicatorWeight: 2.5,
                         indicatorSize: TabBarIndicatorSize.label,
                         labelColor: Colors.white,
-                        unselectedLabelColor:
-                            Colors.white.withOpacity(0.4),
+                        unselectedLabelColor: Colors.white.withOpacity(0.4),
                         labelStyle: const TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 11,
@@ -303,16 +325,13 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                           final count = t == 'Todos'
                               ? provider.productos.length
                               : provider.productos
-                                  .where((p) =>
-                                      (p.tipo ?? '').toUpperCase() == t)
+                                  .where(
+                                      (p) => (p.tipo ?? '').toUpperCase() == t)
                                   .length;
                           return Tab(
-                            child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                              Text(t == 'Todos'
-                                  ? 'Todos'
-                                  : _nombreAmigable(t)),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(t == 'Todos' ? 'Todos' : _nombreAmigable(t)),
                               const SizedBox(width: 5),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -448,9 +467,7 @@ class _CatalogoScreenState extends State<CatalogoScreen>
   }
 
   Widget _emptyState() => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.chair_alt_rounded,
               size: 56, color: AlpesColors.arenaCalida.withOpacity(0.3)),
           const SizedBox(height: 16),
@@ -485,11 +502,11 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
 
   @override
   Widget build(BuildContext context) {
-    final p      = widget.producto;
-    final favs   = context.watch<FavoritosProvider>();
-    final auth   = context.read<AuthProvider>();
+    final p = widget.producto;
+    final favs = context.watch<FavoritosProvider>();
+    final auth = context.read<AuthProvider>();
     final carrito = context.read<CarritoProvider>();
-    final esFav  = favs.esFavorito(p.productoId);
+    final esFav = favs.esFavorito(p.productoId);
 
     return GestureDetector(
       onTap: () => context.push('/producto/${p.productoId}'),
@@ -514,17 +531,19 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(10)),
                 child: p.imagenUrl != null && p.imagenUrl!.isNotEmpty
-                    ? Image.network(p.imagenUrl!, fit: BoxFit.cover,
+                    ? Image.network(p.imagenUrl!,
+                        fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _placeholder())
                     : _placeholder(),
               ),
               // Badge tipo
               if (p.tipo != null && p.tipo!.isNotEmpty)
                 Positioned(
-                  top: 7, left: 7,
+                  top: 7,
+                  left: 7,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AlpesColors.cafeOscuro.withOpacity(0.82),
                       borderRadius: BorderRadius.circular(4),
@@ -540,16 +559,17 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
                 ),
               // Favorito
               Positioned(
-                top: 7, right: 7,
+                top: 7,
+                right: 7,
                 child: GestureDetector(
                   onTap: () async {
                     if (auth.clienteId == null) return;
                     await favs.toggleFavorito(
-                        clienteId: auth.clienteId!,
-                        productoId: p.productoId);
+                        clienteId: auth.clienteId!, productoId: p.productoId);
                   },
                   child: Container(
-                    width: 28, height: 28,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.92),
                       shape: BoxShape.circle,
@@ -624,20 +644,23 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
                       ),
                       // Botón carrito
                       GestureDetector(
-                        onTap: _agregando ? null : () async {
-                          if (auth.clienteId == null) return;
-                          setState(() => _agregando = true);
-                          await carrito.agregarItem(
-                            clienteId:  auth.clienteId!,
-                            productoId: p.productoId,
-                            nombre:     p.nombre,
-                            precio:     p.precio ?? 0,
-                          );
-                          if (mounted) setState(() => _agregando = false);
-                        },
+                        onTap: _agregando
+                            ? null
+                            : () async {
+                                if (auth.clienteId == null) return;
+                                setState(() => _agregando = true);
+                                await carrito.agregarItem(
+                                  clienteId: auth.clienteId!,
+                                  productoId: p.productoId,
+                                  nombre: p.nombre,
+                                  precio: p.precio ?? 0,
+                                );
+                                if (mounted) setState(() => _agregando = false);
+                              },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          width: 30, height: 30,
+                          width: 30,
+                          height: 30,
                           decoration: BoxDecoration(
                             color: _agregando
                                 ? AlpesColors.cafeOscuro.withOpacity(0.5)
@@ -647,14 +670,13 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
                           child: _agregando
                               ? const Center(
                                   child: SizedBox(
-                                      width: 12, height: 12,
+                                      width: 12,
+                                      height: 12,
                                       child: CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 1.5)))
-                              : const Icon(
-                                  Icons.add_shopping_cart_rounded,
-                                  color: AlpesColors.oroGuatemalteco,
-                                  size: 14),
+                              : const Icon(Icons.add_shopping_cart_rounded,
+                                  color: AlpesColors.oroGuatemalteco, size: 14),
                         ),
                       ),
                     ],
@@ -692,11 +714,11 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
 
   @override
   Widget build(BuildContext context) {
-    final p      = widget.producto;
-    final favs   = context.watch<FavoritosProvider>();
-    final auth   = context.read<AuthProvider>();
+    final p = widget.producto;
+    final favs = context.watch<FavoritosProvider>();
+    final auth = context.read<AuthProvider>();
     final carrito = context.read<CarritoProvider>();
-    final esFav  = favs.esFavorito(p.productoId);
+    final esFav = favs.esFavorito(p.productoId);
 
     return GestureDetector(
       onTap: () => context.push('/producto/${p.productoId}'),
@@ -721,7 +743,8 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
             child: SizedBox(
               width: 100,
               child: p.imagenUrl != null && p.imagenUrl!.isNotEmpty
-                  ? Image.network(p.imagenUrl!, fit: BoxFit.cover,
+                  ? Image.network(p.imagenUrl!,
+                      fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                           color: AlpesColors.cremaFondo,
                           child: const Center(
@@ -742,42 +765,43 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    if (p.tipo != null && p.tipo!.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AlpesColors.cafeOscuro.withOpacity(0.07),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(p.tipo!.toUpperCase(),
+                        if (p.tipo != null && p.tipo!.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(p.tipo!.toUpperCase(),
+                                style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 8,
+                                    color: AlpesColors.nogalMedio,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5)),
+                          ),
+                        Text(p.nombre,
                             style: const TextStyle(
                                 fontFamily: 'Poppins',
-                                fontSize: 8,
-                                color: AlpesColors.nogalMedio,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5)),
-                      ),
-                    Text(p.nombre,
-                        style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AlpesColors.cafeOscuro),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    if (p.material != null && p.material!.isNotEmpty)
-                      Text(p.material!,
-                          style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              color: AlpesColors.nogalMedio),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                  ]),
+                                color: AlpesColors.cafeOscuro),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        if (p.material != null && p.material!.isNotEmpty)
+                          Text(p.material!,
+                              style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 10,
+                                  color: AlpesColors.nogalMedio),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                      ]),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -801,7 +825,8 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
                                 productoId: p.productoId);
                           },
                           child: Container(
-                            width: 30, height: 30,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
                               color: AlpesColors.cremaFondo,
                               borderRadius: BorderRadius.circular(8),
@@ -821,26 +846,32 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
                         const SizedBox(width: 6),
                         // Carrito
                         GestureDetector(
-                          onTap: _agregando ? null : () async {
-                            if (auth.clienteId == null) return;
-                            setState(() => _agregando = true);
-                            await carrito.agregarItem(
-                              clienteId:  auth.clienteId!,
-                              productoId: p.productoId,
-                              nombre:     p.nombre,
-                              precio:     p.precio ?? 0,
-                            );
-                            if (mounted) setState(() => _agregando = false);
-                          },
+                          onTap: _agregando
+                              ? null
+                              : () async {
+                                  if (auth.clienteId == null) return;
+                                  setState(() => _agregando = true);
+                                  await carrito.agregarItem(
+                                    clienteId: auth.clienteId!,
+                                    productoId: p.productoId,
+                                    nombre: p.nombre,
+                                    precio: p.precio ?? 0,
+                                  );
+                                  if (mounted)
+                                    setState(() => _agregando = false);
+                                },
                           child: Container(
-                            width: 30, height: 30,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
                               color: AlpesColors.cafeOscuro,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: _agregando
                                 ? const Center(
-                                    child: SizedBox(width: 12, height: 12,
+                                    child: SizedBox(
+                                        width: 12,
+                                        height: 12,
                                         child: CircularProgressIndicator(
                                             color: Colors.white,
                                             strokeWidth: 1.5)))

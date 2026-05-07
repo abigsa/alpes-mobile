@@ -1,9 +1,15 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:archive/archive.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../../../config/api_config.dart';
 import '../../../config/theme.dart';
@@ -16,6 +22,8 @@ class ReportesScreen extends StatefulWidget {
 }
 
 enum _TrendChartMode { columnas, linea, area }
+enum _ReportOutputFormat { pdf, excel }
+enum _ReportPeriodType { rangoMeses, trimestre, anual }
 
 class _ReportesScreenState extends State<ReportesScreen>
     with TickerProviderStateMixin {
@@ -43,6 +51,7 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   // Nuevo: mes seleccionado para filtro de trimestre (0 = Enero, 11 = Diciembre, -1 = Anual)
   int _selectedMonth = -1; // -1 significa "Anual"
+  bool _generandoReporte = false;
 
   // Lista de meses con opción anual
   final List<MapEntry<String, int>> _monthOptions = [
@@ -805,6 +814,1545 @@ class _ReportesScreenState extends State<ReportesScreen>
     return 1 - (stock / minimo).clamp(0, 1);
   }
 
+
+
+  Future<void> _mostrarDialogoReporte() async {
+    if (_loading || _generandoReporte) return;
+
+    var periodType = _ReportPeriodType.rangoMeses;
+    var format = _ReportOutputFormat.pdf;
+    var year = _selectedYear;
+    var startMonth = 1;
+    var endMonth = DateTime.now().month;
+    var quarter = 1;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final monthItems = List.generate(
+              12,
+              (index) => DropdownMenuItem<int>(
+                value: index + 1,
+                child: Text(_getMonthName(index)),
+              ),
+            );
+
+            return BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+              child: Dialog(
+                insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+                backgroundColor: Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFFCF8), Color(0xFFF1E3D0)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(.28)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AlpesColors.cafeOscuro.withOpacity(.22),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  color: AlpesColors.oroGuatemalteco.withOpacity(.22),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Icon(
+                                  Icons.chair_alt_rounded,
+                                  color: AlpesColors.cafeOscuro,
+                                  size: 30,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Generar reporte administrativo',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AlpesColors.cafeOscuro,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Muebles de los Alpes',
+                                style: TextStyle(
+                                  color: AlpesColors.nogalMedio,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        _dialogLabel('Tipo de periodo'),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _reportChoiceChip(
+                              label: 'Rango de meses',
+                              selected: periodType == _ReportPeriodType.rangoMeses,
+                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.rangoMeses),
+                            ),
+                            _reportChoiceChip(
+                              label: 'Trimestre',
+                              selected: periodType == _ReportPeriodType.trimestre,
+                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.trimestre),
+                            ),
+                            _reportChoiceChip(
+                              label: 'Anual',
+                              selected: periodType == _ReportPeriodType.anual,
+                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.anual),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _dialogDropdown<int>(
+                                label: 'Año',
+                                value: year,
+                                items: _availableYears
+                                    .map((item) => DropdownMenuItem<int>(value: item, child: Text('$item')))
+                                    .toList(),
+                                onChanged: (value) => setDialogState(() => year = value ?? year),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (periodType == _ReportPeriodType.trimestre)
+                              Expanded(
+                                child: _dialogDropdown<int>(
+                                  label: 'Trimestre',
+                                  value: quarter,
+                                  items: const [
+                                    DropdownMenuItem(value: 1, child: Text('Q1 · Ene-Mar')),
+                                    DropdownMenuItem(value: 2, child: Text('Q2 · Abr-Jun')),
+                                    DropdownMenuItem(value: 3, child: Text('Q3 · Jul-Sep')),
+                                    DropdownMenuItem(value: 4, child: Text('Q4 · Oct-Dic')),
+                                  ],
+                                  onChanged: (value) => setDialogState(() => quarter = value ?? quarter),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (periodType == _ReportPeriodType.rangoMeses) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _dialogDropdown<int>(
+                                  label: 'Mes inicial',
+                                  value: startMonth,
+                                  items: monthItems,
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      startMonth = value ?? startMonth;
+                                      if (startMonth > endMonth) endMonth = startMonth;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _dialogDropdown<int>(
+                                  label: 'Mes final',
+                                  value: endMonth,
+                                  items: monthItems,
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      endMonth = value ?? endMonth;
+                                      if (endMonth < startMonth) startMonth = endMonth;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        _dialogLabel('Formato'),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _reportChoiceChip(
+                                label: 'PDF profesional',
+                                icon: Icons.picture_as_pdf_rounded,
+                                selected: format == _ReportOutputFormat.pdf,
+                                onTap: () => setDialogState(() => format = _ReportOutputFormat.pdf),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _reportChoiceChip(
+                                label: 'Excel editable',
+                                icon: Icons.table_chart_rounded,
+                                selected: format == _ReportOutputFormat.excel,
+                                onTap: () => setDialogState(() => format = _ReportOutputFormat.excel),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(dialogContext).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AlpesColors.cafeOscuro,
+                                  side: BorderSide(color: AlpesColors.arenaCalida.withOpacity(.6)),
+                                  padding: const EdgeInsets.symmetric(vertical: 15),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  await _generarReporte(
+                                    periodType: periodType,
+                                    format: format,
+                                    year: year,
+                                    startMonth: startMonth,
+                                    endMonth: endMonth,
+                                    quarter: quarter,
+                                  );
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AlpesColors.cafeOscuro,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 15),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                icon: const Icon(Icons.download_rounded, size: 18),
+                                label: const Text('Generar', style: TextStyle(fontWeight: FontWeight.w900)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _dialogLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: AlpesColors.cafeOscuro,
+        fontWeight: FontWeight.w900,
+        fontSize: 13,
+      ),
+    );
+  }
+
+  Widget _dialogDropdown<T>({
+    required String label,
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _dialogLabel(label),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AlpesColors.arenaCalida.withOpacity(.35)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              items: items,
+              onChanged: onChanged,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AlpesColors.cafeOscuro),
+              style: const TextStyle(color: AlpesColors.cafeOscuro, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _reportChoiceChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? AlpesColors.cafeOscuro : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AlpesColors.cafeOscuro : AlpesColors.arenaCalida.withOpacity(.42),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: selected ? Colors.white : AlpesColors.cafeOscuro),
+              const SizedBox(width: 7),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.white : AlpesColors.cafeOscuro,
+                  fontSize: 12.4,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _generarReporte({
+    required _ReportPeriodType periodType,
+    required _ReportOutputFormat format,
+    required int year,
+    required int startMonth,
+    required int endMonth,
+    required int quarter,
+  }) async {
+    setState(() => _generandoReporte = true);
+    try {
+      final range = _ReportRange.fromSelection(
+        periodType: periodType,
+        year: year,
+        startMonth: startMonth,
+        endMonth: endMonth,
+        quarter: quarter,
+        getMonthName: _getMonthName,
+        getQuarterName: _getQuarterName,
+      );
+      final data = _buildReportData(range);
+
+      if (format == _ReportOutputFormat.pdf) {
+        final bytes = await _crearPdfReporte(data);
+        await FileSaver.instance.saveFile(
+          name: 'reporte_muebles_de_los_alpes_${range.fileSuffix}',
+          bytes: bytes,
+          ext: 'pdf',
+          mimeType: MimeType.pdf,
+        );
+      } else {
+        final bytes = _crearExcelReporte(data);
+        await FileSaver.instance.saveFile(
+          name: 'reporte_muebles_de_los_alpes_${range.fileSuffix}',
+          bytes: bytes,
+          ext: 'xlsx',
+          mimeType: MimeType.microsoftExcel,
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(format == _ReportOutputFormat.pdf
+              ? 'PDF generado correctamente.'
+              : 'Excel generado correctamente.'),
+          backgroundColor: AlpesColors.exito,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo generar el reporte: $e'),
+          backgroundColor: AlpesColors.rojoColonial,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _generandoReporte = false);
+    }
+  }
+
+  _ReportData _buildReportData(_ReportRange range) {
+    final ordersInRange = _ordenes.where((orden) {
+      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      if (fecha == null) return false;
+      return fecha.year == range.year &&
+          fecha.month >= range.startMonth &&
+          fecha.month <= range.endMonth;
+    }).toList()
+      ..sort((a, b) {
+        final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+        final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+        return fechaA.compareTo(fechaB);
+      });
+
+    final orderIds = ordersInRange.map(_orderId).where((id) => id.isNotEmpty).toSet();
+    final detailsByOrder = <String, List<Map<String, dynamic>>>{};
+
+    for (final detalle in _detallesOrden) {
+      final orderId = (_readValue(detalle, const ['ORDEN_VENTA_ID', 'orden_venta_id']) ?? '').toString();
+      if (!orderIds.contains(orderId)) continue;
+      detailsByOrder.putIfAbsent(orderId, () => <Map<String, dynamic>>[]).add(detalle);
+    }
+
+    final monthlyProductMap = <String, _ProductMonthlyReportRow>{};
+    int items = 0;
+
+    for (final orden in ordersInRange) {
+      final orderId = _orderId(orden);
+      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      if (fecha == null) continue;
+
+      final orderDetails = detailsByOrder[orderId] ?? const <Map<String, dynamic>>[];
+      final orderTotal = _orderTotal(orden);
+      final rawTotals = <Map<String, dynamic>, double>{};
+      int orderQty = 0;
+      double rawTotalSum = 0;
+
+      for (final detalle in orderDetails) {
+        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        final price = _toDouble(_readValue(detalle, const ['PRECIO_UNITARIO', 'precio_unitario', 'PRECIO', 'precio', 'VALOR_UNITARIO', 'valor_unitario']));
+        final explicitSubtotal = _readValue(detalle, const ['SUBTOTAL', 'subtotal', 'TOTAL', 'total', 'MONTO', 'monto', 'IMPORTE', 'importe']);
+        final rawSubtotal = explicitSubtotal == null ? quantity * price : _toDouble(explicitSubtotal);
+        rawTotals[detalle] = rawSubtotal;
+        rawTotalSum += rawSubtotal;
+        orderQty += quantity;
+      }
+
+      for (final detalle in orderDetails) {
+        final productoId = _detailProductId(detalle);
+        final producto = _productNameById(productoId);
+        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        items += quantity;
+
+        double allocatedTotal;
+        final rawSubtotal = rawTotals[detalle] ?? 0;
+        if (rawTotalSum > 0) {
+          allocatedTotal = orderTotal > 0 ? orderTotal * (rawSubtotal / rawTotalSum) : rawSubtotal;
+        } else if (orderQty > 0) {
+          allocatedTotal = orderTotal * (quantity / orderQty);
+        } else {
+          allocatedTotal = 0;
+        }
+
+        final key = '$productoId|${fecha.month}';
+        final row = monthlyProductMap.putIfAbsent(
+          key,
+          () => _ProductMonthlyReportRow(
+            month: fecha.month,
+            product: producto,
+            productId: productoId,
+          ),
+        );
+        row.quantity += quantity;
+        row.total += allocatedTotal;
+      }
+    }
+
+    final rows = monthlyProductMap.values.toList()
+      ..sort((a, b) {
+        final byMonth = a.month.compareTo(b.month);
+        return byMonth != 0 ? byMonth : a.product.compareTo(b.product);
+      });
+
+    final totalSales = ordersInRange.fold<double>(0, (sum, orden) => sum + _orderTotal(orden));
+    final cancelled = ordersInRange.where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Cancelado').length;
+    final delivered = ordersInRange.where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Entregado').length;
+    final clients = ordersInRange
+        .map(_orderClientName)
+        .where((name) => name.trim().isNotEmpty && name != 'Cliente sin identificar')
+        .toSet()
+        .length;
+
+    return _ReportData(
+      range: range,
+      generatedAt: DateTime.now(),
+      totalSales: totalSales,
+      totalOrders: ordersInRange.length,
+      totalClients: clients,
+      cancelledOrders: cancelled,
+      deliveredOrders: delivered,
+      itemsSold: items,
+      averageTicket: ordersInRange.isEmpty ? 0 : totalSales / ordersInRange.length,
+      monthlyProducts: rows,
+      orders: ordersInRange,
+    );
+  }
+
+  String _orderId(Map<String, dynamic> orden) {
+    return (_readValue(orden, const ['ORDEN_VENTA_ID', 'orden_venta_id', 'ID', 'id']) ?? '').toString();
+  }
+
+  String _orderNumber(Map<String, dynamic> orden) {
+    return (_readValue(orden, const ['NUM_ORDEN', 'num_orden', 'NUMERO_ORDEN', 'numero_orden', 'ORDEN_VENTA_ID', 'orden_venta_id']) ?? '—').toString();
+  }
+
+  double _orderTotal(Map<String, dynamic> orden) {
+    return _toDouble(_readValue(orden, const ['TOTAL', 'total', 'MONTO_TOTAL', 'monto_total', 'IMPORTE_TOTAL', 'importe_total']));
+  }
+
+  String _orderClientName(Map<String, dynamic> orden) {
+    final direct = (_readValue(orden, const [
+              'CLIENTE_NOMBRE',
+              'cliente_nombre',
+              'NOMBRE_CLIENTE',
+              'nombre_cliente',
+              'CLIENTE',
+              'cliente',
+            ]) ??
+            '')
+        .toString()
+        .trim();
+    if (direct.isNotEmpty) return _cleanClientDisplayName(direct);
+
+    final id = _orderClientId(orden);
+    if (id == null || id.isEmpty) return 'Cliente sin identificar';
+    return _cleanClientDisplayName(_clientNameById(id));
+  }
+
+  String _cleanClientDisplayName(String value) {
+    var clean = value.trim();
+    if (clean.isEmpty) return clean;
+
+    final separators = [
+      RegExp(r'\s*[·|-]\s*NIT\s*[:#-]?\s*.+$', caseSensitive: false),
+      RegExp(r'\s*NIT\s*[:#-]?\s*.+$', caseSensitive: false),
+    ];
+
+    for (final pattern in separators) {
+      clean = clean.replaceAll(pattern, '').trim();
+    }
+
+    clean = clean.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+    return clean.isEmpty ? value.trim() : clean;
+  }
+
+  String _clientNameById(String clientId) {
+    for (final cliente in _clientes) {
+      final currentId = _readValue(cliente, const ['CLIENTE_ID', 'cliente_id', 'CLI_ID', 'cli_id', 'ID', 'id']);
+      if ('$currentId' != clientId) continue;
+
+      final nombre = (_readValue(cliente, const ['NOMBRE', 'nombre', 'NOMBRES', 'nombres', 'RAZON_SOCIAL', 'razon_social']) ?? '').toString().trim();
+      final apellido = (_readValue(cliente, const ['APELLIDO', 'apellido', 'APELLIDOS', 'apellidos']) ?? '').toString().trim();
+      final empresa = (_readValue(cliente, const ['EMPRESA', 'empresa']) ?? '').toString().trim();
+      final fullName = [nombre, apellido].where((part) => part.isNotEmpty).join(' ').trim();
+      if (fullName.isNotEmpty) return fullName;
+      if (empresa.isNotEmpty) return empresa;
+    }
+    return 'Cliente #$clientId';
+  }
+
+
+  String _detailProductId(Map<String, dynamic> detalle) {
+    final direct = _readValue(detalle, const [
+      'PRODUCTO_ID',
+      'producto_id',
+      'PROD_ID',
+      'prod_id',
+      'ID_PRODUCTO',
+      'id_producto',
+    ]);
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString().trim();
+    }
+
+    final inventoryId = _readValue(detalle, const [
+      'INVENTARIO_PRODUCTO_ID',
+      'inventario_producto_id',
+      'INVENTARIO_ID',
+      'inventario_id',
+    ]);
+    if (inventoryId != null) {
+      for (final item in _inventario) {
+        final currentInventoryId = _readValue(item, const [
+          'INVENTARIO_PRODUCTO_ID',
+          'inventario_producto_id',
+          'INVENTARIO_ID',
+          'inventario_id',
+          'ID',
+          'id',
+        ]);
+        if ('$currentInventoryId' == '$inventoryId') {
+          final productoId = _readValue(item, const ['PRODUCTO_ID', 'producto_id']);
+          if (productoId != null && productoId.toString().trim().isNotEmpty) {
+            return productoId.toString().trim();
+          }
+        }
+      }
+      return inventoryId.toString().trim();
+    }
+
+    final nombreDirecto = _readValue(detalle, const [
+      'PRODUCTO',
+      'producto',
+      'NOMBRE_PRODUCTO',
+      'nombre_producto',
+    ]);
+    if (nombreDirecto != null && nombreDirecto.toString().trim().isNotEmpty) {
+      return nombreDirecto.toString().trim();
+    }
+
+    return 'SIN_REFERENCIA';
+  }
+
+  String _productNameById(String productId) {
+    final cleanId = productId.trim();
+    if (cleanId.isEmpty || cleanId == 'SIN_REFERENCIA') {
+      return 'Producto sin referencia';
+    }
+
+    for (final producto in _productos) {
+      final currentId = _readValue(producto, const [
+        'PRODUCTO_ID',
+        'producto_id',
+        'PROD_ID',
+        'prod_id',
+        'ID',
+        'id',
+      ]);
+      if ('$currentId' != cleanId) continue;
+
+      final nombre = (_readValue(producto, const [
+                'NOMBRE',
+                'nombre',
+                'NOMBRE_PRODUCTO',
+                'nombre_producto',
+                'DESCRIPCION',
+                'descripcion',
+              ]) ??
+              '')
+          .toString()
+          .trim();
+      final referencia = (_readValue(producto, const [
+                'REFERENCIA',
+                'referencia',
+                'CODIGO',
+                'codigo',
+                'SKU',
+                'sku',
+              ]) ??
+              '')
+          .toString()
+          .trim();
+
+      if (nombre.isNotEmpty && referencia.isNotEmpty) return '$nombre · $referencia';
+      if (nombre.isNotEmpty) return nombre;
+      if (referencia.isNotEmpty) return 'Ref. $referencia';
+    }
+
+    for (final item in _inventario) {
+      final currentId = _readValue(item, const ['PRODUCTO_ID', 'producto_id']);
+      if ('$currentId' == cleanId) return _resolverProducto(item);
+    }
+
+    return cleanId == 'SIN_REFERENCIA' ? 'Producto sin referencia' : 'Producto #$cleanId';
+  }
+
+
+  Uint8List _crearExcelReporte(_ReportData data) {
+    final ventasPorMes = <int, double>{};
+    final ordenesPorMes = <int, int>{};
+    final itemsPorMes = <int, int>{};
+
+    for (int month = data.range.startMonth; month <= data.range.endMonth; month++) {
+      ventasPorMes[month] = 0;
+      ordenesPorMes[month] = 0;
+      itemsPorMes[month] = 0;
+    }
+
+    for (final orden in data.orders) {
+      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      if (fecha == null) continue;
+      final total = _orderTotal(orden);
+      ventasPorMes[fecha.month] = (ventasPorMes[fecha.month] ?? 0) + total;
+      ordenesPorMes[fecha.month] = (ordenesPorMes[fecha.month] ?? 0) + 1;
+    }
+
+    final productoTotales = <String, _ProductMonthlyReportRow>{};
+    for (final row in data.monthlyProducts) {
+      itemsPorMes[row.month] = (itemsPorMes[row.month] ?? 0) + row.quantity;
+      final item = productoTotales.putIfAbsent(
+        row.productId,
+        () => _ProductMonthlyReportRow(month: 0, product: row.product, productId: row.productId),
+      );
+      item.quantity += row.quantity;
+      item.total += row.total;
+    }
+
+    final rankingProductos = productoTotales.values.toList()
+      ..sort((a, b) {
+        final bySales = b.total.compareTo(a.total);
+        if (bySales != 0) return bySales;
+        return b.quantity.compareTo(a.quantity);
+      });
+
+    final sortedOrders = [...data.orders]..sort((a, b) {
+      final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+      final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+      return fechaB.compareTo(fechaA);
+    });
+
+    String xml(String value) => value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+
+    String colName(int index) {
+      var n = index + 1;
+      final buffer = StringBuffer();
+      while (n > 0) {
+        final rem = (n - 1) % 26;
+        buffer.writeCharCode(65 + rem);
+        n = (n - rem - 1) ~/ 26;
+      }
+      return buffer.toString().split('').reversed.join();
+    }
+
+    String cellRef(int row, int col) => '${colName(col)}$row';
+
+    String textCell(int row, int col, String value, {int style = 0}) {
+      return '<c r="${cellRef(row, col)}" s="$style" t="inlineStr"><is><t>${xml(value)}</t></is></c>';
+    }
+
+    String numCell(int row, int col, num value, {int style = 0}) {
+      final clean = value.isFinite ? value.toStringAsFixed(value is int ? 0 : 2) : '0';
+      return '<c r="${cellRef(row, col)}" s="$style"><v>$clean</v></c>';
+    }
+
+    String rowXml(int row, List<String> cells, {double? height}) {
+      final h = height == null ? '' : ' ht="$height" customHeight="1"';
+      return '<row r="$row"$h>${cells.join()}</row>';
+    }
+
+    String money(double value) => _formatCurrency(value);
+    final generatedDate = _formatDate(data.generatedAt);
+    final months = [for (int m = data.range.startMonth; m <= data.range.endMonth; m++) m];
+
+    String worksheetXml({
+      required List<String> rows,
+      required int maxRow,
+      required int maxCol,
+      List<String> merges = const [],
+      String? drawingRelId,
+      List<num>? colWidths,
+    }) {
+      final widths = colWidths ?? List<double>.filled(maxCol, 16);
+      final cols = StringBuffer('<cols>');
+      for (int i = 0; i < widths.length; i++) {
+        cols.write('<col min="${i + 1}" max="${i + 1}" width="${widths[i]}" customWidth="1"/>');
+      }
+      cols.write('</cols>');
+
+      final mergeXml = merges.isEmpty
+          ? ''
+          : '<mergeCells count="${merges.length}">${merges.map((e) => '<mergeCell ref="$e"/>').join()}</mergeCells>';
+      final drawingXml = drawingRelId == null ? '' : '<drawing r:id="$drawingRelId"/>';
+
+      return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${colName(maxCol - 1)}$maxRow"/>
+  <sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  $cols
+  <sheetData>${rows.join()}</sheetData>
+  $mergeXml
+  <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
+  $drawingXml
+</worksheet>''';
+    }
+
+    List<String> titleRows(String title, String subtitle) {
+      return [
+        rowXml(1, [textCell(1, 0, 'MUEBLES DE LOS ALPES', style: 1)], height: 28),
+        rowXml(2, [textCell(2, 0, title, style: 2)], height: 22),
+        rowXml(3, [textCell(3, 0, subtitle, style: 3)], height: 20),
+        rowXml(5, [
+          textCell(5, 0, 'Periodo', style: 4),
+          textCell(5, 1, data.range.label, style: 8),
+          textCell(5, 3, 'Generado', style: 4),
+          textCell(5, 4, generatedDate, style: 8),
+        ]),
+      ];
+    }
+
+    String sectionRow(int row, String title) => rowXml(row, [textCell(row, 0, title, style: 11)], height: 23);
+
+    List<String> headerCells(int row, List<String> headers) => [
+          for (int c = 0; c < headers.length; c++) textCell(row, c, headers[c], style: 6),
+        ];
+
+    final dashRows = <String>[];
+    final dashMerges = <String>['A1:H1', 'A2:H2', 'A3:H3', 'A7:H7'];
+    dashRows.addAll(titleRows('REPORTE EJECUTIVO', 'Dashboard profesional con datos reales, KPIs y lectura comercial'));
+    dashRows.add(sectionRow(7, 'PANEL EJECUTIVO DEL PERIODO'));
+
+    final kpis = [
+      ['Ventas totales', money(data.totalSales), 'Ingreso comercial'],
+      ['Órdenes', '${data.totalOrders}', 'Operaciones registradas'],
+      ['Ticket promedio', money(data.averageTicket), 'Promedio por orden'],
+      ['Clientes únicos', '${data.totalClients}', 'Clientes atendidos'],
+      ['Items vendidos', '${data.itemsSold}', 'Unidades vendidas'],
+      ['Entregadas', '${data.deliveredOrders}', 'Órdenes cerradas'],
+      ['Canceladas', '${data.cancelledOrders}', 'No concretadas'],
+      ['Productos vendidos', '${rankingProductos.length}', 'Referencias con venta'],
+    ];
+
+    for (int i = 0; i < kpis.length; i++) {
+      final baseRow = 9 + (i ~/ 4) * 4;
+      final col = (i % 4) * 2;
+      dashMerges.addAll([
+        '${cellRef(baseRow, col)}:${cellRef(baseRow, col + 1)}',
+        '${cellRef(baseRow + 1, col)}:${cellRef(baseRow + 1, col + 1)}',
+        '${cellRef(baseRow + 2, col)}:${cellRef(baseRow + 2, col + 1)}',
+      ]);
+    }
+
+    for (int r = 9; r <= 15; r++) {
+      final cells = <String>[];
+      for (int i = 0; i < 4; i++) {
+        final idx = (r < 13 ? 0 : 4) + i;
+        final col = i * 2;
+        if (r == 9 || r == 13) {
+          cells.add(textCell(r, col, kpis[idx][0], style: 12));
+        } else if (r == 10 || r == 14) {
+          cells.add(textCell(r, col, kpis[idx][1], style: 13));
+        } else if (r == 11 || r == 15) {
+          cells.add(textCell(r, col, kpis[idx][2], style: 14));
+        }
+      }
+      dashRows.add(rowXml(r, cells, height: (r == 10 || r == 14) ? 25 : 20));
+    }
+
+    dashMerges.add('A18:H18');
+    dashRows.add(sectionRow(18, 'TENDENCIA MENSUAL DE VENTAS'));
+    dashRows.add(rowXml(19, headerCells(19, ['Mes', 'Ventas', 'Órdenes', 'Items', 'Ticket', '% total', 'Lectura', '']), height: 21));
+    int dashRow = 20;
+    for (final month in months) {
+      final sales = ventasPorMes[month] ?? 0;
+      final orders = ordenesPorMes[month] ?? 0;
+      final items = itemsPorMes[month] ?? 0;
+      dashRows.add(rowXml(dashRow, [
+        textCell(dashRow, 0, _getMonthName(month - 1), style: 8),
+        numCell(dashRow, 1, sales, style: 5),
+        numCell(dashRow, 2, orders, style: 9),
+        numCell(dashRow, 3, items, style: 9),
+        numCell(dashRow, 4, orders == 0 ? 0 : sales / orders, style: 5),
+        numCell(dashRow, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales, style: 10),
+        textCell(dashRow, 6, sales > 0 ? 'Mes con movimiento' : 'Sin ventas registradas', style: 8),
+      ], height: 22));
+      dashRow++;
+    }
+
+    dashMerges.add('A${dashRow + 2}:H${dashRow + 2}');
+    dashRows.add(sectionRow(dashRow + 2, 'ÓRDENES RECIENTES DEL PERIODO'));
+    dashRows.add(rowXml(dashRow + 3, headerCells(dashRow + 3, ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado', '', '']), height: 21));
+    for (int i = 0; i < math.min(8, sortedOrders.length); i++) {
+      final orden = sortedOrders[i];
+      final r = dashRow + 4 + i;
+      dashRows.add(rowXml(r, [
+        textCell(r, 0, _orderNumber(orden), style: 8),
+        textCell(r, 1, _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))), style: 9),
+        textCell(r, 2, _orderClientName(orden), style: 8),
+        numCell(r, 3, _itemsPorOrden(orden), style: 9),
+        numCell(r, 4, _orderTotal(orden), style: 5),
+        textCell(r, 5, _prettyEstado(_resolverEstado(orden)), style: 9),
+      ], height: 23));
+    }
+
+    final dashboardXml = worksheetXml(
+      rows: dashRows,
+      maxRow: dashRow + 13,
+      maxCol: 8,
+      merges: dashMerges,
+      colWidths: [18, 18, 28, 13, 18, 12, 26, 14],
+    );
+
+    final chartRows = <String>[];
+    final chartMerges = <String>['A1:K1', 'A2:K2', 'A3:K3', 'A7:K7', 'A10:E10', 'G10:K10'];
+    chartRows.addAll(titleRows('GRÁFICOS REALES DE EXCEL', 'Gráficos nativos vinculados a datos reales del periodo'));
+    chartRows.add(sectionRow(7, 'VISUALIZACIÓN COMERCIAL DEL PERIODO'));
+    chartRows.add(rowXml(10, [
+      textCell(10, 0, 'Gráfico 1: ventas mensuales', style: 12),
+      textCell(10, 6, 'Gráfico 2: ranking de productos por ventas', style: 12),
+    ], height: 22));
+
+    final monthlyStart = 25;
+    final rankStart = 25;
+    final maxChartRows = math.max(months.length, math.min(8, rankingProductos.length));
+
+    chartRows.add(rowXml(monthlyStart, [
+      textCell(monthlyStart, 0, 'Mes', style: 6),
+      textCell(monthlyStart, 1, 'Ventas', style: 6),
+      textCell(monthlyStart, 2, 'Órdenes', style: 6),
+      textCell(monthlyStart, 3, 'Items', style: 6),
+      textCell(monthlyStart, 4, 'Ticket', style: 6),
+      textCell(monthlyStart, 5, '% total', style: 6),
+      textCell(monthlyStart, 7, 'Producto', style: 6),
+      textCell(monthlyStart, 8, 'Ventas', style: 6),
+      textCell(monthlyStart, 9, 'Cantidad', style: 6),
+      textCell(monthlyStart, 10, '% total', style: 6),
+    ], height: 21));
+
+    for (int i = 0; i < maxChartRows; i++) {
+      final r = monthlyStart + 1 + i;
+      final cells = <String>[];
+
+      if (i < months.length) {
+        final month = months[i];
+        final sales = ventasPorMes[month] ?? 0;
+        final orders = ordenesPorMes[month] ?? 0;
+        cells.addAll([
+          textCell(r, 0, _getMonthName(month - 1), style: 8),
+          numCell(r, 1, sales, style: 5),
+          numCell(r, 2, orders, style: 9),
+          numCell(r, 3, itemsPorMes[month] ?? 0, style: 9),
+          numCell(r, 4, orders == 0 ? 0 : sales / orders, style: 5),
+          numCell(r, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales, style: 10),
+        ]);
+      }
+
+      if (i < math.min(8, rankingProductos.length)) {
+        final item = rankingProductos[i];
+        cells.addAll([
+          textCell(r, 7, item.product, style: 8),
+          numCell(r, 8, item.total, style: 5),
+          numCell(r, 9, item.quantity, style: 9),
+          numCell(r, 10, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
+        ]);
+      }
+
+      chartRows.add(rowXml(r, cells, height: 24));
+    }
+
+    final graficosXml = worksheetXml(
+      rows: chartRows,
+      maxRow: monthlyStart + maxChartRows + 4,
+      maxCol: 11,
+      merges: chartMerges,
+      colWidths: [16, 16, 12, 12, 16, 12, 4, 42, 16, 12, 12],
+    );
+
+    final detailRows = <String>[];
+    final detailMerges = <String>['A1:I1', 'A2:I2', 'A3:I3'];
+    detailRows.addAll(titleRows('DETALLE MENSUAL POR PRODUCTO', 'Ventas distribuidas desde el total real de cada orden'));
+    detailRows.add(rowXml(7, headerCells(7, ['Año', 'Mes #', 'Mes', 'ID producto', 'Producto', 'Cantidad', 'Ventas', '% total', 'Ticket estimado']), height: 21));
+    for (int i = 0; i < data.monthlyProducts.length; i++) {
+      final item = data.monthlyProducts[i];
+      final r = 8 + i;
+      detailRows.add(rowXml(r, [
+        numCell(r, 0, data.range.year, style: 9),
+        numCell(r, 1, item.month, style: 9),
+        textCell(r, 2, _getMonthName(item.month - 1), style: 8),
+        textCell(r, 3, item.productId, style: 8),
+        textCell(r, 4, item.product, style: 8),
+        numCell(r, 5, item.quantity, style: 9),
+        numCell(r, 6, item.total, style: 5),
+        numCell(r, 7, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
+        numCell(r, 8, item.quantity == 0 ? 0 : item.total / item.quantity, style: 5),
+      ], height: 23));
+    }
+    final detalleXml = worksheetXml(
+      rows: detailRows,
+      maxRow: math.max(10, data.monthlyProducts.length + 9),
+      maxCol: 9,
+      merges: detailMerges,
+      colWidths: [12, 10, 16, 18, 52, 12, 16, 12, 16],
+    );
+
+    final rankingRows = <String>[];
+    final rankingMerges = <String>['A1:G1', 'A2:G2', 'A3:G3'];
+    rankingRows.addAll(titleRows('RANKING DE PRODUCTOS', 'Productos ordenados por mayor contribución comercial'));
+    rankingRows.add(rowXml(7, headerCells(7, ['#', 'ID producto', 'Producto', 'Cantidad', 'Ventas', '% total', 'Ticket estimado']), height: 21));
+    for (int i = 0; i < rankingProductos.length; i++) {
+      final item = rankingProductos[i];
+      final r = 8 + i;
+      rankingRows.add(rowXml(r, [
+        numCell(r, 0, i + 1, style: 9),
+        textCell(r, 1, item.productId, style: 8),
+        textCell(r, 2, item.product, style: 8),
+        numCell(r, 3, item.quantity, style: 9),
+        numCell(r, 4, item.total, style: 5),
+        numCell(r, 5, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
+        numCell(r, 6, item.quantity == 0 ? 0 : item.total / item.quantity, style: 5),
+      ], height: 23));
+    }
+    final rankingXml = worksheetXml(
+      rows: rankingRows,
+      maxRow: math.max(10, rankingProductos.length + 9),
+      maxCol: 7,
+      merges: rankingMerges,
+      colWidths: [8, 18, 54, 12, 16, 12, 16],
+    );
+
+    final orderRows = <String>[];
+    final orderMerges = <String>['A1:G1', 'A2:G2', 'A3:G3'];
+    orderRows.addAll(titleRows('ÓRDENES DEL PERIODO', 'Listado completo de órdenes incluidas en el reporte'));
+    orderRows.add(rowXml(7, headerCells(7, ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado', 'Lectura']), height: 21));
+    for (int i = 0; i < sortedOrders.length; i++) {
+      final orden = sortedOrders[i];
+      final r = 8 + i;
+      final estado = _prettyEstado(_resolverEstado(orden));
+      orderRows.add(rowXml(r, [
+        textCell(r, 0, _orderNumber(orden), style: 8),
+        textCell(r, 1, _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))), style: 9),
+        textCell(r, 2, _orderClientName(orden), style: 8),
+        numCell(r, 3, _itemsPorOrden(orden), style: 9),
+        numCell(r, 4, _orderTotal(orden), style: 5),
+        textCell(r, 5, estado, style: estado == 'Cancelado' ? 16 : 15),
+        textCell(r, 6, estado == 'Cancelado' ? 'Revisar' : 'Operación registrada', style: 8),
+      ], height: 23));
+    }
+    final ordenesXml = worksheetXml(
+      rows: orderRows,
+      maxRow: math.max(10, sortedOrders.length + 9),
+      maxCol: 7,
+      merges: orderMerges,
+      colWidths: [18, 15, 42, 10, 16, 18, 24],
+    );
+
+    final archive = Archive();
+    void add(String path, String content) {
+      final bytes = utf8.encode(content);
+      archive.addFile(ArchiveFile(path, bytes.length, bytes));
+    }
+
+    add('[Content_Types].xml', _excelContentTypesXml());
+    add('_rels/.rels', _excelRootRelsXml());
+    add('docProps/core.xml', _excelCoreXml(data.generatedAt));
+    add('docProps/app.xml', _excelAppXml());
+    add('xl/workbook.xml', _excelWorkbookXml());
+    add('xl/_rels/workbook.xml.rels', _excelWorkbookRelsXml());
+    add('xl/styles.xml', _excelStylesXml());
+    add('xl/worksheets/sheet1.xml', dashboardXml);
+    add('xl/worksheets/sheet2.xml', graficosXml);
+    add('xl/worksheets/sheet3.xml', detalleXml);
+    add('xl/worksheets/sheet4.xml', rankingXml);
+    add('xl/worksheets/sheet5.xml', ordenesXml);
+
+    final encoded = ZipEncoder().encode(archive);
+    if (encoded == null) throw Exception('No se pudo codificar el archivo Excel.');
+    return Uint8List.fromList(encoded);
+  }
+
+  String _excelContentTypesXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet5.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>''';
+
+  String _excelRootRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>''';
+
+  String _excelCoreXml(DateTime generatedAt) => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>Muebles de los Alpes</dc:creator><cp:lastModifiedBy>Muebles de los Alpes</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${generatedAt.toUtc().toIso8601String()}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${generatedAt.toUtc().toIso8601String()}</dcterms:modified></cp:coreProperties>''';
+
+  String _excelAppXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Muebles de los Alpes</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><HeadingPairs><vt:vector size="2" baseType="variant"><vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant><vt:variant><vt:i4>5</vt:i4></vt:variant></vt:vector></HeadingPairs><TitlesOfParts><vt:vector size="5" baseType="lpstr"><vt:lpstr>01 Dashboard</vt:lpstr><vt:lpstr>02 Graficos</vt:lpstr><vt:lpstr>03 Detalle productos</vt:lpstr><vt:lpstr>04 Ranking productos</vt:lpstr><vt:lpstr>05 Ordenes</vt:lpstr></vt:vector></TitlesOfParts><Company>Muebles de los Alpes</Company></Properties>''';
+
+  String _excelWorkbookXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="17600"/></bookViews><sheets><sheet name="01 Dashboard" sheetId="1" r:id="rId1"/><sheet name="02 Graficos" sheetId="2" r:id="rId2"/><sheet name="03 Detalle productos" sheetId="3" r:id="rId3"/><sheet name="04 Ranking productos" sheetId="4" r:id="rId4"/><sheet name="05 Ordenes" sheetId="5" r:id="rId5"/></sheets></workbook>''';
+
+  String _excelWorkbookRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/><Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet5.xml"/><Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
+
+  String _excelStylesXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="&quot;Q &quot;#,##0.00"/><numFmt numFmtId="165" formatCode="0.0%"/></numFmts><fonts count="7"><font><sz val="10"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="18"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="13"/><color rgb="FF6F4E37"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF0F4C35"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF6F4E37"/><name val="Arial"/></font></fonts><fills count="10"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFCF8"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF2D1B12"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4E7D4"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD8C1A2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F7B5F"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC28A20"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFDF8EF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEFEF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD8C1A2"/></left><right style="thin"><color rgb="FFD8C1A2"/></right><top style="thin"><color rgb="FFD8C1A2"/></top><bottom style="thin"><color rgb="FFD8C1A2"/></bottom><diagonal/></border><border><left style="medium"><color rgb="FFC28A20"/></left><right style="thin"><color rgb="FFD8C1A2"/></right><top style="thin"><color rgb="FFD8C1A2"/></top><bottom style="thin"><color rgb="FFD8C1A2"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="17"><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="6" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="2" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="164" fontId="4" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="165" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="5" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="9" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>''';
+
+  String _excelSheetDrawingRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>''';
+
+  String _excelDrawingRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart2.xml"/></Relationships>''';
+
+  String _excelDrawingXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:twoCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>5</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>23</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Ventas mensuales"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart r:id="rId1"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:from><xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>11</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>23</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="3" name="Ranking de productos"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart r:id="rId2"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>''';
+
+  String _excelBarChartXml({
+    required String title,
+    required String sheetName,
+    required String categoryRef,
+    required String valueRef,
+    required String seriesName,
+    required String colorHex,
+    required int axisBase,
+  }) {
+    final safeSheet = "'$sheetName'";
+    final cat = '$safeSheet!$categoryRef';
+    final val = '$safeSheet!$valueRef';
+    return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:lang val="es-GT"/><c:roundedCorners val="1"/><c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="es-GT" sz="1300" b="1"><a:solidFill><a:srgbClr val="2D1B12"/></a:solidFill></a:rPr><a:t>$title</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>$seriesName</c:v></c:tx><c:spPr><a:solidFill><a:srgbClr val="$colorHex"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val="$colorHex"/></a:solidFill></a:ln></c:spPr><c:cat><c:strRef><c:f>$cat</c:f></c:strRef></c:cat><c:val><c:numRef><c:f>$val</c:f></c:numRef></c:val></c:ser><c:gapWidth val="70"/><c:axId val="$axisBase"/><c:axId val="${axisBase + 1}"/></c:barChart><c:catAx><c:axId val="$axisBase"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${axisBase + 1}"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="${axisBase + 1}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="D8C1A2"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="&quot;Q &quot;#,##0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="$axisBase"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:spPr><a:solidFill><a:srgbClr val="FFFCF8"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val="D8C1A2"/></a:solidFill></a:ln></c:spPr></c:chartSpace>''';
+  }
+
+  Future<Uint8List> _crearPdfReporte(_ReportData data) async {
+    final pdf = pw.Document();
+
+    final dark = PdfColor.fromInt(0xFF2D1B12);
+    final espresso = PdfColor.fromInt(0xFF3A2216);
+    final brown = PdfColor.fromInt(0xFF6F4E37);
+    final lightBrown = PdfColor.fromInt(0xFFD8C1A2);
+    final cream = PdfColor.fromInt(0xFFFFFCF8);
+    final parchment = PdfColor.fromInt(0xFFF4E7D4);
+    final green = PdfColor.fromInt(0xFF0F7B5F);
+    final blue = PdfColor.fromInt(0xFF2F6FB2);
+    final gold = PdfColor.fromInt(0xFFC28A20);
+    final red = PdfColor.fromInt(0xFF9B3030);
+    final purple = PdfColor.fromInt(0xFF6B2EA8);
+
+    final ventasPorMes = <int, double>{};
+    final ordenesPorMes = <int, int>{};
+    for (int month = data.range.startMonth; month <= data.range.endMonth; month++) {
+      ventasPorMes[month] = 0;
+      ordenesPorMes[month] = 0;
+    }
+    for (final orden in data.orders) {
+      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      if (fecha == null) continue;
+      ventasPorMes[fecha.month] = (ventasPorMes[fecha.month] ?? 0) + _orderTotal(orden);
+      ordenesPorMes[fecha.month] = (ordenesPorMes[fecha.month] ?? 0) + 1;
+    }
+
+    final productoTotales = <String, _ProductMonthlyReportRow>{};
+    for (final row in data.monthlyProducts) {
+      final item = productoTotales.putIfAbsent(
+        row.productId,
+        () => _ProductMonthlyReportRow(month: 0, product: row.product, productId: row.productId),
+      );
+      item.quantity += row.quantity;
+      item.total += row.total;
+    }
+    final topProducts = productoTotales.values.toList()..sort((a, b) => b.total.compareTo(a.total));
+
+    final sortedOrders = [...data.orders]..sort((a, b) {
+      final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+      final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+      return fechaB.compareTo(fechaA);
+    });
+
+    final uniqueClients = sortedOrders.map(_orderClientName).where((e) => e.trim().isNotEmpty).toSet().toList()..sort();
+    final bestMonth = ventasPorMes.entries.isEmpty
+        ? MapEntry(data.range.startMonth, 0.0)
+        : ventasPorMes.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    final cancellationRate = data.totalOrders == 0 ? 0.0 : data.cancelledOrders / data.totalOrders;
+    final deliveryRate = data.totalOrders == 0 ? 0.0 : data.deliveredOrders / data.totalOrders;
+
+    pw.Widget brandHeader() {
+      return pw.Container(
+        padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: pw.BoxDecoration(
+          color: espresso,
+          borderRadius: pw.BorderRadius.circular(16),
+        ),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Container(
+              width: 46,
+              height: 46,
+              decoration: pw.BoxDecoration(
+                color: gold,
+                borderRadius: pw.BorderRadius.circular(12),
+              ),
+              child: pw.Center(
+                child: pw.Text('MA', style: pw.TextStyle(color: PdfColors.white, fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              ),
+            ),
+            pw.SizedBox(width: 14),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('MUEBLES DE LOS ALPES', style: pw.TextStyle(color: PdfColors.white, fontSize: 18, fontWeight: pw.FontWeight.bold, letterSpacing: 1.2)),
+                  pw.SizedBox(height: 4),
+                  pw.Text('Reporte administrativo ejecutivo · ${data.range.label}', style: pw.TextStyle(color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 10.5)),
+                ],
+              ),
+            ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text('Generado', style: pw.TextStyle(color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 8)),
+                pw.Text(_formatDate(data.generatedAt), style: pw.TextStyle(color: PdfColors.white, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget sectionTitle(String title, String subtitle) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.only(bottom: 6),
+        decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: gold, width: 1.2))),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(title, style: pw.TextStyle(color: dark, fontSize: 14.5, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 2),
+            pw.Text(subtitle, style: pw.TextStyle(color: brown, fontSize: 8.8)),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget kpi(String title, String value, String subtitle, PdfColor color) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(9),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.white,
+          borderRadius: pw.BorderRadius.circular(11),
+          border: pw.Border.all(color: lightBrown, width: .65),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Container(width: 24, height: 3, color: color),
+            pw.SizedBox(height: 6),
+            pw.Text(title, style: pw.TextStyle(color: brown, fontSize: 7.8, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 3),
+            pw.Text(value, maxLines: 1, style: pw.TextStyle(color: dark, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 3),
+            pw.Text(subtitle, style: pw.TextStyle(color: brown, fontSize: 6.8)),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget barChart() {
+      final values = ventasPorMes.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+      final maxValue = values.isEmpty ? 0.0 : values.map((e) => e.value).reduce(math.max);
+      final safeMax = maxValue <= 0 ? 1.0 : maxValue;
+
+      String shortMonth(int month) {
+        final name = _getMonthName(month - 1);
+        if (name.length <= 3) return name;
+        return name.substring(0, 3);
+      }
+
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.white,
+          borderRadius: pw.BorderRadius.circular(12),
+          border: pw.Border.all(color: lightBrown, width: .7),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Tendencia mensual de ventas', style: pw.TextStyle(color: dark, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Total: ${_formatCurrency(data.totalSales)}', style: pw.TextStyle(color: green, fontSize: 7.6, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            pw.Container(
+              height: 142,
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: values.map((entry) {
+                  final barHeight = entry.value <= 0 ? 14.0 : 22.0 + ((entry.value / safeMax) * 66.0);
+                  final isBest = entry.value == maxValue && maxValue > 0;
+                  return pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 2),
+                      child: pw.Column(
+                        mainAxisAlignment: pw.MainAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            _formatCurrency(entry.value),
+                            textAlign: pw.TextAlign.center,
+                            maxLines: 2,
+                            style: pw.TextStyle(color: isBest ? green : brown, fontSize: 5.5, fontWeight: pw.FontWeight.bold),
+                          ),
+                          pw.SizedBox(height: 3),
+                          pw.Container(
+                            width: 22,
+                            height: barHeight,
+                            decoration: pw.BoxDecoration(
+                              color: isBest ? green : gold,
+                              borderRadius: pw.BorderRadius.circular(6),
+                            ),
+                          ),
+                          pw.SizedBox(height: 5),
+                          pw.Text(shortMonth(entry.key), style: pw.TextStyle(color: dark, fontSize: 7.2, fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 2),
+                          pw.Text('${ordenesPorMes[entry.key] ?? 0} ord.', style: pw.TextStyle(color: brown, fontSize: 5.8)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget compactListCard(String title, List<String> rows, PdfColor accent) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.white,
+          borderRadius: pw.BorderRadius.circular(11),
+          border: pw.Border.all(color: lightBrown, width: .6),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(children: [
+              pw.Container(width: 4, height: 18, color: accent),
+              pw.SizedBox(width: 7),
+              pw.Text(title, style: pw.TextStyle(color: dark, fontSize: 10.2, fontWeight: pw.FontWeight.bold)),
+            ]),
+            pw.SizedBox(height: 7),
+            if (rows.isEmpty)
+              pw.Text('Sin datos disponibles en el periodo.', style: pw.TextStyle(color: brown, fontSize: 8.2))
+            else
+              ...rows.map((text) => pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 4),
+                    child: pw.Text('- $text', maxLines: 2, style: pw.TextStyle(color: brown, fontSize: 7.7, lineSpacing: 2)),
+                  )),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget ordersTable({int limit = 8}) {
+      final rows = sortedOrders.take(limit).map((orden) {
+        return [
+          _orderNumber(orden),
+          _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
+          _orderClientName(orden),
+          '${_itemsPorOrden(orden)}',
+          _formatCurrency(_orderTotal(orden)),
+          _prettyEstado(_resolverEstado(orden)),
+        ];
+      }).toList();
+      if (rows.isEmpty) {
+        return compactListCard('Órdenes del periodo', const [], blue);
+      }
+      return pw.Table.fromTextArray(
+        border: pw.TableBorder.all(color: lightBrown, width: .4),
+        headerDecoration: pw.BoxDecoration(color: espresso),
+        headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+        cellStyle: pw.TextStyle(color: dark, fontSize: 6.8),
+        oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFFBF8F4)),
+        cellAlignment: pw.Alignment.centerLeft,
+        columnWidths: {
+          0: const pw.FixedColumnWidth(46),
+          1: const pw.FixedColumnWidth(48),
+          2: const pw.FlexColumnWidth(2.1),
+          3: const pw.FixedColumnWidth(32),
+          4: const pw.FixedColumnWidth(58),
+          5: const pw.FixedColumnWidth(56),
+        },
+        headers: ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado'],
+        data: rows,
+      );
+    }
+
+    List<pw.Widget> firstPageWidgets() {
+      final productNames = topProducts.take(8).map((p) => '${p.product} (${p.quantity})').toList();
+      return [
+        brandHeader(),
+        pw.SizedBox(height: 10),
+        pw.Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            pw.SizedBox(width: 165, child: kpi('Ventas totales', _formatCurrency(data.totalSales), 'Ingreso comercial', green)),
+            pw.SizedBox(width: 165, child: kpi('Órdenes', '${data.totalOrders}', 'Operaciones registradas', blue)),
+            pw.SizedBox(width: 165, child: kpi('Ticket promedio', _formatCurrency(data.averageTicket), 'Promedio por orden', gold)),
+            pw.SizedBox(width: 165, child: kpi('Clientes únicos', '${data.totalClients}', 'Clientes atendidos', purple)),
+            pw.SizedBox(width: 165, child: kpi('Items vendidos', '${data.itemsSold}', 'Unidades registradas', green)),
+            pw.SizedBox(width: 165, child: kpi('Canceladas', '${data.cancelledOrders}', 'No concretadas', red)),
+          ],
+        ),
+        pw.SizedBox(height: 10),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(flex: 3, child: barChart()),
+            pw.SizedBox(width: 10),
+            pw.Expanded(
+              flex: 2,
+              child: compactListCard('Clientes únicos', uniqueClients.take(8).toList(), purple),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 10),
+        sectionTitle('Órdenes recientes del periodo', 'Información extraída directamente de las órdenes incluidas en el rango'),
+        pw.SizedBox(height: 7),
+        ordersTable(limit: 7),
+        pw.SizedBox(height: 10),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(child: compactListCard('Items vendidos principales', productNames, green)),
+            pw.SizedBox(width: 10),
+            pw.Expanded(
+              child: compactListCard('Lectura rápida', [
+                'Mejor mes: ${_getMonthName(bestMonth.key - 1)} con ${_formatCurrency(bestMonth.value)}.',
+                'Tasa de entrega: ${(deliveryRate * 100).toStringAsFixed(1)}%.',
+                'Tasa de cancelación: ${(cancellationRate * 100).toStringAsFixed(1)}%.',
+              ], gold),
+            ),
+          ],
+        ),
+      ];
+    }
+
+    List<pw.Widget> secondPageWidgets() {
+      return [
+        sectionTitle('Ranking de productos', 'Productos con mayor contribución dentro del periodo'),
+        pw.SizedBox(height: 8),
+        if (topProducts.isEmpty)
+          compactListCard('Ranking de productos', const [], green)
+        else
+          pw.Table.fromTextArray(
+            border: pw.TableBorder.all(color: lightBrown, width: .42),
+            headerDecoration: pw.BoxDecoration(color: espresso),
+            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold),
+            cellStyle: pw.TextStyle(color: dark, fontSize: 7.2),
+            oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFFBF8F4)),
+            cellAlignment: pw.Alignment.centerLeft,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(28),
+              1: const pw.FlexColumnWidth(2.8),
+              2: const pw.FixedColumnWidth(52),
+              3: const pw.FixedColumnWidth(62),
+              4: const pw.FixedColumnWidth(58),
+            },
+            headers: ['#', 'Producto', 'Cantidad', 'Ventas', '% total'],
+            data: topProducts.take(12).toList().asMap().entries.map((entry) {
+              final row = entry.value;
+              final share = data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
+              return ['${entry.key + 1}', row.product, '${row.quantity}', _formatCurrency(row.total), '${share.toStringAsFixed(1)}%'];
+            }).toList(),
+          ),
+        pw.SizedBox(height: 14),
+        sectionTitle('Detalle mensual por producto', 'Ventas calculadas contra el total real de las órdenes del periodo'),
+        pw.SizedBox(height: 8),
+        if (data.monthlyProducts.isEmpty)
+          compactListCard('Detalle mensual', const [], blue)
+        else
+          pw.Table.fromTextArray(
+            border: pw.TableBorder.all(color: lightBrown, width: .36),
+            headerDecoration: pw.BoxDecoration(color: espresso),
+            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.8, fontWeight: pw.FontWeight.bold),
+            cellStyle: pw.TextStyle(color: dark, fontSize: 6.8),
+            oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFFBF8F4)),
+            cellAlignment: pw.Alignment.centerLeft,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(46),
+              1: const pw.FlexColumnWidth(2.6),
+              2: const pw.FixedColumnWidth(44),
+              3: const pw.FixedColumnWidth(62),
+              4: const pw.FixedColumnWidth(50),
+            },
+            headers: ['Mes', 'Producto', 'Cant.', 'Ventas', '% total'],
+            data: data.monthlyProducts.take(32).map((row) {
+              final share = data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
+              return [_getMonthName(row.month - 1), row.product, '${row.quantity}', _formatCurrency(row.total), '${share.toStringAsFixed(1)}%'];
+            }).toList(),
+          ),
+        if (data.monthlyProducts.length > 32) ...[
+          pw.SizedBox(height: 7),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(color: parchment, borderRadius: pw.BorderRadius.circular(8)),
+            child: pw.Text('El PDF muestra los primeros 32 registros para mantener lectura ejecutiva. El Excel incluye el detalle completo.', style: pw.TextStyle(color: brown, fontSize: 7.2)),
+          ),
+        ],
+      ];
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageTheme: pw.PageTheme(
+          margin: const pw.EdgeInsets.all(24),
+          theme: pw.ThemeData.withFont(),
+          buildBackground: (_) => pw.Container(color: cream),
+        ),
+        footer: (context) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('Muebles de los Alpes · Reporte administrativo', style: pw.TextStyle(color: brown, fontSize: 7.5)),
+            pw.Text('Página ${context.pageNumber} de ${context.pagesCount}', style: pw.TextStyle(color: brown, fontSize: 7.5)),
+          ],
+        ),
+        build: (_) => [
+          ...firstPageWidgets(),
+          pw.NewPage(),
+          ...secondPageWidgets(),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -831,6 +2379,31 @@ class _ReportesScreenState extends State<ReportesScreen>
                 onPressed: () =>
                     context.canPop() ? context.pop() : context.go('/admin'),
               ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: FilledButton.icon(
+                    onPressed: (_loading || _generandoReporte) ? null : _mostrarDialogoReporte,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AlpesColors.oroGuatemalteco,
+                      foregroundColor: AlpesColors.cafeOscuro,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: _generandoReporte
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AlpesColors.cafeOscuro),
+                          )
+                        : const Icon(Icons.file_download_rounded, size: 18),
+                    label: Text(
+                      _generandoReporte ? 'Generando...' : 'Generar reporte',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsetsDirectional.only(
                   start: 18,
@@ -2805,6 +4378,108 @@ class _ReportesScreenState extends State<ReportesScreen>
       child: child,
     );
   }
+}
+
+
+class _ReportRange {
+  final int year;
+  final int startMonth;
+  final int endMonth;
+  final String label;
+  final String fileSuffix;
+
+  const _ReportRange({
+    required this.year,
+    required this.startMonth,
+    required this.endMonth,
+    required this.label,
+    required this.fileSuffix,
+  });
+
+  factory _ReportRange.fromSelection({
+    required _ReportPeriodType periodType,
+    required int year,
+    required int startMonth,
+    required int endMonth,
+    required int quarter,
+    required String Function(int monthIndex) getMonthName,
+    required String Function(int quarter) getQuarterName,
+  }) {
+    switch (periodType) {
+      case _ReportPeriodType.anual:
+        return _ReportRange(
+          year: year,
+          startMonth: 1,
+          endMonth: 12,
+          label: 'Anual $year',
+          fileSuffix: 'anual_$year',
+        );
+      case _ReportPeriodType.trimestre:
+        final start = ((quarter - 1) * 3) + 1;
+        final end = start + 2;
+        return _ReportRange(
+          year: year,
+          startMonth: start,
+          endMonth: end,
+          label: '${getQuarterName(quarter)} · $year',
+          fileSuffix: 'q${quarter}_$year',
+        );
+      case _ReportPeriodType.rangoMeses:
+        final safeStart = math.min(startMonth, endMonth);
+        final safeEnd = math.max(startMonth, endMonth);
+        return _ReportRange(
+          year: year,
+          startMonth: safeStart,
+          endMonth: safeEnd,
+          label: '${getMonthName(safeStart - 1)} a ${getMonthName(safeEnd - 1)} · $year',
+          fileSuffix: '${safeStart}_${safeEnd}_$year',
+        );
+    }
+  }
+}
+
+class _ProductMonthlyReportRow {
+  final int month;
+  final String product;
+  final String productId;
+  int quantity;
+  double total;
+
+  _ProductMonthlyReportRow({
+    required this.month,
+    required this.product,
+    required this.productId,
+    this.quantity = 0,
+    this.total = 0,
+  });
+}
+
+class _ReportData {
+  final _ReportRange range;
+  final DateTime generatedAt;
+  final double totalSales;
+  final int totalOrders;
+  final int totalClients;
+  final int cancelledOrders;
+  final int deliveredOrders;
+  final int itemsSold;
+  final double averageTicket;
+  final List<_ProductMonthlyReportRow> monthlyProducts;
+  final List<Map<String, dynamic>> orders;
+
+  const _ReportData({
+    required this.range,
+    required this.generatedAt,
+    required this.totalSales,
+    required this.totalOrders,
+    required this.totalClients,
+    required this.cancelledOrders,
+    required this.deliveredOrders,
+    required this.itemsSold,
+    required this.averageTicket,
+    required this.monthlyProducts,
+    required this.orders,
+  });
 }
 
 class _KpiData {

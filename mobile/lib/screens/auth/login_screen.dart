@@ -91,6 +91,36 @@ class _LoginScreenState extends State<LoginScreen>
         Positioned(top: 160, left: -30,
             child: _circle(120, Colors.white.withOpacity(0.025))),
 
+        // ── Botón regresar al home público ──
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 18, top: 14),
+            child: Material(
+              color: Colors.white.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => context.go('/home-publica'),
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AlpesColors.oroGuatemalteco,
+                    size: 19,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
         // ── Contenido ──
         SafeArea(
           child: Center(

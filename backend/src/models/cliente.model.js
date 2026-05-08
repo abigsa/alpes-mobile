@@ -1,5 +1,5 @@
 const oracledb = require("oracledb");
-const { getConnection } = require("../config/db");
+const { getConnection, getReplicaConnection } = require("../config/db");
 const { readCursor, closeConn } = require("../utils/oracle");
 const PKG = "PKG_CLIENTE";
 
@@ -83,7 +83,7 @@ async function obtener(id) {
 }
 
 async function listar() {
-  const conn = await getConnection();
+  const conn = await getReplicaConnection();
   try {
     const result = await conn.execute(
       `BEGIN ${PKG}.SP_LISTAR_CLIENTES(:p_cursor); END;`,

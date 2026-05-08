@@ -1,11 +1,10 @@
 class ApiConfig {
   // Cambia esta URL cuando despliegues el backend
-  static const String baseUrl = 'http://192.168.1.66:3000/api'; //local casa
+  static const String baseUrl = 'http://169.254.159.153:3000/api'; //local casa
 
   // Endpoints
   static const String login = '/usuarios/login';
   static const String registro = '/usuarios/registro';
-
   static const String productos = '/productos';
   static const String categorias = '/categorias';
   static const String carrito = '/carrito';

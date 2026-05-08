@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -18,28 +19,106 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _direccionCtrl = TextEditingController();
   final _cuponCtrl = TextEditingController();
+
   int? _metodoPagoId;
+  String? _metodoPagoNombre;
   List<Map<String, dynamic>> _metodos = [];
+
+  List<Map<String, dynamic>> _tarjetas = [];
+  int? _tarjetaSeleccionadaId;
+  bool _mostrarFormTarjeta = false;
+
+  final _tarjetaFormKey = GlobalKey<FormState>();
+  final _titularCtrl = TextEditingController();
+  final _ultimos4Ctrl = TextEditingController();
+  final _mesCtrl = TextEditingController();
+  final _anioCtrl = TextEditingController();
+  final _aliasCtrl = TextEditingController();
+  String _marcaSeleccionada = 'VISA';
+
   bool _loading = false;
   bool _procesando = false;
+  bool _guardandoTarjeta = false;
+
+  static const List<String> _marcas = ['VISA', 'MASTERCARD', 'AMEX', 'OTRO'];
+
+  bool get _esTarjeta =>
+      _metodoPagoNombre?.toLowerCase().contains('tarjeta') == true ||
+      _metodoPagoNombre?.toLowerCase().contains('credit') == true ||
+      _metodoPagoNombre?.toLowerCase().contains('debito') == true ||
+      _metodoPagoNombre?.toLowerCase().contains('débito') == true;
 
   @override
   void initState() {
     super.initState();
-    _cargarMetodos();
+    _cargarDatos();
+  }
+
+  Future<void> _cargarDatos() async {
+    setState(() => _loading = true);
+    await Future.wait([_cargarMetodos(), _cargarTarjetas()]);
+    setState(() => _loading = false);
   }
 
   Future<void> _cargarMetodos() async {
-    setState(() => _loading = true);
     try {
-      final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}'));
+      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true)
-        setState(
-            () => _metodos = List<Map<String, dynamic>>.from(data['data']));
+        setState(() => _metodos = List<Map<String, dynamic>>.from(data['data']));
     } catch (_) {}
-    setState(() => _loading = false);
+  }
+
+  Future<void> _cargarTarjetas() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.clienteId == null) return;
+    try {
+      final res = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/${auth.clienteId}'));
+      final data = jsonDecode(res.body);
+      if (data['ok'] == true)
+        setState(() => _tarjetas = List<Map<String, dynamic>>.from(data['data']));
+    } catch (_) {}
+  }
+
+  Future<void> _guardarNuevaTarjeta() async {
+    if (!_tarjetaFormKey.currentState!.validate()) return;
+    final auth = context.read<AuthProvider>();
+    setState(() => _guardandoTarjeta = true);
+    try {
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'cli_id': auth.clienteId,
+          'titular': _titularCtrl.text.trim(),
+          'ultimos_4': _ultimos4Ctrl.text.trim(),
+          'marca': _marcaSeleccionada,
+          'mes_vencimiento': int.tryParse(_mesCtrl.text.trim()),
+          'anio_vencimiento': int.tryParse(_anioCtrl.text.trim()),
+          'alias_tarjeta': _aliasCtrl.text.trim().isEmpty ? null : _aliasCtrl.text.trim(),
+          'predeterminada': 0,
+        }),
+      );
+      final data = jsonDecode(res.body);
+      if (data['ok'] == true || res.statusCode == 201) {
+        _titularCtrl.clear(); _ultimos4Ctrl.clear();
+        _mesCtrl.clear(); _anioCtrl.clear(); _aliasCtrl.clear();
+        setState(() { _mostrarFormTarjeta = false; _marcaSeleccionada = 'VISA'; });
+        await _cargarTarjetas();
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Tarjeta guardada exitosamente'),
+              backgroundColor: Colors.green));
+      } else {
+        throw Exception(data['mensaje'] ?? 'Error al guardar tarjeta');
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial));
+    }
+    setState(() => _guardandoTarjeta = false);
   }
 
   Future<void> _procesarPago() async {
@@ -50,18 +129,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           backgroundColor: AlpesColors.aviso));
       return;
     }
-    setState(() => _procesando = true);
+    if (_esTarjeta && _tarjetaSeleccionadaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Selecciona o registra una tarjeta'),
+          backgroundColor: AlpesColors.aviso));
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final carrito = context.read<CarritoProvider>();
+    if (auth.clienteId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sesión inválida. Vuelve a iniciar sesión.'),
+          backgroundColor: Colors.red));
+      return;
+    }
+    setState(() => _procesando = true);
     try {
-      // 1. Crear orden de venta
       final ordenRes = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'num_orden': 'ORD-${DateTime.now().millisecondsSinceEpoch}',
           'cli_id': auth.clienteId,
-          'estado_orden_id': 1,
+          'estado_orden_id': 30,
           'fecha_orden': DateTime.now().toIso8601String(),
           'subtotal': carrito.total,
           'descuento': 0,
@@ -70,14 +160,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'moneda': 'GTQ',
           'direccion_envio_snapshot': _direccionCtrl.text,
           'observaciones': '',
-          'estado': 'PENDIENTE',
+          'estado': 'ACTIVO',
         }),
       );
       final ordenData = jsonDecode(ordenRes.body);
       if (ordenData['ok'] != true) throw Exception('Error al crear orden');
       final ordenId = ordenData['data']['orden_venta_id'];
 
-      // 2. Crear detalles de orden
       for (final item in carrito.items) {
         await http.post(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}'),
@@ -93,7 +182,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
       }
 
-      // 3. Registrar pago
       await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.pago}'),
         headers: {'Content-Type': 'application/json'},
@@ -109,15 +197,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       carrito.limpiar();
-      if (mounted) {
-        context.go('/orden/$ordenId');
-      }
+      if (mounted) context.go('/orden/$ordenId');
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AlpesColors.rojoColonial));
-      }
+            content: Text('Error: $e'), backgroundColor: AlpesColors.rojoColonial));
     }
     setState(() => _procesando = false);
   }
@@ -132,28 +216,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Container(
-            width: 32,
-            height: 32,
+            width: 32, height: 32,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.arrow_back_ios_rounded,
-                color: Colors.white, size: 16),
+            child: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 16),
           ),
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/carrito'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/carrito'),
         ),
         title: const Text('Checkout',
-            style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.3)),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
+                color: Colors.white, letterSpacing: 0.3)),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
+          ? const Center(child: CircularProgressIndicator(color: AlpesColors.cafeOscuro))
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: Form(
@@ -161,7 +238,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Dirección ──
                     _sectionLabel(Icons.location_on_rounded, 'Dirección de entrega'),
                     const SizedBox(height: 10),
                     Container(
@@ -175,26 +251,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          prefixIcon: Icon(Icons.location_on_outlined,
-                              color: AlpesColors.nogalMedio),
+                          prefixIcon: Icon(Icons.location_on_outlined, color: AlpesColors.nogalMedio),
                           filled: false,
                         ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Ingresa la dirección'
-                            : null,
+                        validator: (v) => v == null || v.isEmpty ? 'Ingresa la dirección' : null,
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Método de pago ──
                     _sectionLabel(Icons.payment_rounded, 'Método de pago'),
                     const SizedBox(height: 10),
                     Container(
                       decoration: _cardDeco(),
                       child: Column(children: _metodos.map((m) {
-                        final id     = m['METODO_PAGO_ID'] ?? m['metodo_pago_id'];
+                        final id = m['METODO_PAGO_ID'] ?? m['metodo_pago_id'];
                         final nombre = m['NOMBRE'] ?? m['nombre'] ?? '';
-                        final sel    = _metodoPagoId == id;
+                        final sel = _metodoPagoId == id;
                         return ListTile(
                           leading: Container(
                             width: 36, height: 36,
@@ -203,7 +275,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(Icons.credit_card_rounded, size: 17,
-                              color: sel ? Colors.white : AlpesColors.nogalMedio),
+                                color: sel ? Colors.white : AlpesColors.nogalMedio),
                           ),
                           title: Text(nombre, style: TextStyle(fontSize: 14,
                               fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
@@ -211,16 +283,215 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           trailing: Radio<int>(
                             value: id,
                             groupValue: _metodoPagoId,
-                            onChanged: (v) => setState(() => _metodoPagoId = v),
+                            onChanged: (v) => setState(() {
+                              _metodoPagoId = v;
+                              _metodoPagoNombre = nombre;
+                              _tarjetaSeleccionadaId = null;
+                              _mostrarFormTarjeta = false;
+                            }),
                             activeColor: AlpesColors.cafeOscuro,
                           ),
-                          onTap: () => setState(() => _metodoPagoId = id),
+                          onTap: () => setState(() {
+                            _metodoPagoId = id;
+                            _metodoPagoNombre = nombre;
+                            _tarjetaSeleccionadaId = null;
+                            _mostrarFormTarjeta = false;
+                          }),
                         );
                       }).toList()),
                     ),
-                    const SizedBox(height: 20),
 
-                    // ── Cupón ──
+                    if (_esTarjeta) ...[
+                      const SizedBox(height: 20),
+                      _sectionLabel(Icons.credit_card_rounded, 'Selecciona una tarjeta'),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: _cardDeco(),
+                        child: Column(children: [
+                          if (_tarjetas.isEmpty && !_mostrarFormTarjeta)
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text('No tienes tarjetas registradas.',
+                                  style: TextStyle(color: AlpesColors.nogalMedio, fontSize: 13)),
+                            )
+                          else ..._tarjetas.map((t) {
+                            final id = t['TARJETA_CLIENTE_ID'] ?? t['tarjeta_cliente_id'];
+                            final marca = t['MARCA'] ?? t['marca'] ?? '';
+                            final ultimos4 = t['ULTIMOS_4'] ?? t['ultimos_4'] ?? '****';
+                            final alias = t['ALIAS_TARJETA'] ?? t['alias_tarjeta'];
+                            final titular = t['TITULAR'] ?? t['titular'] ?? '';
+                            final sel = _tarjetaSeleccionadaId == id;
+                            return ListTile(
+                              leading: Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: sel ? AlpesColors.cafeOscuro : AlpesColors.cremaFondo,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.credit_card_rounded, size: 17,
+                                    color: sel ? Colors.white : AlpesColors.nogalMedio),
+                              ),
+                              title: Text(
+                                alias != null && alias.toString().isNotEmpty
+                                    ? alias.toString()
+                                    : '$marca •••• $ultimos4',
+                                style: TextStyle(fontSize: 14,
+                                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                    color: AlpesColors.cafeOscuro),
+                              ),
+                              subtitle: Text(titular,
+                                  style: const TextStyle(fontSize: 12, color: AlpesColors.nogalMedio)),
+                              trailing: Radio<int>(
+                                value: id,
+                                groupValue: _tarjetaSeleccionadaId,
+                                onChanged: (v) => setState(() {
+                                  _tarjetaSeleccionadaId = v;
+                                  _mostrarFormTarjeta = false;
+                                }),
+                                activeColor: AlpesColors.cafeOscuro,
+                              ),
+                              onTap: () => setState(() {
+                                _tarjetaSeleccionadaId = id;
+                                _mostrarFormTarjeta = false;
+                              }),
+                            );
+                          }),
+                          if (_tarjetas.isNotEmpty)
+                            const Divider(height: 1, color: AlpesColors.pergamino),
+                          ListTile(
+                            leading: Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                color: _mostrarFormTarjeta ? AlpesColors.cafeOscuro : AlpesColors.cremaFondo,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                _mostrarFormTarjeta ? Icons.close_rounded : Icons.add_rounded,
+                                size: 17,
+                                color: _mostrarFormTarjeta ? Colors.white : AlpesColors.nogalMedio,
+                              ),
+                            ),
+                            title: Text(
+                              _mostrarFormTarjeta ? 'Cancelar' : 'Agregar nueva tarjeta',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                                  color: AlpesColors.cafeOscuro),
+                            ),
+                            onTap: () => setState(() {
+                              _mostrarFormTarjeta = !_mostrarFormTarjeta;
+                              if (_mostrarFormTarjeta) _tarjetaSeleccionadaId = null;
+                            }),
+                          ),
+                          if (_mostrarFormTarjeta)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: Form(
+                                key: _tarjetaFormKey,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Divider(color: AlpesColors.pergamino),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: _marcaSeleccionada,
+                                      decoration: _inputDeco('Marca'),
+                                      items: _marcas.map((m) => DropdownMenuItem(
+                                          value: m, child: Text(m))).toList(),
+                                      onChanged: (v) => setState(() => _marcaSeleccionada = v!),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _titularCtrl,
+                                      decoration: _inputDeco('Nombre del titular'),
+                                      textCapitalization: TextCapitalization.words,
+                                      validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _ultimos4Ctrl,
+                                      decoration: _inputDeco('Últimos 4 dígitos'),
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(4),
+                                      ],
+                                      validator: (v) {
+                                        if (v == null || v.isEmpty) return 'Requerido';
+                                        if (v.length != 4) return 'Deben ser 4 dígitos';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _mesCtrl,
+                                          decoration: _inputDeco('Mes (MM)'),
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.digitsOnly,
+                                            LengthLimitingTextInputFormatter(2),
+                                          ],
+                                          validator: (v) {
+                                            if (v == null || v.isEmpty) return 'Requerido';
+                                            final n = int.tryParse(v);
+                                            if (n == null || n < 1 || n > 12) return 'Inválido';
+                                            return null;
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _anioCtrl,
+                                          decoration: _inputDeco('Año (YYYY)'),
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.digitsOnly,
+                                            LengthLimitingTextInputFormatter(4),
+                                          ],
+                                          validator: (v) {
+                                            if (v == null || v.isEmpty) return 'Requerido';
+                                            final n = int.tryParse(v);
+                                            if (n == null || n < DateTime.now().year) return 'Inválido';
+                                            return null;
+                                          },
+                                        ),
+                                      ),
+                                    ]),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _aliasCtrl,
+                                      decoration: _inputDeco('Alias (opcional, ej: Mi Visa)'),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: _guardandoTarjeta ? null : _guardarNuevaTarjeta,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AlpesColors.cafeOscuro,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12)),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                        ),
+                                        child: _guardandoTarjeta
+                                            ? const SizedBox(width: 18, height: 18,
+                                                child: CircularProgressIndicator(
+                                                    color: Colors.white, strokeWidth: 2))
+                                            : const Text('Guardar tarjeta',
+                                                style: TextStyle(fontWeight: FontWeight.w700)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ]),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
                     _sectionLabel(Icons.discount_rounded, 'Cupón de descuento'),
                     const SizedBox(height: 10),
                     Container(
@@ -249,29 +520,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Resumen ──
                     _sectionLabel(Icons.receipt_rounded, 'Resumen del pedido'),
                     const SizedBox(height: 10),
                     Container(
                       decoration: _cardDeco(),
                       padding: const EdgeInsets.all(16),
                       child: Column(children: [
-                        _resumenRow('Subtotal',
-                            'Q ${carrito.total.toStringAsFixed(2)}', false),
+                        _resumenRow('Subtotal', 'Q ${carrito.total.toStringAsFixed(2)}', false),
                         const SizedBox(height: 10),
-                        _resumenRow('IVA (12%)',
-                            'Q ${(carrito.total * 0.12).toStringAsFixed(2)}', false),
+                        _resumenRow('IVA (12%)', 'Q ${(carrito.total * 0.12).toStringAsFixed(2)}', false),
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
                           child: Divider(color: AlpesColors.pergamino),
                         ),
-                        _resumenRow('Total',
-                            'Q ${(carrito.total * 1.12).toStringAsFixed(2)}', true),
+                        _resumenRow('Total', 'Q ${(carrito.total * 1.12).toStringAsFixed(2)}', true),
                       ]),
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Botón confirmar ──
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -279,16 +545,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         onPressed: _procesando ? null : _procesarPago,
                         icon: _procesando
                             ? const SizedBox(width: 18, height: 18,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.check_circle_rounded, size: 20),
                         label: Text(_procesando ? 'Procesando...' : 'Confirmar pedido',
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AlpesColors.cafeOscuro,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                       ),
                     ),
@@ -298,7 +562,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
     );
   }
-  // ── Helpers de diseño ──
+
+  InputDecoration _inputDeco(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: AlpesColors.nogalMedio, fontSize: 13),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AlpesColors.pergamino)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AlpesColors.pergamino)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AlpesColors.cafeOscuro)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  );
+
   BoxDecoration _cardDeco() => BoxDecoration(
     color: Colors.white,
     borderRadius: BorderRadius.circular(18),
@@ -324,9 +600,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           fontWeight: highlight ? FontWeight.w700 : FontWeight.w400,
           color: highlight ? AlpesColors.cafeOscuro : AlpesColors.nogalMedio)),
       Text(value, style: TextStyle(fontSize: highlight ? 18 : 13,
-          fontWeight: FontWeight.w800,
-          color: AlpesColors.cafeOscuro)),
+          fontWeight: FontWeight.w800, color: AlpesColors.cafeOscuro)),
     ],
   );
 
+  @override
+  void dispose() {
+    _direccionCtrl.dispose(); _cuponCtrl.dispose();
+    _titularCtrl.dispose(); _ultimos4Ctrl.dispose();
+    _mesCtrl.dispose(); _anioCtrl.dispose(); _aliasCtrl.dispose();
+    super.dispose();
+  }
 }

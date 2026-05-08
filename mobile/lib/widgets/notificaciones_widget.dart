@@ -102,7 +102,18 @@ class _NotificacionesBtnState extends State<NotificacionesBtn>
           ),
         ),
 
-        // Burbuja panel — desplegable animado
+        // Overlay para cerrar al tocar fuera — DEBE ir ANTES del panel
+        // para que quede debajo en el Stack y no intercepte los taps del panel
+        if (_open)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _toggle,
+              child: const SizedBox.expand(),
+            ),
+          ),
+
+        // Burbuja panel — desplegable animado (encima del overlay)
         if (_open)
           Positioned(
             top: 40, right: 0,
@@ -118,16 +129,6 @@ class _NotificacionesBtnState extends State<NotificacionesBtn>
                   ),
                 ),
               ),
-            ),
-          ),
-
-        // Overlay para cerrar al tocar fuera
-        if (_open)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _toggle,
-              child: const SizedBox.expand(),
             ),
           ),
       ],
@@ -365,7 +366,9 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
                           _marcarLeida(n.id);
                           if (n.route != null) {
                             widget.onClose();
-                            ctx.go(n.route!);
+                            // Usar el context del build() para garantizar
+                            // que el router pertenece al árbol correcto
+                            context.go(n.route!);
                           }
                         },
                         child: AnimatedContainer(

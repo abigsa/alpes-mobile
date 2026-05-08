@@ -25,20 +25,30 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
   Future<void> _cargar() async {
     try {
+      // Paso 1: buscar el envío por orden_venta_id
       final envioRes = await http.get(Uri.parse(
           '${ApiConfig.baseUrl}${ApiConfig.envio}/buscar?criterio=orden_venta_id&valor=${widget.envioId}'));
-      final segRes = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=${widget.envioId}'));
       final envioData = jsonDecode(envioRes.body);
-      final segData = jsonDecode(segRes.body);
-      setState(() {
-        if (envioData['ok'] == true && (envioData['data'] as List).isNotEmpty) {
-          _envio = (envioData['data'] as List).first;
-        }
+
+      int? envioId;
+      if (envioData['ok'] == true && (envioData['data'] as List).isNotEmpty) {
+        final envio = (envioData['data'] as List).first;
+        setState(() => _envio = envio);
+        // Obtener el envio_id real para buscar el seguimiento
+        envioId = int.tryParse(
+            '${envio['ENVIO_ID'] ?? envio['envio_id'] ?? ''}');
+      }
+
+      // Paso 2: buscar seguimiento por el envio_id real
+      if (envioId != null) {
+        final segRes = await http.get(Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=$envioId'));
+        final segData = jsonDecode(segRes.body);
         if (segData['ok'] == true) {
-          _eventos = List<Map<String, dynamic>>.from(segData['data']);
+          setState(() =>
+              _eventos = List<Map<String, dynamic>>.from(segData['data']));
         }
-      });
+      }
     } catch (_) {
     } finally {
       setState(() => _loading = false);

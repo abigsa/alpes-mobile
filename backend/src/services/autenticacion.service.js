@@ -27,9 +27,12 @@ async function registro(data) {
 
   return {
     usuarioId: usuario.USUARIO_ID,
-    nombre: usuario.NOMBRE,
-    email: usuario.EMAIL,
-    rol: usuario.ROL,
+    cli_id:    usuario.CLI_ID    ?? null,
+    emp_id:    usuario.EMP_ID    ?? null,
+    rol_id:    usuario.ROL_ID    ?? null,
+    nombre:    usuario.NOMBRE,
+    email:     usuario.EMAIL,
+    rol:       usuario.ROL,
     ...tokens,
   };
 }
@@ -53,9 +56,12 @@ async function login(email, contrasena) {
 
   return {
     usuarioId: usuario.USUARIO_ID,
-    nombre: usuario.NOMBRE,
-    email: usuario.EMAIL,
-    rol: usuario.ROL,
+    cli_id:    usuario.CLI_ID    ?? null,
+    emp_id:    usuario.EMP_ID    ?? null,
+    rol_id:    usuario.ROL_ID    ?? null,
+    nombre:    usuario.NOMBRE,
+    email:     usuario.EMAIL,
+    rol:       usuario.ROL,
     ...tokens,
   };
 }
@@ -76,9 +82,12 @@ async function refreshToken(refreshToken) {
 
     return {
       usuarioId: usuario.USUARIO_ID,
-      nombre: usuario.NOMBRE,
-      email: usuario.EMAIL,
-      rol: usuario.ROL,
+      cli_id:    usuario.CLI_ID    ?? null,
+      emp_id:    usuario.EMP_ID    ?? null,
+      rol_id:    usuario.ROL_ID    ?? null,
+      nombre:    usuario.NOMBRE,
+      email:     usuario.EMAIL,
+      rol:       usuario.ROL,
       ...tokens,
     };
   } catch (error) {

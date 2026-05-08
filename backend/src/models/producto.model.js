@@ -69,6 +69,7 @@ async function eliminar(id) {
   } finally { await closeConn(conn); }
 }
 
+// obtener: usa SP_OBTENER_PRODUCTO
 async function obtener(id) {
   const conn = await getConnection();
   try {
@@ -84,22 +85,15 @@ async function obtener(id) {
   } finally { await closeConn(conn); }
 }
 
+// listar: usa SP_LISTAR_PRODUCTOS
 async function listar() {
   const conn = await getReplicaConnection();
   try {
     const result = await conn.execute(
-      `SELECT p.*,
-              (SELECT ph.PRECIO 
-               FROM PRECIO_HISTORICO ph 
-               WHERE ph.PRODUCTO_ID = p.PRODUCTO_ID 
-                 AND (ph.VIGENCIA_FIN IS NULL OR ph.VIGENCIA_FIN >= SYSDATE)
-               ORDER BY ph.VIGENCIA_INICIO DESC
-               FETCH FIRST 1 ROWS ONLY) AS PRECIO
-       FROM PRODUCTO p ORDER BY p.PRODUCTO_ID`,
-      {},
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      `BEGIN ${PKG}.SP_LISTAR_PRODUCTOS(:p_cursor); END;`,
+      { p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR } }
     );
-    return result.rows || [];
+    return await readCursor(result.outBinds.p_cursor);
   } finally { await closeConn(conn); }
 }
 

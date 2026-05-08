@@ -54,19 +54,29 @@ async function actualizar(data) {
   } finally { await closeConn(conn); }
 }
 
-// UPDATE directo de estado y observaciones — no depende del SP
+// actualizarEstado: usa SP_ACTUALIZAR pasando solo los campos necesarios
 async function actualizarEstado(id, estadoOrdenId, observaciones) {
   const conn = await getConnection();
   try {
+    // Obtener la orden actual para no perder datos
+    const actual = await obtener(id);
+    if (!actual) throw { status: 404, message: "Orden no encontrada" };
     await conn.execute(
-      `UPDATE ORDEN_VENTA 
-       SET ESTADO_ORDEN_ID = :p_estado_id,
-           OBSERVACIONES   = :p_obs
-       WHERE ORDEN_VENTA_ID = :p_id`,
-      { 
-        p_estado_id: Number(estadoOrdenId),
-        p_obs:       String(observaciones || ''),
-        p_id:        Number(id)
+      `BEGIN ${PKG}.SP_ACTUALIZAR(:p_orden_venta_id, :p_num_orden, :p_cli_id, :p_estado_orden_id, :p_fecha_orden, :p_subtotal, :p_descuento, :p_impuesto, :p_total, :p_moneda, :p_direccion_envio_snapshot, :p_observaciones, :p_estado); END;`,
+      {
+        p_orden_venta_id:           Number(id),
+        p_num_orden:                actual.NUM_ORDEN,
+        p_cli_id:                   actual.CLI_ID,
+        p_estado_orden_id:          Number(estadoOrdenId),
+        p_fecha_orden:              actual.FECHA_ORDEN ? new Date(actual.FECHA_ORDEN) : new Date(),
+        p_subtotal:                 actual.SUBTOTAL,
+        p_descuento:                actual.DESCUENTO,
+        p_impuesto:                 actual.IMPUESTO,
+        p_total:                    actual.TOTAL,
+        p_moneda:                   actual.MONEDA,
+        p_direccion_envio_snapshot: actual.DIRECCION_ENVIO_SNAPSHOT,
+        p_observaciones:            String(observaciones || ''),
+        p_estado:                   actual.ESTADO,
       }
     );
     await conn.commit();
@@ -97,28 +107,18 @@ async function listar() {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `SELECT ORDEN_VENTA_ID, NUM_ORDEN, CLI_ID, ESTADO_ORDEN_ID,
-              FECHA_ORDEN, SUBTOTAL, DESCUENTO, IMPUESTO, TOTAL,
-              MONEDA, DIRECCION_ENVIO_SNAPSHOT, OBSERVACIONES, ESTADO
-       FROM ORDEN_VENTA
-       ORDER BY ORDEN_VENTA_ID DESC`,
-      {},
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      `BEGIN ${PKG}.SP_LISTAR(:p_cursor); END;`,
+      { p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR } }
     );
-    return result.rows || [];
+    return await readCursor(result.outBinds.p_cursor);
   } finally { await closeConn(conn); }
 }
 
+// buscar: usa SP_LISTAR y filtra por criterio en JS
 async function buscar(criterio, valor) {
-  const conn = await getConnection();
-  try {
-    const result = await conn.execute(
-      `SELECT * FROM ORDEN_VENTA WHERE CLI_ID = :p_valor ORDER BY ORDEN_VENTA_ID DESC`,
-      { p_valor: Number(valor) },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    return result.rows || [];
-  } finally { await closeConn(conn); }
+  const rows = await listar();
+  const col = criterio.toUpperCase();
+  return rows.filter(r => String(r[col]) === String(valor));
 }
 
 module.exports = { insertar, actualizar, actualizarEstado, eliminar, obtener, listar, buscar };

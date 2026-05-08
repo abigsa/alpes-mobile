@@ -64,6 +64,23 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  // Lee estado real desde OBSERVACIONES (mismo patrón que mis_ordenes_screen)
+  String _estadoRealOrden(Map<String, dynamic> o) {
+    final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ''}';
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    if (match != null) {
+      const mapa = {
+        'INGRESADA': 'pendiente',
+        'PENDIENTE': 'pendiente',
+        'EN_PROCESO': 'en proceso',
+        'ENTREGADA': 'entregado',
+        'CANCELADA': 'cancelado',
+      };
+      return mapa[match.group(1)!] ?? 'pendiente';
+    }
+    return (o['ESTADO'] ?? o['estado'] ?? 'pendiente').toString().toLowerCase();
+  }
+
   Future<void> _cargarOrdenes(int clienteId) async {
     try {
       final res = await http.get(Uri.parse(
@@ -73,23 +90,22 @@ class _HomeScreenState extends State<HomeScreen> {
         final list = List<Map<String, dynamic>>.from(data['data']);
         double gastado = 0;
         int camino = 0, entregados = 0;
+        Map<String, dynamic>? ultima;
+        int maxId = -1;
         for (final o in list) {
           gastado += double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
-          final e = (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
+          final e = _estadoRealOrden(o);
           if (e == 'entregado') entregados++;
-          if (e == 'en proceso' || e == 'en camino' || e == 'enviado') camino++;
-        }
-        // Última orden con envío activo para tracking
-        final activa = list.firstWhere(
-          (o) {
-            final e =
-                (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
-            return e != 'entregado' && e != 'cancelado';
-          },
-          orElse: () => {},
-        );
-        if (activa.isNotEmpty) {
-          _ultimoEnvio = activa;
+          if (e == 'en proceso' || e == 'en camino') camino++;
+          final id = (o['ORDEN_VENTA_ID'] ?? o['orden_venta_id'] ?? 0) is int
+              ? (o['ORDEN_VENTA_ID'] ?? o['orden_venta_id'] ?? 0) as int
+              : int.tryParse(
+                      '${o["ORDEN_VENTA_ID"] ?? o["orden_venta_id"] ?? 0}') ??
+                  0;
+          if (id > maxId) {
+            maxId = id;
+            ultima = o;
+          }
         }
         if (mounted)
           setState(() {
@@ -98,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _enCamino = camino;
             _entregados = entregados;
             _totalGastado = gastado;
+            if (ultima != null) _ultimoEnvio = ultima;
           });
       }
     } catch (_) {}
@@ -146,13 +163,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _loading
                           ? const Center(
                               child: CircularProgressIndicator(
-                                  color: AlpesColors.cafeOscuro, strokeWidth: 2))
+                                  color: AlpesColors.cafeOscuro,
+                                  strokeWidth: 2))
                           : RefreshIndicator(
                               color: AlpesColors.cafeOscuro,
                               onRefresh: _cargarDatos,
                               child: SingleChildScrollView(
                                 physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 16, 16, 80),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -163,7 +182,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     _buildKpiRow(),
                                     const SizedBox(height: 20),
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
                                             flex: 3,
@@ -321,14 +341,16 @@ class _HomeScreenState extends State<HomeScreen> {
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 200),
             crossFadeState: _miCuentaOpen
-                ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Column(children: [
               _sidebarItem(Icons.home_rounded, 'Inicio', 'inicio', context),
-              _sidebarItem(Icons.receipt_long_rounded, 'Mis pedidos',
-                  'pedidos', context, route: '/mis-ordenes', badge: _enCamino),
-              _sidebarItem(Icons.location_on_rounded, 'Tracking',
-                  'tracking', context,
+              _sidebarItem(
+                  Icons.receipt_long_rounded, 'Mis pedidos', 'pedidos', context,
+                  route: '/mis-ordenes', badge: _enCamino),
+              _sidebarItem(
+                  Icons.location_on_rounded, 'Tracking', 'tracking', context,
                   route: _ultimoEnvio != null
                       ? '/seguimiento/${_ultimoEnvio!["ORDEN_VENTA_ID"] ?? _ultimoEnvio!["orden_venta_id"]}'
                       : '/mis-ordenes'),
@@ -341,15 +363,19 @@ class _HomeScreenState extends State<HomeScreen> {
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 200),
             crossFadeState: _tiendaOpen
-                ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Column(children: [
-              _sidebarItem(Icons.grid_view_rounded, 'Catálogo', 'catalogo',
-                  context, route: '/catalogo'),
-              _sidebarItem(Icons.history_rounded, 'Historial', 'historial',
-                  context, route: '/mis-ordenes'),
+              _sidebarItem(
+                  Icons.grid_view_rounded, 'Catálogo', 'catalogo', context,
+                  route: '/catalogo'),
+              _sidebarItem(
+                  Icons.history_rounded, 'Historial', 'historial', context,
+                  route: '/mis-ordenes'),
               _sidebarItem(Icons.notifications_outlined, 'Notificaciones',
-                  'notif', context, route: '/notificaciones'),
+                  'notif', context,
+                  route: '/notificaciones'),
             ]),
           ),
           const Spacer(),
@@ -365,15 +391,21 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: AlpesColors.rojoColonial.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AlpesColors.rojoColonial.withOpacity(0.3)),
+                border: Border.all(
+                    color: AlpesColors.rojoColonial.withOpacity(0.3)),
               ),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.logout_rounded, color: AlpesColors.rojoColonial, size: 16),
-                SizedBox(width: 8),
-                Text('Cerrar sesión', style: TextStyle(
-                    color: AlpesColors.rojoColonial, fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-              ]),
+              child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded,
+                        color: AlpesColors.rojoColonial, size: 16),
+                    SizedBox(width: 8),
+                    Text('Cerrar sesión',
+                        style: TextStyle(
+                            color: AlpesColors.rojoColonial,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ]),
             ),
           ),
           const SizedBox(height: 4),
@@ -494,7 +526,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => _showMobileDrawer(context, auth, nombre, initial),
                 child: Container(
                   margin: const EdgeInsets.only(right: 4),
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: AlpesColors.cremaFondo,
                     borderRadius: BorderRadius.circular(9),
@@ -525,7 +558,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: AlpesColors.oroGuatemalteco.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: AlpesColors.oroGuatemalteco.withOpacity(0.3)),
+                            color:
+                                AlpesColors.oroGuatemalteco.withOpacity(0.3)),
                       ),
                       child: const Text('VIP',
                           style: TextStyle(
@@ -549,7 +583,8 @@ class _HomeScreenState extends State<HomeScreen> {
             GestureDetector(
               onTap: () => context.go('/carrito'),
               child: Container(
-                width: 36, height: 36,
+                width: 36,
+                height: 36,
                 margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
                   color: AlpesColors.cremaFondo,
@@ -564,9 +599,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       final total = c.totalItems;
                       if (total == 0) return const SizedBox.shrink();
                       return Positioned(
-                        top: 4, right: 4,
+                        top: 4,
+                        right: 4,
                         child: Container(
-                          width: 14, height: 14,
+                          width: 14,
+                          height: 14,
                           decoration: const BoxDecoration(
                               color: AlpesColors.rojoColonial,
                               shape: BoxShape.circle),
@@ -584,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             // Campana
-            _NotifBellBtn(count: _enCamino),
+            _NotifBellBtn(count: _enCamino, clienteId: auth.clienteId ?? 0),
             const SizedBox(width: 6),
             // Avatar
             _PerfilMenuBtn(initial: initial, nombre: nombre, auth: auth),
@@ -628,36 +665,54 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBuscadorProductos(BuildContext context) {
     final productos = context.watch<ProductoProvider>();
     final query = _searchQuery.trim().toLowerCase();
-    final resultados = query.isEmpty ? <Producto>[] :
-        productos.productos.where((p) =>
-            p.nombre.toLowerCase().contains(query) ||
-            (p.descripcion ?? '').toLowerCase().contains(query) ||
-            (p.tipo ?? '').toLowerCase().contains(query)).toList();
+    final resultados = query.isEmpty
+        ? <Producto>[]
+        : productos.productos
+            .where((p) =>
+                p.nombre.toLowerCase().contains(query) ||
+                (p.descripcion ?? '').toLowerCase().contains(query) ||
+                (p.tipo ?? '').toLowerCase().contains(query))
+            .toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AlpesColors.pergamino),
-          boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: AlpesColors.cafeOscuro.withOpacity(0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Row(children: [
-          const Icon(Icons.search_rounded, color: AlpesColors.arenaCalida, size: 20),
+          const Icon(Icons.search_rounded,
+              color: AlpesColors.arenaCalida, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: TextField(
+          Expanded(
+              child: TextField(
             controller: _searchCtrl2,
             onChanged: (v) => setState(() => _searchQuery = v),
             style: const TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro),
             decoration: const InputDecoration(
               hintText: 'Buscar muebles, salas, comedores\u2026',
-              hintStyle: TextStyle(color: AlpesColors.arenaCalida, fontSize: 13),
-              border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero,
+              hintStyle:
+                  TextStyle(color: AlpesColors.arenaCalida, fontSize: 13),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
             ),
           )),
           if (_searchQuery.isNotEmpty)
             GestureDetector(
-              onTap: () { _searchCtrl2.clear(); setState(() => _searchQuery = ''); },
-              child: const Icon(Icons.close_rounded, color: AlpesColors.arenaCalida, size: 18),
+              onTap: () {
+                _searchCtrl2.clear();
+                setState(() => _searchQuery = '');
+              },
+              child: const Icon(Icons.close_rounded,
+                  color: AlpesColors.arenaCalida, size: 18),
             ),
         ]),
       ),
@@ -665,48 +720,96 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           margin: const EdgeInsets.only(top: 6),
           constraints: const BoxConstraints(maxHeight: 320),
-          decoration: BoxDecoration(color: Colors.white,
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AlpesColors.pergamino),
-            boxShadow: [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                  color: AlpesColors.cafeOscuro.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4))
+            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: ListView.separated(
-              shrinkWrap: true, padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
               itemCount: resultados.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AlpesColors.pergamino),
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AlpesColors.pergamino),
               itemBuilder: (ctx, i) {
                 final p = resultados[i];
                 return GestureDetector(
-                  onTap: () { setState(() => _searchQuery = ''); _searchCtrl2.clear(); ctx.push('/producto/${p.productoId}'); },
+                  onTap: () {
+                    setState(() => _searchQuery = '');
+                    _searchCtrl2.clear();
+                    ctx.push('/producto/${p.productoId}');
+                  },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     child: Row(children: [
-                      ClipRRect(borderRadius: BorderRadius.circular(8),
-                        child: Container(width: 52, height: 52, color: AlpesColors.cremaFondo,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          color: AlpesColors.cremaFondo,
                           child: p.imagenUrl != null
-                              ? Image.network(p.imagenUrl!, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.chair_alt_rounded, color: AlpesColors.arenaCalida, size: 24))
-                              : const Icon(Icons.chair_alt_rounded, color: AlpesColors.arenaCalida, size: 24),
+                              ? Image.network(p.imagenUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.chair_alt_rounded,
+                                      color: AlpesColors.arenaCalida,
+                                      size: 24))
+                              : const Icon(Icons.chair_alt_rounded,
+                                  color: AlpesColors.arenaCalida, size: 24),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(p.nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AlpesColors.cafeOscuro), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        if (p.descripcion != null && p.descripcion!.isNotEmpty)
-                          Text(p.descripcion!, style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        if (p.tipo != null)
-                          Container(
-                            margin: const EdgeInsets.only(top: 3),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07), borderRadius: BorderRadius.circular(4)),
-                            child: Text(p.tipo!, style: const TextStyle(fontSize: 9, color: AlpesColors.nogalMedio)),
-                          ),
-                      ])),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(p.nombre,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AlpesColors.cafeOscuro),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            if (p.descripcion != null &&
+                                p.descripcion!.isNotEmpty)
+                              Text(p.descripcion!,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AlpesColors.nogalMedio),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            if (p.tipo != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                    color: AlpesColors.cafeOscuro
+                                        .withOpacity(0.07),
+                                    borderRadius: BorderRadius.circular(4)),
+                                child: Text(p.tipo!,
+                                    style: const TextStyle(
+                                        fontSize: 9,
+                                        color: AlpesColors.nogalMedio)),
+                              ),
+                          ])),
                       const SizedBox(width: 10),
                       if (p.precio != null)
-                        Text('Q ${p.precio!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AlpesColors.cafeOscuro)),
+                        Text('Q ${p.precio!.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AlpesColors.cafeOscuro)),
                     ]),
                   ),
                 );
@@ -718,11 +821,17 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           margin: const EdgeInsets.only(top: 6),
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AlpesColors.pergamino)),
-          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.search_off_rounded, color: AlpesColors.arenaCalida, size: 18),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AlpesColors.pergamino)),
+          child:
+              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.search_off_rounded,
+                color: AlpesColors.arenaCalida, size: 18),
             SizedBox(width: 8),
-            Text('Sin resultados', style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 13)),
+            Text('Sin resultados',
+                style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 13)),
           ]),
         ),
     ]);
@@ -732,7 +841,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBannerBienvenida(BuildContext context, AuthProvider auth) {
     final nombre = auth.nombreCompleto.split(' ').first;
     final hora = DateTime.now().hour;
-    final saludo = hora < 12 ? 'Buenos dias' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+    final saludo = hora < 12
+        ? 'Buenos dias'
+        : hora < 18
+            ? 'Buenas tardes'
+            : 'Buenas noches';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -752,7 +865,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(saludo,
                 style: TextStyle(
                     fontFamily: 'Poppins',
@@ -778,7 +892,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
-                  width: 5, height: 5,
+                  width: 5,
+                  height: 5,
                   decoration: const BoxDecoration(
                       color: AlpesColors.oroGuatemalteco,
                       shape: BoxShape.circle),
@@ -820,9 +935,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ]),
         // Circulo decorativo
         Positioned(
-          top: 0, right: 0,
+          top: 0,
+          right: 0,
           child: Container(
-            width: 60, height: 60,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AlpesColors.oroGuatemalteco.withOpacity(0.05),
@@ -845,18 +962,24 @@ class _HomeScreenState extends State<HomeScreen> {
       const SizedBox(height: 10),
       // ── 4 KPIs en una sola fila ──
       Row(children: [
-        Expanded(child: _kpiCard(Icons.shopping_bag_rounded,
-            '$_totalPedidos', 'PEDIDOS\nTOTALES', AlpesColors.cafeOscuro)),
+        Expanded(
+            child: _kpiCard(Icons.shopping_bag_rounded, '$_totalPedidos',
+                'PEDIDOS\nTOTALES', AlpesColors.cafeOscuro)),
         const SizedBox(width: 8),
-        Expanded(child: _kpiCard(Icons.local_shipping_rounded,
-            '$_enCamino', 'EN\nCAMINO', AlpesColors.verdeSelva)),
+        Expanded(
+            child: _kpiCard(Icons.local_shipping_rounded, '$_enCamino',
+                'EN\nCAMINO', AlpesColors.verdeSelva)),
         const SizedBox(width: 8),
-        Expanded(child: _kpiCard(Icons.check_circle_rounded,
-            '$_entregados', 'ENTREGADOS', AlpesColors.oroGuatemalteco)),
+        Expanded(
+            child: _kpiCard(Icons.check_circle_rounded, '$_entregados',
+                'ENTREGADOS', AlpesColors.oroGuatemalteco)),
         const SizedBox(width: 8),
-        Expanded(child: _kpiCard(Icons.attach_money_rounded,
-            'Q${_totalGastado >= 1000 ? '${(_totalGastado / 1000).toStringAsFixed(1)}k' : _totalGastado.toStringAsFixed(0)}',
-            'TOTAL\nGASTADO', AlpesColors.rojoColonial)),
+        Expanded(
+            child: _kpiCard(
+                Icons.attach_money_rounded,
+                'Q${_totalGastado >= 1000 ? '${(_totalGastado / 1000).toStringAsFixed(1)}k' : _totalGastado.toStringAsFixed(0)}',
+                'TOTAL\nGASTADO',
+                AlpesColors.rojoColonial)),
       ]),
     ]);
   }
@@ -868,13 +991,17 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AlpesColors.pergamino),
-          boxShadow: [BoxShadow(
-              color: AlpesColors.cafeOscuro.withOpacity(0.05),
-              blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: AlpesColors.cafeOscuro.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            width: 30, height: 30,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: accent.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
@@ -882,13 +1009,20 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(icon, color: accent, size: 16),
           ),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.w800,
-              color: AlpesColors.cafeOscuro, letterSpacing: -0.5)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AlpesColors.cafeOscuro,
+                  letterSpacing: -0.5)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(
-              fontSize: 8, color: AlpesColors.nogalMedio,
-              fontWeight: FontWeight.w700, letterSpacing: 0.3, height: 1.2)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 8,
+                  color: AlpesColors.nogalMedio,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  height: 1.2)),
         ]),
       );
 
@@ -1007,22 +1141,90 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AlpesColors.oroGuatemalteco)),
-                const Text('Sofá Alpino — estimado',
-                    style:
-                        TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
                 const SizedBox(height: 16),
-                _trackingStep('Pedido confirmado', 'completado',
-                    subtitle: 'Confirmado'),
-                _trackingStep('En producción', 'activo',
-                    subtitle: 'En proceso'),
-                _trackingStep('En camino a la dirección', 'pendiente',
-                    subtitle: 'Est. próximamente'),
-                _trackingStep('Entregado', 'pendiente',
-                    subtitle: 'Est. próximamente'),
+                ..._buildTrackingSteps(),
               ]),
       );
 
-  Widget _trackingStep(String label, String estado, {String? subtitle}) {
+  List<Widget> _buildTrackingSteps() {
+    final estadoRaw = _estadoRealOrden(_ultimoEnvio!);
+
+    if (estadoRaw == 'cancelado') {
+      return [
+        Row(children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: const BoxDecoration(
+                color: AlpesColors.rojoColonial, shape: BoxShape.circle),
+            child:
+                const Icon(Icons.close_rounded, color: Colors.white, size: 10),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text('Orden cancelada',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AlpesColors.rojoColonial)),
+                Text('Contáctanos si tienes dudas',
+                    style:
+                        TextStyle(fontSize: 10, color: AlpesColors.nogalMedio)),
+              ])),
+        ]),
+      ];
+    }
+
+    int iActivo;
+    if (estadoRaw == 'en proceso') {
+      iActivo = 1;
+    } else if (estadoRaw == 'en camino' || estadoRaw == 'enviado') {
+      iActivo = 2;
+    } else if (estadoRaw == 'entregado') {
+      iActivo = 3;
+    } else {
+      iActivo = 0;
+    }
+
+    String estadoPaso(int i) {
+      if (i < iActivo) return 'completado';
+      if (i == iActivo) return 'activo';
+      return 'pendiente';
+    }
+
+    String subtituloPaso(int i) {
+      if (i < iActivo) return 'Completado';
+      if (i == iActivo) {
+        switch (i) {
+          case 0:
+            return 'Pendiente de confirmación';
+          case 1:
+            return 'En proceso';
+          case 2:
+            return 'En camino';
+          case 3:
+            return '¡Entregado!';
+        }
+      }
+      return 'Est. próximamente';
+    }
+
+    return [
+      _trackingStep('Pedido confirmado', estadoPaso(0),
+          subtitle: subtituloPaso(0)),
+      _trackingStep('En producción', estadoPaso(1), subtitle: subtituloPaso(1)),
+      _trackingStep('En camino a la dirección', estadoPaso(2),
+          subtitle: subtituloPaso(2)),
+      _trackingStep('Entregado', estadoPaso(3),
+          subtitle: subtituloPaso(3), isLast: true),
+    ];
+  }
+
+  Widget _trackingStep(String label, String estado,
+      {String? subtitle, bool isLast = false}) {
     final Color color;
     final Widget dot;
     switch (estado) {
@@ -1068,7 +1270,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Column(children: [
           dot,
-          if (label != 'Entregado')
+          if (!isLast)
             Container(width: 1, height: 28, color: AlpesColors.pergamino),
         ]),
         const SizedBox(width: 10),
@@ -1357,9 +1559,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── PRODUCTOS PARA TI — recomendados por algoritmo ───────
   Widget _buildProductosParaTi(BuildContext context) {
     final provider = context.watch<ProductoProvider>();
-    final auth     = context.read<AuthProvider>();
-    final favs     = context.watch<FavoritosProvider>();
-    final carrito  = context.read<CarritoProvider>();
+    final auth = context.read<AuthProvider>();
+    final favs = context.watch<FavoritosProvider>();
+    final carrito = context.read<CarritoProvider>();
 
     final lista = provider.recomendados.isNotEmpty
         ? provider.recomendados
@@ -1370,13 +1572,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Row(children: [
-          Container(width: 3, height: 14,
+          Container(
+              width: 3,
+              height: 14,
               decoration: BoxDecoration(
                   color: AlpesColors.oroGuatemalteco,
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
           const Text('Para ti',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                   color: AlpesColors.cafeOscuro)),
           const SizedBox(width: 8),
           if (provider.recomendados.isNotEmpty)
@@ -1387,7 +1593,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text('Basado en tu actividad',
-                  style: TextStyle(fontSize: 9,
+                  style: TextStyle(
+                      fontSize: 9,
                       color: AlpesColors.oroGuatemalteco,
                       fontWeight: FontWeight.w600)),
             ),
@@ -1405,7 +1612,7 @@ class _HomeScreenState extends State<HomeScreen> {
           scrollDirection: Axis.horizontal,
           itemCount: lista.length,
           itemBuilder: (_, i) {
-            final p     = lista[i];
+            final p = lista[i];
             final esFav = favs.esFavorito(p.productoId);
             return GestureDetector(
               onTap: () => context.push('/producto/${p.productoId}'),
@@ -1416,126 +1623,139 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AlpesColors.pergamino),
-                  boxShadow: [BoxShadow(
-                      color: AlpesColors.cafeOscuro.withOpacity(0.05),
-                      blurRadius: 6, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: AlpesColors.cafeOscuro.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Expanded(
-                    flex: 5,
-                    child: Stack(fit: StackFit.expand, children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12)),
-                        child: p.imagenUrl != null
-                            ? Image.network(p.imagenUrl!, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    _prodPlaceholder())
-                            : _prodPlaceholder(),
+                      Expanded(
+                        flex: 5,
+                        child: Stack(fit: StackFit.expand, children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(12)),
+                            child: p.imagenUrl != null
+                                ? Image.network(p.imagenUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _prodPlaceholder())
+                                : _prodPlaceholder(),
+                          ),
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: GestureDetector(
+                              onTap: () async {
+                                if (auth.clienteId == null) return;
+                                await favs.toggleFavorito(
+                                  clienteId: auth.clienteId!,
+                                  productoId: p.productoId,
+                                );
+                              },
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  esFav
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  size: 14,
+                                  color: esFav
+                                      ? AlpesColors.rojoColonial
+                                      : AlpesColors.arenaCalida,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ]),
                       ),
-                      Positioned(
-                        top: 6, right: 6,
-                        child: GestureDetector(
-                          onTap: () async {
-                            if (auth.clienteId == null) return;
-                            await favs.toggleFavorito(
-                              clienteId: auth.clienteId!,
-                              productoId: p.productoId,
-                            );
-                          },
-                          child: Container(
-                            width: 26, height: 26,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              esFav ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                              size: 14,
-                              color: esFav
-                                  ? AlpesColors.rojoColonial
-                                  : AlpesColors.arenaCalida,
-                            ),
+                      Expanded(
+                        flex: 4,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(p.nombre,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AlpesColors.cafeOscuro),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 3),
+                              Text(
+                                p.precio != null
+                                    ? 'Q ${p.precio!.toStringAsFixed(0)}'
+                                    : 'Consultar',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: AlpesColors.cafeOscuro),
+                              ),
+                              const SizedBox(height: 4),
+                              GestureDetector(
+                                onTap: () async {
+                                  if (auth.clienteId == null) return;
+                                  await carrito.agregarItem(
+                                    clienteId: auth.clienteId!,
+                                    productoId: p.productoId,
+                                    nombre: p.nombre,
+                                    precio: p.precio ?? 0,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('${p.nombre} agregado'),
+                                        backgroundColor: AlpesColors.verdeSelva,
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 2),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AlpesColors.cafeOscuro,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_shopping_cart_rounded,
+                                          size: 11,
+                                          color: AlpesColors.oroGuatemalteco),
+                                      SizedBox(width: 4),
+                                      Text('Agregar',
+                                          style: TextStyle(
+                                              fontSize: 9,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ]),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(p.nombre,
-                              style: const TextStyle(fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AlpesColors.cafeOscuro),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 3),
-                          Text(
-                            p.precio != null
-                                ? 'Q ${p.precio!.toStringAsFixed(0)}'
-                                : 'Consultar',
-                            style: const TextStyle(fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AlpesColors.cafeOscuro),
-                          ),
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: () async {
-                              if (auth.clienteId == null) return;
-                              await carrito.agregarItem(
-                                clienteId:  auth.clienteId!,
-                                productoId: p.productoId,
-                                nombre:     p.nombre,
-                                precio:     p.precio ?? 0,
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('${p.nombre} agregado'),
-                                    backgroundColor: AlpesColors.verdeSelva,
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 2),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10)),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AlpesColors.cafeOscuro,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_shopping_cart_rounded,
-                                      size: 11,
-                                      color: AlpesColors.oroGuatemalteco),
-                                  SizedBox(width: 4),
-                                  Text('Agregar',
-                                      style: TextStyle(fontSize: 9,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ]),
               ),
             );
           },
@@ -1546,20 +1766,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── TODOS LOS PRODUCTOS — grid visual 2 columnas ──────────
   Widget _buildTodosLosProductos(BuildContext context) {
-    final provider  = context.watch<ProductoProvider>();
+    final provider = context.watch<ProductoProvider>();
     final productos = provider.productos.take(6).toList();
     if (productos.isEmpty) return const SizedBox.shrink();
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Row(children: [
-          Container(width: 3, height: 14,
+          Container(
+              width: 3,
+              height: 14,
               decoration: BoxDecoration(
                   color: AlpesColors.verdeSelva,
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
           const Text('Productos',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                   color: AlpesColors.cafeOscuro)),
         ]),
         TextButton(
@@ -1595,7 +1819,9 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('Ver catalogo completo',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: AlpesColors.cafeOscuro)),
               SizedBox(width: 8),
               Icon(Icons.arrow_forward_rounded,
@@ -1608,13 +1834,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _prodPlaceholder() => Container(
-    color: AlpesColors.cremaFondo,
-    child: Center(
-      child: Icon(Icons.chair_outlined,
-          size: 28, color: AlpesColors.arenaCalida.withOpacity(0.4)),
-    ),
-  );
-
+        color: AlpesColors.cremaFondo,
+        child: Center(
+          child: Icon(Icons.chair_outlined,
+              size: 28, color: AlpesColors.arenaCalida.withOpacity(0.4)),
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1627,7 +1852,8 @@ class _HomeScreenState extends State<HomeScreen> {
 // ─────────────────────────────────────────────────────────
 class _NotifBellBtn extends StatefulWidget {
   final int count;
-  const _NotifBellBtn({required this.count});
+  final int clienteId;
+  const _NotifBellBtn({required this.count, required this.clienteId});
   @override
   State<_NotifBellBtn> createState() => _NotifBellBtnState();
 }
@@ -1666,7 +1892,7 @@ class _NotifBellBtnState extends State<_NotifBellBtn> {
             right: 8,
             child: Material(
               color: Colors.transparent,
-              child: _NotifPanel(onClose: _close),
+              child: _NotifPanel(onClose: _close, clienteId: widget.clienteId),
             ),
           ),
         ],
@@ -1708,13 +1934,15 @@ class _NotifBellBtnState extends State<_NotifBellBtn> {
           ),
           if (widget.count > 0)
             Container(
-              width: 16, height: 16,
+              width: 16,
+              height: 16,
               decoration: const BoxDecoration(
                   color: AlpesColors.rojoColonial, shape: BoxShape.circle),
               alignment: Alignment.center,
               child: Text('${widget.count}',
                   style: const TextStyle(
-                      color: Colors.white, fontSize: 9,
+                      color: Colors.white,
+                      fontSize: 9,
                       fontWeight: FontWeight.w700)),
             ),
         ]),
@@ -1728,7 +1956,8 @@ class _NotifBellBtnState extends State<_NotifBellBtn> {
 // ─────────────────────────────────────────────────────────
 class _NotifPanel extends StatefulWidget {
   final VoidCallback onClose;
-  const _NotifPanel({required this.onClose});
+  final int clienteId;
+  const _NotifPanel({required this.onClose, required this.clienteId});
   @override
   State<_NotifPanel> createState() => _NotifPanelState();
 }
@@ -1746,44 +1975,115 @@ class _NotifPanelState extends State<_NotifPanel> {
   Future<void> _cargar() async {
     setState(() => _loading = true);
     final lista = <_NotifItem>[];
+
+    // Órdenes del cliente filtradas por clienteId
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final res = await http.get(Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${widget.clienteId}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
-        final pend = list.where((o) =>
-            (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase() == 'pendiente').length;
-        if (pend > 0) lista.add(_NotifItem(
-          id: 'pend', titulo: '$pend orden${pend > 1 ? "es" : ""} pendiente${pend > 1 ? "s" : ""}',
-          sub: 'Requieren atención', icon: Icons.receipt_long_rounded,
-          color: const Color(0xFF854F0B), route: '/admin/ordenes'));
-        final proc = list.where((o) {
-          final e = (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
-          return e == 'en proceso' || e == 'en camino' || e == 'enviado';
-        }).length;
-        if (proc > 0) lista.add(_NotifItem(
-          id: 'proc', titulo: '$proc orden${proc > 1 ? "es" : ""} en proceso',
-          sub: 'En preparación o camino', icon: Icons.local_shipping_rounded,
-          color: const Color(0xFF185FA5), route: '/admin/ordenes'));
+
+        String estadoReal(dynamic o) {
+          final obs =
+              (o['OBSERVACIONES'] ?? o['observaciones'] ?? '').toString();
+          final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+          if (match != null) {
+            const mapa = {
+              'INGRESADA': 'pendiente',
+              'PENDIENTE': 'pendiente',
+              'EN_PROCESO': 'en proceso',
+              'ENTREGADA': 'entregado',
+              'CANCELADA': 'cancelado'
+            };
+            return mapa[match.group(1)!] ?? 'pendiente';
+          }
+          return (o['ESTADO'] ?? o['estado'] ?? 'pendiente')
+              .toString()
+              .toLowerCase();
+        }
+
+        final pendientes =
+            list.where((o) => estadoReal(o) == 'pendiente').length;
+        if (pendientes > 0)
+          lista.add(_NotifItem(
+              id: 'pendiente',
+              titulo:
+                  '⏳ ${pendientes == 1 ? "Orden pendiente de confirmación" : "$pendientes órdenes pendientes"}',
+              sub: 'Pronto confirmaremos tu pedido',
+              icon: Icons.receipt_long_rounded,
+              color: const Color(0xFF854F0B),
+              route: '/mis-ordenes'));
+
+        final enProceso =
+            list.where((o) => estadoReal(o) == 'en proceso').length;
+        if (enProceso > 0)
+          lista.add(_NotifItem(
+              id: 'proceso',
+              titulo:
+                  '🔨 ${enProceso == 1 ? "Pedido en preparación" : "$enProceso pedidos en proceso"}',
+              sub: 'Estamos trabajando en tu orden',
+              icon: Icons.build_rounded,
+              color: const Color(0xFF854F0B),
+              route: '/mis-ordenes'));
+
+        final entregados =
+            list.where((o) => estadoReal(o) == 'entregado').length;
+        if (entregados > 0)
+          lista.add(_NotifItem(
+              id: 'entregado',
+              titulo:
+                  '📦 ${entregados == 1 ? "Pedido entregado" : "$entregados pedidos entregados"}',
+              sub: 'Califica tu experiencia',
+              icon: Icons.inventory_2_rounded,
+              color: const Color(0xFF3B6D11),
+              route: '/mis-resenas'));
+
+        final cancelados =
+            list.where((o) => estadoReal(o) == 'cancelado').length;
+        if (cancelados > 0)
+          lista.add(_NotifItem(
+              id: 'cancelado',
+              titulo:
+                  '❌ ${cancelados == 1 ? "Tu orden fue cancelada" : "$cancelados órdenes canceladas"}',
+              sub: 'Contáctanos si tienes dudas',
+              icon: Icons.cancel_rounded,
+              color: AlpesColors.rojoColonial,
+              route: '/mis-ordenes'));
       }
     } catch (_) {}
+
+    // Promociones activas
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'));
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.promocion}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
-        final bajo = list.where((i) =>
-            (int.tryParse('${i["CANTIDAD"] ?? i["cantidad"] ?? 0}') ?? 0) <= 5).length;
-        if (bajo > 0) lista.add(_NotifItem(
-          id: 'stock', titulo: '$bajo producto${bajo > 1 ? "s" : ""} con stock bajo',
-          sub: 'Cantidad ≤ 5 unidades', icon: Icons.inventory_2_rounded,
-          color: AlpesColors.rojoColonial, route: '/admin/inventario'));
+        if (list.isNotEmpty)
+          lista.add(_NotifItem(
+              id: 'promo',
+              titulo:
+                  '🎉 ${list.length} oferta${list.length > 1 ? "s" : ""} disponible${list.length > 1 ? "s" : ""}',
+              sub: 'Ver productos en promoción',
+              icon: Icons.local_offer_rounded,
+              color: const Color(0xFF854F0B),
+              route: '/catalogo'));
       }
     } catch (_) {}
-    if (lista.isEmpty) lista.add(_NotifItem(
-      id: 'ok', titulo: 'Todo al día ✓', sub: 'Sin alertas pendientes',
-      icon: Icons.check_circle_rounded, color: const Color(0xFF3B6D11)));
-    if (mounted) setState(() { _items = lista; _loading = false; });
+
+    if (lista.isEmpty)
+      lista.add(_NotifItem(
+          id: 'ok',
+          titulo: 'Todo al día ✓',
+          sub: 'Sin notificaciones pendientes',
+          icon: Icons.check_circle_rounded,
+          color: const Color(0xFF3B6D11)));
+    if (mounted)
+      setState(() {
+        _items = lista;
+        _loading = false;
+      });
   }
 
   @override
@@ -1795,8 +2095,10 @@ class _NotifPanelState extends State<_NotifPanel> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.18),
-              blurRadius: 28, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 28,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1811,74 +2113,109 @@ class _NotifPanelState extends State<_NotifPanel> {
             const Icon(Icons.notifications_rounded,
                 color: AlpesColors.oroGuatemalteco, size: 18),
             const SizedBox(width: 8),
-            const Expanded(child: Text('Notificaciones',
-                style: TextStyle(color: Colors.white, fontSize: 14,
-                    fontWeight: FontWeight.w700))),
+            const Expanded(
+                child: Text('Notificaciones',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700))),
             if (_items.any((n) => !n.leida))
               GestureDetector(
-                onTap: () => setState(() { for (final n in _items) n.leida = true; }),
+                onTap: () => setState(() {
+                  for (final n in _items) n.leida = true;
+                }),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AlpesColors.oroGuatemalteco.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(0.4)),
+                    border: Border.all(
+                        color: AlpesColors.oroGuatemalteco.withOpacity(0.4)),
                   ),
                   child: const Text('Marcar todas',
-                      style: TextStyle(color: AlpesColors.oroGuatemalteco,
-                          fontSize: 10, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          color: AlpesColors.oroGuatemalteco,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
           ]),
         ),
         // Lista
         _loading
-            ? const Padding(padding: EdgeInsets.all(28),
-                child: CircularProgressIndicator(color: AlpesColors.cafeOscuro, strokeWidth: 2))
+            ? const Padding(
+                padding: EdgeInsets.all(28),
+                child: CircularProgressIndicator(
+                    color: AlpesColors.cafeOscuro, strokeWidth: 2))
             : Flexible(
                 child: ListView.separated(
                   shrinkWrap: true,
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: _items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1,
-                      indent: 16, endIndent: 16, color: AlpesColors.pergamino),
-                  itemBuilder: (ctx, i) {
+                  separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AlpesColors.pergamino),
+                  itemBuilder: (_, i) {
                     final n = _items[i];
                     return GestureDetector(
                       onTap: () {
                         setState(() => n.leida = true);
                         if (n.route != null) {
                           widget.onClose();
-                          ctx.go(n.route!);
+                          context.go(n.route!);
                         }
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        color: n.leida ? Colors.transparent : n.color.withOpacity(0.04),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        color: n.leida
+                            ? Colors.transparent
+                            : n.color.withOpacity(0.04),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         child: Row(children: [
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
-                            width: 38, height: 38,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
-                              color: n.leida ? AlpesColors.pergamino : n.color.withOpacity(0.12),
+                              color: n.leida
+                                  ? AlpesColors.pergamino
+                                  : n.color.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(n.icon,
-                                color: n.leida ? AlpesColors.arenaCalida : n.color, size: 18),
+                                color:
+                                    n.leida ? AlpesColors.arenaCalida : n.color,
+                                size: 18),
                           ),
                           const SizedBox(width: 12),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(n.titulo, style: TextStyle(fontSize: 13,
-                                fontWeight: n.leida ? FontWeight.w400 : FontWeight.w600,
-                                color: n.leida ? AlpesColors.nogalMedio : AlpesColors.cafeOscuro)),
-                            Text(n.sub, style: const TextStyle(fontSize: 11,
-                                color: AlpesColors.nogalMedio)),
-                          ])),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(n.titulo,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: n.leida
+                                            ? FontWeight.w400
+                                            : FontWeight.w600,
+                                        color: n.leida
+                                            ? AlpesColors.nogalMedio
+                                            : AlpesColors.cafeOscuro)),
+                                Text(n.sub,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AlpesColors.nogalMedio)),
+                              ])),
                           if (!n.leida)
-                            Container(width: 8, height: 8,
-                                decoration: BoxDecoration(color: n.color, shape: BoxShape.circle))
+                            Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                    color: n.color, shape: BoxShape.circle))
                           else if (n.route != null)
                             const Icon(Icons.chevron_right_rounded,
                                 color: AlpesColors.arenaCalida, size: 16),
@@ -1896,7 +2233,8 @@ class _NotifPanelState extends State<_NotifPanel> {
             onPressed: _cargar,
             icon: const Icon(Icons.refresh_rounded, size: 14),
             label: const Text('Actualizar', style: TextStyle(fontSize: 12)),
-            style: TextButton.styleFrom(foregroundColor: AlpesColors.nogalMedio),
+            style:
+                TextButton.styleFrom(foregroundColor: AlpesColors.nogalMedio),
           ),
         ),
       ]),
@@ -1910,8 +2248,14 @@ class _NotifItem {
   final Color color;
   final String? route;
   bool leida;
-  _NotifItem({required this.id, required this.titulo, required this.sub,
-      required this.icon, required this.color, this.route, this.leida = false});
+  _NotifItem(
+      {required this.id,
+      required this.titulo,
+      required this.sub,
+      required this.icon,
+      required this.color,
+      this.route,
+      this.leida = false});
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1920,7 +2264,8 @@ class _NotifItem {
 class _PerfilMenuBtn extends StatelessWidget {
   final String initial, nombre;
   final AuthProvider auth;
-  const _PerfilMenuBtn({required this.initial, required this.nombre, required this.auth});
+  const _PerfilMenuBtn(
+      {required this.initial, required this.nombre, required this.auth});
 
   @override
   Widget build(BuildContext context) {
@@ -1938,60 +2283,90 @@ class _PerfilMenuBtn extends StatelessWidget {
         }
       },
       itemBuilder: (_) => [
-        PopupMenuItem(enabled: false,
+        PopupMenuItem(
+          enabled: false,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Row(children: [
-              Container(width: 36, height: 36,
-                decoration: BoxDecoration(color: AlpesColors.oroGuatemalteco,
-                    borderRadius: BorderRadius.circular(9)),
-                alignment: Alignment.center,
-                child: Text(initial, style: const TextStyle(fontSize: 15,
-                    fontWeight: FontWeight.w800, color: AlpesColors.cafeOscuro))),
+              Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                      color: AlpesColors.oroGuatemalteco,
+                      borderRadius: BorderRadius.circular(9)),
+                  alignment: Alignment.center,
+                  child: Text(initial,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AlpesColors.cafeOscuro))),
               const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                    color: AlpesColors.cafeOscuro), overflow: TextOverflow.ellipsis),
-                const Text('Cliente', style: TextStyle(fontSize: 11,
-                    color: AlpesColors.nogalMedio)),
-              ])),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(nombre,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AlpesColors.cafeOscuro),
+                        overflow: TextOverflow.ellipsis),
+                    const Text('Cliente',
+                        style: TextStyle(
+                            fontSize: 11, color: AlpesColors.nogalMedio)),
+                  ])),
             ]),
             const SizedBox(height: 8),
             const Divider(height: 1, color: AlpesColors.pergamino),
           ]),
         ),
-        PopupMenuItem(value: 'perfil',
+        PopupMenuItem(
+          value: 'perfil',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.person_outline_rounded, size: 16,
-                    color: AlpesColors.cafeOscuro)),
+                child: const Icon(Icons.person_outline_rounded,
+                    size: 16, color: AlpesColors.cafeOscuro)),
             const SizedBox(width: 10),
-            const Text('Mi perfil', style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
+            const Text('Mi perfil',
+                style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
           ]),
         ),
-        PopupMenuItem(value: 'tarjetas',
+        PopupMenuItem(
+          value: 'tarjetas',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.credit_card_rounded, size: 16,
-                    color: AlpesColors.cafeOscuro)),
+                child: const Icon(Icons.credit_card_rounded,
+                    size: 16, color: AlpesColors.cafeOscuro)),
             const SizedBox(width: 10),
-            const Text('Mis tarjetas', style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
+            const Text('Mis tarjetas',
+                style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
           ]),
         ),
         const PopupMenuDivider(),
-        PopupMenuItem(value: 'logout',
+        PopupMenuItem(
+          value: 'logout',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.rojoColonial.withOpacity(0.08),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.rojoColonial.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.logout_rounded, size: 16,
-                    color: AlpesColors.rojoColonial)),
+                child: const Icon(Icons.logout_rounded,
+                    size: 16, color: AlpesColors.rojoColonial)),
             const SizedBox(width: 10),
-            const Text('Cerrar sesión', style: TextStyle(fontSize: 13,
-                color: AlpesColors.rojoColonial)),
+            const Text('Cerrar sesión',
+                style:
+                    TextStyle(fontSize: 13, color: AlpesColors.rojoColonial)),
           ]),
         ),
       ],
@@ -2000,12 +2375,20 @@ class _PerfilMenuBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: AlpesColors.oroGuatemalteco,
           borderRadius: BorderRadius.circular(9),
-          boxShadow: [BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.3), blurRadius: 8)],
+          boxShadow: [
+            BoxShadow(
+                color: AlpesColors.oroGuatemalteco.withOpacity(0.3),
+                blurRadius: 8)
+          ],
         ),
-        width: 34, height: 34,
+        width: 34,
+        height: 34,
         alignment: Alignment.center,
-        child: Text(initial, style: const TextStyle(fontSize: 14,
-            fontWeight: FontWeight.w800, color: AlpesColors.cafeOscuro)),
+        child: Text(initial,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AlpesColors.cafeOscuro)),
       ),
     );
   }
@@ -2025,26 +2408,37 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
   bool _open = false;
   late AnimationController _animCtrl;
   late Animation<double> _scaleAnim;
-  final _ctrl   = TextEditingController();
+  final _ctrl = TextEditingController();
   final _scroll = ScrollController();
-  bool _typing  = false;
+  bool _typing = false;
 
   final List<_BotMsg> _msgs = [
-    const _BotMsg('¡Hola! 👋 Soy **AlpesBot**.\n¿En qué te puedo ayudar?', false),
+    const _BotMsg(
+        '¡Hola! 👋 Soy **AlpesBot**.\n¿En qué te puedo ayudar?', false),
   ];
 
-  final _quickReplies = ['¿Cuál es su horario?', '¿Dónde están?', 'Ver productos', 'Mi pedido'];
+  final _quickReplies = [
+    '¿Cuál es su horario?',
+    '¿Dónde están?',
+    'Ver productos',
+    'Mi pedido'
+  ];
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 260));
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 260));
     _scaleAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutBack);
   }
 
   @override
-  void dispose() { _animCtrl.dispose(); _ctrl.dispose(); _scroll.dispose(); super.dispose(); }
+  void dispose() {
+    _animCtrl.dispose();
+    _ctrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
 
   void _toggle() {
     setState(() => _open = !_open);
@@ -2057,11 +2451,17 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
       return '🕐 **Horarios:**\n• Lun–Vie: 8AM–6PM\n• Sáb: 9AM–5PM\n• Dom: 10AM–2PM';
     if (m.contains('ubica') || m.contains('donde') || m.contains('direcci'))
       return '📍 **Sucursales:**\n• Zona 10, Ciudad de Guatemala\n• Zona 18, Ciudad de Guatemala\n• Antigua Guatemala';
-    if (m.contains('product') || m.contains('mueble') || m.contains('cat') || m.contains('ver'))
+    if (m.contains('product') ||
+        m.contains('mueble') ||
+        m.contains('cat') ||
+        m.contains('ver'))
       return '🛋️ ¡Tenemos salas, comedores, dormitorios y más!\n\n¿Te llevo al catálogo?';
     if (m.contains('pedido') || m.contains('orden') || m.contains('seguim'))
       return '📦 Revisa tus pedidos en **"Mis pedidos"** del menú lateral o en la sección Tracking.';
-    if (m.contains('si') || m.contains('sí') || m.contains('claro') || m.contains('dale'))
+    if (m.contains('si') ||
+        m.contains('sí') ||
+        m.contains('claro') ||
+        m.contains('dale'))
       return '¡Perfecto! Ve a **Catálogo** en el menú. 🛋️';
     if (m.contains('gracias') || m.contains('ok') || m.contains('listo'))
       return '😊 ¡Con gusto! Aquí estaré si necesitas algo más.';
@@ -2072,24 +2472,32 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
     final msg = (texto ?? _ctrl.text).trim();
     if (msg.isEmpty) return;
     final now = DateTime.now();
-    final hora = '${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}';
-    setState(() { _msgs.add(_BotMsg(msg, true, hora: hora)); _ctrl.clear(); _typing = true; });
+    final hora =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    setState(() {
+      _msgs.add(_BotMsg(msg, true, hora: hora));
+      _ctrl.clear();
+      _typing = true;
+    });
     _scrollFinal();
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (!mounted) return;
       setState(() {
         _typing = false;
         _msgs.add(_BotMsg(_responder(msg), false,
-            hora: '${DateTime.now().hour.toString().padLeft(2,'0')}:${DateTime.now().minute.toString().padLeft(2,'0')}'));
+            hora:
+                '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}'));
       });
       _scrollFinal();
     });
   }
 
   void _scrollFinal() => Future.delayed(const Duration(milliseconds: 100), () {
-    if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-  });
+        if (_scroll.hasClients)
+          _scroll.animateTo(_scroll.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut);
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -2109,8 +2517,12 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18),
-                    blurRadius: 28, offset: const Offset(0, 8))],
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.18),
+                      blurRadius: 28,
+                      offset: const Offset(0, 8))
+                ],
               ),
               child: Column(children: [
                 // Header
@@ -2118,33 +2530,51 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
                   padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
                   decoration: const BoxDecoration(
                     color: AlpesColors.cafeOscuro,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(18)),
                   ),
                   child: Row(children: [
-                    Container(width: 34, height: 34,
-                        decoration: BoxDecoration(color: AlpesColors.oroGuatemalteco,
+                    Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                            color: AlpesColors.oroGuatemalteco,
                             borderRadius: BorderRadius.circular(9)),
                         child: const Icon(Icons.support_agent_rounded,
                             color: AlpesColors.cafeOscuro, size: 20)),
                     const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('AlpesBot', style: TextStyle(color: Colors.white,
-                          fontSize: 14, fontWeight: FontWeight.w700)),
-                      Row(children: [
-                        Container(width: 6, height: 6,
-                            decoration: const BoxDecoration(color: Color(0xFF4CAF50),
-                                shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
-                        const Text('En línea', style: TextStyle(
-                            color: AlpesColors.arenaCalida, fontSize: 10)),
-                      ]),
-                    ])),
-                    GestureDetector(onTap: _toggle,
-                        child: const Icon(Icons.close_rounded, color: Colors.white54, size: 20)),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          const Text('AlpesBot',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700)),
+                          Row(children: [
+                            Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFF4CAF50),
+                                    shape: BoxShape.circle)),
+                            const SizedBox(width: 4),
+                            const Text('En línea',
+                                style: TextStyle(
+                                    color: AlpesColors.arenaCalida,
+                                    fontSize: 10)),
+                          ]),
+                        ])),
+                    GestureDetector(
+                        onTap: _toggle,
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white54, size: 20)),
                   ]),
                 ),
                 // Mensajes
-                Expanded(child: ListView.builder(
+                Expanded(
+                    child: ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.all(10),
                   itemCount: _msgs.length + (_typing ? 1 : 0),
@@ -2155,32 +2585,50 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         mainAxisAlignment: m.esUsuario
-                            ? MainAxisAlignment.end : MainAxisAlignment.start,
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           if (!m.esUsuario) ...[
-                            Container(width: 22, height: 22,
+                            Container(
+                                width: 22,
+                                height: 22,
                                 decoration: const BoxDecoration(
-                                    color: AlpesColors.cafeOscuro, shape: BoxShape.circle),
+                                    color: AlpesColors.cafeOscuro,
+                                    shape: BoxShape.circle),
                                 child: const Icon(Icons.support_agent_rounded,
-                                    color: AlpesColors.oroGuatemalteco, size: 12)),
+                                    color: AlpesColors.oroGuatemalteco,
+                                    size: 12)),
                             const SizedBox(width: 6),
                           ],
-                          Flexible(child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          Flexible(
+                              child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             constraints: const BoxConstraints(maxWidth: 230),
                             decoration: BoxDecoration(
-                              color: m.esUsuario ? AlpesColors.cafeOscuro : AlpesColors.cremaFondo,
+                              color: m.esUsuario
+                                  ? AlpesColors.cafeOscuro
+                                  : AlpesColors.cremaFondo,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(12),
                                 topRight: const Radius.circular(12),
-                                bottomLeft: Radius.circular(m.esUsuario ? 12 : 3),
-                                bottomRight: Radius.circular(m.esUsuario ? 3 : 12),
+                                bottomLeft:
+                                    Radius.circular(m.esUsuario ? 12 : 3),
+                                bottomRight:
+                                    Radius.circular(m.esUsuario ? 3 : 12),
                               ),
-                              border: !m.esUsuario ? Border.all(color: AlpesColors.pergamino) : null,
+                              border: !m.esUsuario
+                                  ? Border.all(color: AlpesColors.pergamino)
+                                  : null,
                             ),
-                            child: Text(m.texto, style: TextStyle(fontSize: 12, height: 1.4,
-                                color: m.esUsuario ? Colors.white : AlpesColors.cafeOscuro)),
+                            child: Text(m.texto,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    color: m.esUsuario
+                                        ? Colors.white
+                                        : AlpesColors.cafeOscuro)),
                           )),
                         ],
                       ),
@@ -2188,23 +2636,30 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
                   },
                 )),
                 // Quick replies
-                SizedBox(height: 34,
+                SizedBox(
+                  height: 34,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     itemCount: _quickReplies.length,
                     itemBuilder: (_, i) => GestureDetector(
                       onTap: () => _enviar(_quickReplies[i]),
                       child: Container(
                         margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
                           color: AlpesColors.cafeOscuro.withOpacity(0.07),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AlpesColors.cafeOscuro.withOpacity(0.15)),
+                          border: Border.all(
+                              color: AlpesColors.cafeOscuro.withOpacity(0.15)),
                         ),
-                        child: Text(_quickReplies[i], style: const TextStyle(
-                            fontSize: 10, color: AlpesColors.cafeOscuro, fontWeight: FontWeight.w500)),
+                        child: Text(_quickReplies[i],
+                            style: const TextStyle(
+                                fontSize: 10,
+                                color: AlpesColors.cafeOscuro,
+                                fontWeight: FontWeight.w500)),
                       ),
                     ),
                   ),
@@ -2214,31 +2669,43 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
                   padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border(top: BorderSide(color: AlpesColors.pergamino)),
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
+                    border:
+                        Border(top: BorderSide(color: AlpesColors.pergamino)),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18)),
                   ),
                   child: Row(children: [
-                    Expanded(child: TextField(
+                    Expanded(
+                        child: TextField(
                       controller: _ctrl,
                       onSubmitted: (_) => _enviar(),
                       textInputAction: TextInputAction.send,
-                      style: const TextStyle(fontSize: 12, color: AlpesColors.cafeOscuro),
+                      style: const TextStyle(
+                          fontSize: 12, color: AlpesColors.cafeOscuro),
                       decoration: InputDecoration(
                         hintText: 'Escribe tu pregunta…',
-                        hintStyle: const TextStyle(color: AlpesColors.arenaCalida, fontSize: 12),
-                        filled: true, fillColor: AlpesColors.cremaFondo,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                        hintStyle: const TextStyle(
+                            color: AlpesColors.arenaCalida, fontSize: 12),
+                        filled: true,
+                        fillColor: AlpesColors.cremaFondo,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide.none),
                       ),
                     )),
                     const SizedBox(width: 8),
-                    GestureDetector(onTap: _enviar,
-                      child: Container(width: 36, height: 36,
-                        decoration: const BoxDecoration(
-                            color: AlpesColors.cafeOscuro, shape: BoxShape.circle),
-                        child: const Icon(Icons.send_rounded,
-                            color: AlpesColors.oroGuatemalteco, size: 16)),
+                    GestureDetector(
+                      onTap: _enviar,
+                      child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                              color: AlpesColors.cafeOscuro,
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.send_rounded,
+                              color: AlpesColors.oroGuatemalteco, size: 16)),
                     ),
                   ]),
                 ),
@@ -2251,17 +2718,22 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
           onTap: _toggle,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: _open ? AlpesColors.rojoColonial : AlpesColors.cafeOscuro,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(
-                  color: AlpesColors.cafeOscuro.withOpacity(0.4),
-                  blurRadius: 16, offset: const Offset(0, 6))],
+              boxShadow: [
+                BoxShadow(
+                    color: AlpesColors.cafeOscuro.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6))
+              ],
             ),
             child: Icon(
               _open ? Icons.close_rounded : Icons.chat_bubble_rounded,
-              color: AlpesColors.oroGuatemalteco, size: 24,
+              color: AlpesColors.oroGuatemalteco,
+              size: 24,
             ),
           ),
         ),
@@ -2270,48 +2742,71 @@ class _AlpesBotBtnState extends State<_AlpesBotBtn>
   }
 
   Widget _buildTyping() => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(children: [
-      Container(width: 22, height: 22,
-          decoration: const BoxDecoration(color: AlpesColors.cafeOscuro, shape: BoxShape.circle),
-          child: const Icon(Icons.support_agent_rounded,
-              color: AlpesColors.oroGuatemalteco, size: 12)),
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: AlpesColors.cremaFondo,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AlpesColors.pergamino)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: const [
-          _BotDot(delay: 0), SizedBox(width: 4),
-          _BotDot(delay: 200), SizedBox(width: 4),
-          _BotDot(delay: 400),
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                  color: AlpesColors.cafeOscuro, shape: BoxShape.circle),
+              child: const Icon(Icons.support_agent_rounded,
+                  color: AlpesColors.oroGuatemalteco, size: 12)),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+                color: AlpesColors.cremaFondo,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AlpesColors.pergamino)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              _BotDot(delay: 0),
+              SizedBox(width: 4),
+              _BotDot(delay: 200),
+              SizedBox(width: 4),
+              _BotDot(delay: 400),
+            ]),
+          ),
         ]),
-      ),
-    ]),
-  );
+      );
 }
 
 class _BotDot extends StatefulWidget {
   final int delay;
   const _BotDot({required this.delay});
-  @override State<_BotDot> createState() => _BotDotState();
+  @override
+  State<_BotDot> createState() => _BotDotState();
 }
+
 class _BotDotState extends State<_BotDot> with SingleTickerProviderStateMixin {
   late AnimationController _c;
   late Animation<double> _a;
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600))
+      ..repeat(reverse: true);
     _a = CurvedAnimation(parent: _c, curve: Curves.easeInOut);
-    Future.delayed(Duration(milliseconds: widget.delay), () { if (mounted) _c.forward(); });
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _c.forward();
+    });
   }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => FadeTransition(
-    opacity: _a,
-    child: Container(width: 6, height: 6,
-        decoration: const BoxDecoration(color: AlpesColors.arenaCalida, shape: BoxShape.circle)),
-  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: _a,
+        child: Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+                color: AlpesColors.arenaCalida, shape: BoxShape.circle)),
+      );
 }
 
 class _BotMsg {

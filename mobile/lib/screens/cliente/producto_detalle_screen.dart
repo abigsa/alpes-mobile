@@ -286,7 +286,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                                     context.go('/login'); return;
                                   }
                                   setState(() => _agregando = true);
-                                  await carrito.agregarItem(
+                                  final exito = await carrito.agregarItem(
                                     clienteId: auth.clienteId!,
                                     productoId: _producto!.productoId,
                                     nombre: _producto!.nombre,
@@ -296,25 +296,42 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                                   );
                                   if (mounted) {
                                     setState(() => _agregando = false);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Row(children: [
-                                          const Icon(Icons.check_circle_rounded,
-                                              color: Colors.white, size: 18),
-                                          const SizedBox(width: 8),
-                                          Text('${_producto!.nombre} agregado'),
-                                        ]),
-                                        backgroundColor: AlpesColors.verdeSelva,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10)),
-                                        action: SnackBarAction(
-                                          label: 'Ver carrito',
-                                          textColor: AlpesColors.oroGuatemalteco,
-                                          onPressed: () => context.go('/carrito'),
+                                    if (exito) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Row(children: [
+                                            const Icon(Icons.check_circle_rounded,
+                                                color: Colors.white, size: 18),
+                                            const SizedBox(width: 8),
+                                            Text('${_producto!.nombre} agregado'),
+                                          ]),
+                                          backgroundColor: AlpesColors.verdeSelva,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10)),
+                                          action: SnackBarAction(
+                                            label: 'Ver carrito',
+                                            textColor: AlpesColors.oroGuatemalteco,
+                                            onPressed: () => context.go('/carrito'),
+                                          ),
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Row(children: [
+                                            Icon(Icons.error_outline_rounded,
+                                                color: Colors.white, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('No se pudo agregar al carrito'),
+                                          ]),
+                                          backgroundColor: Colors.redAccent,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                               ),

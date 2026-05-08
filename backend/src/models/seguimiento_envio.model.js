@@ -77,4 +77,11 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// buscar: usa SP_LISTAR_SEGUIMIENTO_ENVIO y filtra por criterio en JS
+async function buscar(criterio, valor) {
+  const rows = await listar();
+  const col = criterio.toUpperCase();
+  return rows.filter(r => String(r[col]) === String(valor));
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

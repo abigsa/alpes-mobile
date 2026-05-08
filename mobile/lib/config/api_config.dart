@@ -8,8 +8,8 @@ class ApiConfig {
 
   static const String productos = '/productos';
   static const String categorias = '/categorias';
-  static const String carrito = '/carrito';
-  static const String carritoDetalle = '/carrito_detalle';
+  static const String carrito = '/carritos';
+  static const String carritoDetalle = '/carritos-detalle';
   static const String ordenVenta = '/ordenes-venta';
   static const String ordenVentaDet = '/ordenes-venta-detalle';
   static const String pago = '/pagos';

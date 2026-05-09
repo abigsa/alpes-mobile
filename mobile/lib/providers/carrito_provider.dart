@@ -40,10 +40,13 @@ class CarritoProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carrito}/buscar?criterio=cli_id&valor=$clienteId'),
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.carrito}/buscar?criterio=cli_id&valor=$clienteId'),
       );
       final data = jsonDecode(res.body);
-      if (data['ok'] == true && data['data'] != null && (data['data'] as List).isNotEmpty) {
+      if (data['ok'] == true &&
+          data['data'] != null &&
+          (data['data'] as List).isNotEmpty) {
         final carrito = data['data'][0];
         _carritoId = carrito['CARRITO_ID'] ?? carrito['carrito_id'];
         await _cargarDetalle();
@@ -63,17 +66,29 @@ class CarritoProvider extends ChangeNotifier {
     if (_carritoId == null) return;
     try {
       final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/buscar?criterio=carrito_id&valor=$_carritoId'),
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/buscar?criterio=carrito_id&valor=$_carritoId'),
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         _items.clear();
-        for (final item in data['data']) {
+
+        // El SP de carrito_detalle solo devuelve campos de la tabla (sin JOIN a productos),
+        // así que enriquecemos cada item consultando el endpoint de productos.
+        final detalles = data['data'] as List;
+        final futures = detalles.map((item) => _fetchProductoInfo(
+              item['PRODUCTO_ID'] ?? item['producto_id'],
+            ));
+        final productosInfo = await Future.wait(futures);
+
+        for (int i = 0; i < detalles.length; i++) {
+          final item = detalles[i];
+          final producto = productosInfo[i];
           _items.add(CarritoItem(
             carritoDetId: item['CARRITO_DET_ID'] ?? item['carrito_det_id'],
             productoId: item['PRODUCTO_ID'] ?? item['producto_id'],
-            nombre: item['NOMBRE'] ?? item['nombre'] ?? 'Producto',
-            imagenUrl: item['IMAGEN_URL'] ?? item['imagen_url'],
+            nombre: producto['nombre'] ?? 'Producto',
+            imagenUrl: producto['imagenUrl'],
             cantidad: item['CANTIDAD'] ?? item['cantidad'],
             precioUnitario: double.tryParse(
                     '${item['PRECIO_UNITARIO_SNAPSHOT'] ?? item['precio_unitario_snapshot'] ?? 0}') ??
@@ -84,6 +99,28 @@ class CarritoProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error cargando detalle carrito: $e');
     }
+  }
+
+  /// Consulta el endpoint de productos para obtener nombre e imagenUrl.
+  /// Devuelve un mapa con claves 'nombre' e 'imagenUrl'; ambas pueden ser null
+  /// si el request falla, para no bloquear la carga del carrito.
+  Future<Map<String, String?>> _fetchProductoInfo(dynamic productoId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$productoId'),
+      );
+      final data = jsonDecode(res.body);
+      if (data['ok'] == true && data['data'] != null) {
+        final p = data['data'] is List ? data['data'][0] : data['data'];
+        return {
+          'nombre': p['NOMBRE'] ?? p['nombre'],
+          'imagenUrl': p['IMAGEN_URL'] ?? p['imagen_url'],
+        };
+      }
+    } catch (e) {
+      debugPrint('Error obteniendo info producto $productoId: $e');
+    }
+    return {'nombre': null, 'imagenUrl': null};
   }
 
   Future<bool> agregarItem({
@@ -127,8 +164,7 @@ class CarritoProvider extends ChangeNotifier {
       final data = jsonDecode(res.body);
 
       if (data['ok'] == true) {
-        final detId =
-            data['data']?['carrito_det_id'] ??
+        final detId = data['data']?['carrito_det_id'] ??
             data['data']?['CARRITO_DET_ID'] ??
             0;
 
@@ -143,7 +179,8 @@ class CarritoProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        debugPrint('Error del servidor al agregar item: ${data['message'] ?? data}');
+        debugPrint(
+            'Error del servidor al agregar item: ${data['message'] ?? data}');
         return false;
       }
     } catch (e) {

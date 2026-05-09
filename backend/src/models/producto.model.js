@@ -69,7 +69,6 @@ async function eliminar(id) {
   } finally { await closeConn(conn); }
 }
 
-// obtener: usa SP_OBTENER_PRODUCTO
 async function obtener(id) {
   const conn = await getConnection();
   try {
@@ -85,7 +84,6 @@ async function obtener(id) {
   } finally { await closeConn(conn); }
 }
 
-// listar: usa SP_LISTAR_PRODUCTOS
 async function listar() {
   const conn = await getReplicaConnection();
   try {
@@ -97,4 +95,13 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// Usa SP_LISTAR_PRODUCTOS y filtra en JS — mismo patrón que el resto del proyecto
+async function buscar(criterio, valor) {
+  const rows = await listar();
+  const col  = criterio.toUpperCase();
+  return rows.filter(r =>
+    String(r[col] ?? '').toLowerCase().includes(String(valor).toLowerCase())
+  );
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

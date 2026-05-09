@@ -77,4 +77,52 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// Usa SP_BUSCAR_PRECIO_HISTORICO existente en Oracle
+async function buscar(criterio, valor) {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `BEGIN ${PKG}.SP_BUSCAR_PRECIO_HISTORICO(:p_criterio, :p_valor, :p_cursor); END;`,
+      {
+        p_criterio: criterio,
+        p_valor: String(valor),
+        p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+      }
+    );
+    return await readCursor(result.outBinds.p_cursor);
+  } finally { await closeConn(conn); }
+}
+
+// Obtiene el precio vigente de un producto usando SP_BUSCAR_PRECIO_HISTORICO
+// con criterio=PRODUCTO_ID, y filtra el registro cuya vigencia incluye hoy
+async function obtenerPrecioVigente(productoId) {
+  try {
+    const registros = await buscar("PRODUCTO_ID", productoId);
+    if (!registros || registros.length === 0) return null;
+
+    const hoy = new Date();
+    const vigentes = registros.filter(r => {
+      const inicio = r.VIGENCIA_INICIO ?? r.vigencia_inicio;
+      const fin    = r.VIGENCIA_FIN    ?? r.vigencia_fin;
+      const inicioOk = !inicio || new Date(inicio) <= hoy;
+      const finOk    = !fin    || new Date(fin)    >= hoy;
+      return inicioOk && finOk;
+    });
+
+    if (vigentes.length === 0) return null;
+
+    // El más reciente en caso de haber varios
+    vigentes.sort((a, b) => {
+      const fa = new Date(a.VIGENCIA_INICIO ?? a.vigencia_inicio ?? 0);
+      const fb = new Date(b.VIGENCIA_INICIO ?? b.vigencia_inicio ?? 0);
+      return fb - fa;
+    });
+
+    const precio = vigentes[0].PRECIO ?? vigentes[0].precio;
+    return precio != null ? parseFloat(precio) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar, obtenerPrecioVigente };

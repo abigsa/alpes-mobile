@@ -40,7 +40,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       'username': _usernameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
       'password_hash': _passCtrl.text,
-      'rol_id': 3, // rol cliente
+      'rol_id': 29, // rol cliente
       'estado': 'ACTIVO',
     });
     if (!mounted) return;

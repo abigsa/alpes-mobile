@@ -50,12 +50,8 @@ class CarritoProvider extends ChangeNotifier {
         final carrito = data['data'][0];
         _carritoId = carrito['CARRITO_ID'] ?? carrito['carrito_id'];
         await _cargarDetalle();
-      } else {
-        _carritoId = null;
-        _items.clear();
       }
-    } catch (e) {
-      debugPrint('Error cargando carrito: $e');
+    } catch (_) {
     } finally {
       _loading = false;
       notifyListeners();
@@ -64,66 +60,54 @@ class CarritoProvider extends ChangeNotifier {
 
   Future<void> _cargarDetalle() async {
     if (_carritoId == null) return;
-    try {
-      final res = await http.get(
-        Uri.parse(
-            '${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/buscar?criterio=carrito_id&valor=$_carritoId'),
-      );
-      final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
-        _items.clear();
+    final res = await http.get(
+      Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/buscar?criterio=carrito_id&valor=$_carritoId'),
+    );
+    final data = jsonDecode(res.body);
+    if (data['ok'] == true) {
+      _items.clear();
+      for (final item in data['data']) {
+        // Intentar obtener nombre e imagen del detalle
+        String nombre = item['NOMBRE'] ?? item['nombre'] ?? '';
+        String? imagenUrl = item['IMAGEN_URL'] ?? item['imagen_url'];
 
-        // El SP de carrito_detalle solo devuelve campos de la tabla (sin JOIN a productos),
-        // así que enriquecemos cada item consultando el endpoint de productos.
-        final detalles = data['data'] as List;
-        final futures = detalles.map((item) => _fetchProductoInfo(
-              item['PRODUCTO_ID'] ?? item['producto_id'],
-            ));
-        final productosInfo = await Future.wait(futures);
-
-        for (int i = 0; i < detalles.length; i++) {
-          final item = detalles[i];
-          final producto = productosInfo[i];
-          _items.add(CarritoItem(
-            carritoDetId: item['CARRITO_DET_ID'] ?? item['carrito_det_id'],
-            productoId: item['PRODUCTO_ID'] ?? item['producto_id'],
-            nombre: producto['nombre'] ?? 'Producto',
-            imagenUrl: producto['imagenUrl'],
-            cantidad: item['CANTIDAD'] ?? item['cantidad'],
-            precioUnitario: double.tryParse(
-                    '${item['PRECIO_UNITARIO_SNAPSHOT'] ?? item['precio_unitario_snapshot'] ?? 0}') ??
-                0,
-          ));
+        // Si no vienen en el detalle, consultamos directamente el producto
+        if (nombre.isEmpty) {
+          try {
+            final productoId = item['PRODUCTO_ID'] ?? item['producto_id'];
+            final pRes = await http.get(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}${ApiConfig.productos}/$productoId'),
+            );
+            final pData = jsonDecode(pRes.body);
+            if (pData['ok'] == true && pData['data'] != null) {
+              nombre = pData['data']['NOMBRE'] ??
+                  pData['data']['nombre'] ??
+                  'Producto';
+              imagenUrl = pData['data']['IMAGEN_URL'] ??
+                  pData['data']['imagen_url'];
+            }
+          } catch (_) {
+            nombre = 'Producto';
+          }
         }
+
+        _items.add(CarritoItem(
+          carritoDetId: item['CARRITO_DET_ID'] ?? item['carrito_det_id'],
+          productoId: item['PRODUCTO_ID'] ?? item['producto_id'],
+          nombre: nombre.isEmpty ? 'Producto' : nombre,
+          imagenUrl: imagenUrl,
+          cantidad: item['CANTIDAD'] ?? item['cantidad'],
+          precioUnitario: double.tryParse(
+                  '${item['PRECIO_UNITARIO_SNAPSHOT'] ?? item['precio_unitario_snapshot'] ?? 0}') ??
+              0,
+        ));
       }
-    } catch (e) {
-      debugPrint('Error cargando detalle carrito: $e');
     }
   }
 
-  /// Consulta el endpoint de productos para obtener nombre e imagenUrl.
-  /// Devuelve un mapa con claves 'nombre' e 'imagenUrl'; ambas pueden ser null
-  /// si el request falla, para no bloquear la carga del carrito.
-  Future<Map<String, String?>> _fetchProductoInfo(dynamic productoId) async {
-    try {
-      final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$productoId'),
-      );
-      final data = jsonDecode(res.body);
-      if (data['ok'] == true && data['data'] != null) {
-        final p = data['data'] is List ? data['data'][0] : data['data'];
-        return {
-          'nombre': p['NOMBRE'] ?? p['nombre'],
-          'imagenUrl': p['IMAGEN_URL'] ?? p['imagen_url'],
-        };
-      }
-    } catch (e) {
-      debugPrint('Error obteniendo info producto $productoId: $e');
-    }
-    return {'nombre': null, 'imagenUrl': null};
-  }
-
-  Future<bool> agregarItem({
+  Future<void> agregarItem({
     required int clienteId,
     required int productoId,
     required String nombre,
@@ -131,122 +115,98 @@ class CarritoProvider extends ChangeNotifier {
     String? imagenUrl,
     int cantidad = 1,
   }) async {
-    try {
-      if (_carritoId == null) {
-        await _crearCarrito(clienteId);
-      }
+    if (_carritoId == null) await _crearCarrito(clienteId);
+    if (_carritoId == null) return;
 
-      if (_carritoId == null) {
-        debugPrint('No se pudo obtener/crear el carrito');
-        return false;
-      }
+    final existente = _items.where((i) => i.productoId == productoId);
+    if (existente.isNotEmpty) {
+      await actualizarCantidad(
+          existente.first.carritoDetId, existente.first.cantidad + cantidad);
+      return;
+    }
 
-      final existentes = _items.where((i) => i.productoId == productoId);
-      if (existentes.isNotEmpty) {
-        await actualizarCantidad(
-          existentes.first.carritoDetId,
-          existentes.first.cantidad + cantidad,
-        );
-        return true;
-      }
-
-      final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'carrito_id': _carritoId,
-          'producto_id': productoId,
-          'cantidad': cantidad,
-          'precio_unitario_snapshot': precio,
-        }),
-      );
-
-      final data = jsonDecode(res.body);
-
-      if (data['ok'] == true) {
-        final detId = data['data']?['carrito_det_id'] ??
-            data['data']?['CARRITO_DET_ID'] ??
-            0;
-
-        _items.add(CarritoItem(
-          carritoDetId: detId,
-          productoId: productoId,
-          nombre: nombre,
-          imagenUrl: imagenUrl,
-          cantidad: cantidad,
-          precioUnitario: precio,
-        ));
-        notifyListeners();
-        return true;
-      } else {
-        debugPrint(
-            'Error del servidor al agregar item: ${data['message'] ?? data}');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('Excepcion al agregar item al carrito: $e');
-      return false;
-    } finally {
+    final res = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'carrito_id': _carritoId,
+        'producto_id': productoId,
+        'cantidad': cantidad,
+        'precio_unitario_snapshot': precio,
+      }),
+    );
+    final data = jsonDecode(res.body);
+    if (data['ok'] == true) {
+      _items.add(CarritoItem(
+        carritoDetId: data['data']['carrito_det_id'] ?? 0,
+        productoId: productoId,
+        nombre: nombre,
+        imagenUrl: imagenUrl,
+        cantidad: cantidad,
+        precioUnitario: precio,
+      ));
       notifyListeners();
     }
   }
 
   Future<void> _crearCarrito(int clienteId) async {
-    try {
-      final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carrito}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'cli_id': clienteId,
-          'estado_carrito': 'ACTIVO',
-          'ultimo_calculo_at': DateTime.now().toIso8601String(),
-        }),
-      );
-      final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
-        _carritoId = data['data']['carrito_id'] ?? data['data']['CARRITO_ID'];
-        debugPrint('Carrito creado con ID: $_carritoId');
-      } else {
-        debugPrint('Error creando carrito: ${data['message'] ?? data}');
-      }
-    } catch (e) {
-      debugPrint('Excepcion al crear carrito: $e');
+    final res = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carrito}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'cli_id': clienteId,
+        'estado_carrito': 'ACTIVO',
+        'ultimo_calculo_at': DateTime.now().toIso8601String(),
+      }),
+    );
+    final data = jsonDecode(res.body);
+    if (data['ok'] == true) {
+      _carritoId = data['data']['carrito_id'];
     }
   }
 
   Future<void> actualizarCantidad(int detId, int nuevaCantidad) async {
-    try {
-      final item = _items.firstWhere((i) => i.carritoDetId == detId);
-      await http.put(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'carrito_det_id': detId,
-          'carrito_id': _carritoId,
-          'producto_id': item.productoId,
-          'cantidad': nuevaCantidad,
-          'precio_unitario_snapshot': item.precioUnitario,
-        }),
-      );
-      item.cantidad = nuevaCantidad;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error actualizando cantidad: $e');
-    }
+    final item = _items.firstWhere((i) => i.carritoDetId == detId);
+    await http.put(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'carrito_det_id': detId,
+        'carrito_id': _carritoId,
+        'producto_id': item.productoId,
+        'cantidad': nuevaCantidad,
+        'precio_unitario_snapshot': item.precioUnitario,
+      }),
+    );
+    item.cantidad = nuevaCantidad;
+    notifyListeners();
   }
 
   Future<void> eliminarItem(int detId) async {
-    try {
-      await http.delete(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'));
-      _items.removeWhere((i) => i.carritoDetId == detId);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error eliminando item: $e');
-    }
+    await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'));
+    _items.removeWhere((i) => i.carritoDetId == detId);
+    notifyListeners();
   }
 
+  // Limpia solo en memoria (para logout)
   void limpiar() {
+    _items.clear();
+    _carritoId = null;
+    notifyListeners();
+  }
+
+  // Limpia en BD y en memoria (para después de confirmar orden)
+  Future<void> limpiarEnBD() async {
+    if (_carritoId == null) return;
+    try {
+      for (final item in _items) {
+        await http.delete(
+          Uri.parse(
+              '${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/${item.carritoDetId}'),
+        );
+      }
+    } catch (_) {}
     _items.clear();
     _carritoId = null;
     notifyListeners();

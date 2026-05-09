@@ -196,7 +196,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }),
       );
 
-      carrito.limpiar();
+      await carrito.limpiarEnBD();
       if (mounted) context.go('/orden/$ordenId');
     } catch (e) {
       if (mounted)

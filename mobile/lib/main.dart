@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/carrito_provider.dart';
 import 'providers/producto_provider.dart';
 import 'providers/favoritos_provider.dart';
+import 'providers/cupon_provider.dart';
 import 'router/app_router.dart';
 
 void main() async {
@@ -23,6 +24,7 @@ class AlpesApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CarritoProvider()),
         ChangeNotifierProvider(create: (_) => ProductoProvider()),
         ChangeNotifierProvider(create: (_) => FavoritosProvider()),
+        ChangeNotifierProvider(create: (_) => CuponProvider()),
       ],
       child: Builder(
         builder: (context) {

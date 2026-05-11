@@ -217,16 +217,6 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                   color: AlpesColors.oroGuatemalteco),
             ]),
             const Spacer(),
-            // Acciones
-            _HeaderBtn(
-              icon: Icons.search_rounded,
-              onTap: _mostrarAcceso,
-            ),
-            const SizedBox(width: 4),
-            _HeaderBtn(
-              icon: Icons.favorite_border_rounded,
-              onTap: _mostrarAcceso,
-            ),
             const SizedBox(width: 8),
             // Botón acceso
             GestureDetector(

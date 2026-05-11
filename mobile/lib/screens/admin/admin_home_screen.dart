@@ -61,6 +61,7 @@ const _navSections = [
     _NavEntry(label: 'Órdenes',   icon: Icons.receipt_long_rounded, route: '/admin/ordenes',  showBadge: true),
     _NavEntry(label: 'Clientes',  icon: Icons.people_alt_rounded,   route: '/admin/clientes'),
     _NavEntry(label: 'Marketing', icon: Icons.campaign_rounded,     route: '/admin/marketing'),
+    _NavEntry(label: 'Cupones',   icon: Icons.local_offer_rounded,  route: '/admin/cupones'),
     _NavEntry(label: 'Reportes',  icon: Icons.bar_chart_rounded,    route: '/admin/reportes'),
   ]),
   _NavSection(title: 'Operativa', entries: [
@@ -80,6 +81,7 @@ const _modules = [
   {'label': 'Órdenes',     'icon': Icons.receipt_long_rounded,    'route': '/admin/ordenes'},
   {'label': 'Clientes',    'icon': Icons.people_alt_rounded,      'route': '/admin/clientes'},
   {'label': 'Marketing',   'icon': Icons.campaign_rounded,        'route': '/admin/marketing'},
+  {'label': 'Cupones',     'icon': Icons.local_offer_rounded,     'route': '/admin/cupones'},
   {'label': 'Reportes',    'icon': Icons.bar_chart_rounded,       'route': '/admin/reportes'},
   {'label': 'Empleados',   'icon': Icons.badge_rounded,           'route': '/admin/empleados'},
   {'label': 'Nómina',      'icon': Icons.payments_rounded,        'route': '/admin/nomina'},

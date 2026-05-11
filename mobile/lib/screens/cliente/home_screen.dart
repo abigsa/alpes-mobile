@@ -25,6 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _miCuentaOpen = true;
   bool _tiendaOpen = true;
 
+  // Nombre real del cliente
+  String _nombreCliente = '';
+
   // KPIs
   int _totalPedidos = 0;
   int _enCamino = 0;
@@ -60,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([
       _cargarOrdenes(auth.clienteId!),
       _cargarTarjetas(auth.clienteId!),
+      _cargarNombreCliente(auth.clienteId!),
     ]);
     if (mounted) setState(() => _loading = false);
   }
@@ -133,11 +137,28 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
+  Future<void> _cargarNombreCliente(int clienteId) async {
+    try {
+      final res = await http.get(Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.cliente}/$clienteId'));
+      final data = jsonDecode(res.body);
+      if (data['ok'] == true && data['data'] != null) {
+        final cli = data['data'] is List
+            ? (data['data'] as List).first
+            : data['data'];
+        final nombre = (cli['NOMBRES'] ?? cli['nombres'] ?? cli['NOMBRE'] ?? cli['nombre'] ?? '').toString().trim();
+        final apellido = (cli['APELLIDOS'] ?? cli['apellidos'] ?? cli['APELLIDO'] ?? cli['apellido'] ?? '').toString().trim();
+        final full = '$nombre $apellido'.trim();
+        if (full.isNotEmpty && mounted) setState(() => _nombreCliente = full);
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final carrito = context.watch<CarritoProvider>();
-    final nombre = auth.nombreCompleto;
+    final nombre = _nombreCliente.isNotEmpty ? _nombreCliente : auth.nombreCompleto;
     final initial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U';
     final email = auth.usuario?['EMAIL'] ?? auth.usuario?['email'] ?? '';
     final w = MediaQuery.of(context).size.width;
@@ -370,9 +391,6 @@ class _HomeScreenState extends State<HomeScreen> {
               _sidebarItem(
                   Icons.grid_view_rounded, 'Catálogo', 'catalogo', context,
                   route: '/catalogo'),
-              _sidebarItem(
-                  Icons.history_rounded, 'Historial', 'historial', context,
-                  route: '/mis-ordenes'),
               _sidebarItem(Icons.notifications_outlined, 'Notificaciones',
                   'notif', context,
                   route: '/notificaciones'),
@@ -451,10 +469,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _sidebarItem(
       IconData icon, String label, String seccion, BuildContext context,
-      {String? route, int badge = 0}) {
+      {String? route, int badge = 0, VoidCallback? onTapExtra}) {
     final active = _seccionActiva == seccion;
     return GestureDetector(
       onTap: () {
+        onTapExtra?.call();
         if (route != null && route != '') {
           context.go(route);
         } else {
@@ -639,20 +658,116 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AlpesColors.cafeOscuro,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          Container(
-              width: 36,
-              height: 3,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2))),
-          _buildSidebar(context, auth, nombre, initial, '',
-              context.read<CarritoProvider>()),
-        ]),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            Container(
+                width: 36,
+                height: 3,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2))),
+            _buildSidebarMobile(ctx, setSheetState, auth, nombre, initial,
+                context.read<CarritoProvider>()),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarMobile(
+      BuildContext ctx,
+      StateSetter setSheetState,
+      AuthProvider auth,
+      String nombre,
+      String initial,
+      CarritoProvider carrito) {
+    bool miCuentaOpen = true;
+    bool tiendaOpen = true;
+    return StatefulBuilder(
+      builder: (ctx2, setSS) => Expanded(
+        child: SingleChildScrollView(
+          child: Column(children: [
+            // Header usuario
+            Container(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(children: [
+                Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                        color: AlpesColors.oroGuatemalteco,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: Text(initial,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w800,
+                            color: AlpesColors.cafeOscuro))),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(nombre,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 13,
+                            fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis)),
+              ]),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            // MI CUENTA
+            _sidebarGroupHeader('MI CUENTA', miCuentaOpen,
+                () => setSS(() => miCuentaOpen = !miCuentaOpen)),
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 200),
+              crossFadeState: miCuentaOpen
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(children: [
+                _sidebarItem(Icons.home_rounded, 'Inicio', 'inicio', ctx,
+                    onTapExtra: () => Navigator.pop(ctx)),
+                _sidebarItem(Icons.receipt_long_rounded, 'Mis pedidos',
+                    'pedidos', ctx,
+                    route: '/mis-ordenes', badge: _enCamino,
+                    onTapExtra: () => Navigator.pop(ctx)),
+                _sidebarItem(Icons.location_on_rounded, 'Tracking',
+                    'tracking', ctx,
+                    route: _ultimoEnvio != null
+                        ? '/seguimiento/${_ultimoEnvio!["ORDEN_VENTA_ID"] ?? _ultimoEnvio!["orden_venta_id"]}'
+                        : '/mis-ordenes',
+                    onTapExtra: () => Navigator.pop(ctx)),
+              ]),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            // TIENDA
+            _sidebarGroupHeader('TIENDA', tiendaOpen,
+                () => setSS(() => tiendaOpen = !tiendaOpen)),
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 200),
+              crossFadeState: tiendaOpen
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(children: [
+                _sidebarItem(Icons.grid_view_rounded, 'Catálogo', 'catalogo',
+                    ctx, route: '/catalogo',
+                    onTapExtra: () => Navigator.pop(ctx)),
+                _sidebarItem(Icons.notifications_outlined, 'Notificaciones',
+                    'notif', ctx, route: '/notificaciones',
+                    onTapExtra: () => Navigator.pop(ctx)),
+              ]),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            // Cerrar sesión
+            _sidebarItem(Icons.logout_rounded, 'Cerrar sesión', '', ctx,
+                onTapExtra: () async {
+              Navigator.pop(ctx);
+              await auth.logout();
+              if (ctx.mounted) ctx.go('/login');
+            }),
+          ]),
+        ),
       ),
     );
   }
@@ -839,7 +954,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── BANNER BIENVENIDA ────────────────────────────────────
   Widget _buildBannerBienvenida(BuildContext context, AuthProvider auth) {
-    final nombre = auth.nombreCompleto.split(' ').first;
+    final nombre = (_nombreCliente.isNotEmpty ? _nombreCliente : auth.nombreCompleto).split(' ').first;
     final hora = DateTime.now().hour;
     final saludo = hora < 12
         ? 'Buenos dias'

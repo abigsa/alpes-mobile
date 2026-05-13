@@ -3,6 +3,18 @@ const { getConnection } = require("../config/db");
 const { readCursor, closeConn } = require("../utils/oracle");
 const PKG = "PKG_CUPON";
 
+function parseFechaFlutter(fechaStr) {
+  // Recibe: "2026-05-09" de Flutter
+  // Devuelve: Date object para Oracle
+  if (!fechaStr) return null;
+  try {
+    const [year, month, day] = fechaStr.toString().split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
+  } catch (e) {
+    return null;
+  }
+}
+
 async function insertar(data) {
   const conn = await getConnection();
   try {
@@ -11,11 +23,11 @@ async function insertar(data) {
       {
         p_codigo: data.codigo,
         p_descripcion: data.descripcion,
-        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
-        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
+        p_vigencia_inicio: parseFechaFlutter(data.vigencia_inicio),
+        p_vigencia_fin: parseFechaFlutter(data.vigencia_fin),
         p_limite_uso_total: data.limite_uso_total,
         p_limite_uso_por_cliente: data.limite_uso_por_cliente,
-        p_usos_actuales: data.usos_actuales,
+        p_usos_actuales: data.usos_actuales || 0,
         p_cupon_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
@@ -33,11 +45,11 @@ async function actualizar(data) {
         p_cupon_id: data.cupon_id,
         p_codigo: data.codigo,
         p_descripcion: data.descripcion,
-        p_vigencia_inicio: data.vigencia_inicio ? new Date(data.vigencia_inicio + "T12:00:00") : null,
-        p_vigencia_fin: data.vigencia_fin ? new Date(data.vigencia_fin + "T12:00:00") : null,
+        p_vigencia_inicio: parseFechaFlutter(data.vigencia_inicio),
+        p_vigencia_fin: parseFechaFlutter(data.vigencia_fin),
         p_limite_uso_total: data.limite_uso_total,
         p_limite_uso_por_cliente: data.limite_uso_por_cliente,
-        p_usos_actuales: data.usos_actuales,
+        p_usos_actuales: data.usos_actuales || 0,
       }
     );
     await conn.commit();

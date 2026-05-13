@@ -40,6 +40,7 @@ import '../screens/admin/proveedores/proveedores_screen.dart';
 import '../screens/admin/compras/ordenes_compra_screen.dart';
 import '../screens/admin/produccion/produccion_screen.dart';
 import '../screens/admin/marketing/marketing_screen.dart';
+import '../screens/admin/marketing/cupones_screen.dart';
 import '../screens/admin/reportes/reportes_screen.dart';
 import '../screens/admin/configuracion/configuracion_screen.dart';
 
@@ -191,6 +192,8 @@ class AppRouter {
         GoRoute(
             path: '/admin/marketing',
             builder: (_, __) => const MarketingScreen()),
+        GoRoute(
+            path: '/admin/cupones', builder: (_, __) => const CuponesScreen()),
         GoRoute(
             path: '/admin/reportes',
             builder: (_, __) => const ReportesScreen()),

@@ -1,9 +1,12 @@
 const router = require("express").Router();
 const ctrl = require("../controllers/cupon.controller");
+
 router.get("/", ctrl.listar);
 router.get("/buscar", ctrl.buscar);
 router.get("/:id", ctrl.obtener);
 router.post("/", ctrl.crear);
+router.post("/validar", ctrl.validar);
 router.put("/:id", ctrl.actualizar);
 router.delete("/:id", ctrl.eliminar);
+
 module.exports = router;

@@ -54,8 +54,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
       final res = await http.get(Uri.parse(
           '${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}/buscar?criterio=cli_id&valor=$clienteId'));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
-        favoritos = (data['data'] as List).length;
+      if (data['ok'] == true && data['data'] is List) {
+        final lista = data['data'] as List;
+        // Filtrar por cli_id en caso de que el endpoint devuelva todo
+        favoritos = lista.where((item) {
+          final id = item['CLI_ID'] ?? item['cli_id'];
+          return id?.toString() == clienteId.toString();
+        }).length;
       }
     } catch (_) {}
 
@@ -64,8 +69,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
       final res = await http.get(Uri.parse(
           '${ApiConfig.baseUrl}${ApiConfig.resenas}/buscar?criterio=cli_id&valor=$clienteId'));
       final data = jsonDecode(res.body);
-      if (data['ok'] == true) {
-        resenas = (data['data'] as List).length;
+      if (data['ok'] == true && data['data'] is List) {
+        final lista = data['data'] as List;
+        resenas = lista.where((item) {
+          final id = item['CLI_ID'] ?? item['cli_id'];
+          return id?.toString() == clienteId.toString();
+        }).length;
       }
     } catch (_) {}
 

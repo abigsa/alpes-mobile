@@ -8,6 +8,7 @@ import '../../config/theme.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/carrito_provider.dart';
+import '../../providers/cupon_provider.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -30,7 +31,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   final _tarjetaFormKey = GlobalKey<FormState>();
   final _titularCtrl = TextEditingController();
-  final _ultimos4Ctrl = TextEditingController();
+  final _numeroCtrl = TextEditingController();
   final _mesCtrl = TextEditingController();
   final _anioCtrl = TextEditingController();
   final _aliasCtrl = TextEditingController();
@@ -81,6 +82,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (_) {}
   }
 
+  Future<void> _validarCupon(BuildContext context) async {
+    final codigo = _cuponCtrl.text.trim();
+    if (codigo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ingresa un código de cupón'),
+          backgroundColor: AlpesColors.aviso));
+      return;
+    }
+
+    final carrito = context.read<CarritoProvider>();
+    final cupon = context.read<CuponProvider>();
+    
+    final resultado = await cupon.validarCupon(codigo, carrito.total);
+    if (!resultado && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(cupon.mensajeCupon ?? 'Error al validar cupón'),
+          backgroundColor: Colors.red));
+    }
+  }
+
   Future<void> _guardarNuevaTarjeta() async {
     if (!_tarjetaFormKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
@@ -92,7 +113,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         body: jsonEncode({
           'cli_id': auth.clienteId,
           'titular': _titularCtrl.text.trim(),
-          'ultimos_4': _ultimos4Ctrl.text.trim(),
+          'ultimos_4': _numeroCtrl.text.replaceAll(' ', '').trim().length >= 4
+              ? _numeroCtrl.text.replaceAll(' ', '').trim().substring(_numeroCtrl.text.replaceAll(' ', '').trim().length - 4)
+              : _numeroCtrl.text.replaceAll(' ', '').trim(),
           'marca': _marcaSeleccionada,
           'mes_vencimiento': int.tryParse(_mesCtrl.text.trim()),
           'anio_vencimiento': int.tryParse(_anioCtrl.text.trim()),
@@ -102,7 +125,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true || res.statusCode == 201) {
-        _titularCtrl.clear(); _ultimos4Ctrl.clear();
+        _titularCtrl.clear(); _numeroCtrl.clear();
         _mesCtrl.clear(); _anioCtrl.clear(); _aliasCtrl.clear();
         setState(() { _mostrarFormTarjeta = false; _marcaSeleccionada = 'VISA'; });
         await _cargarTarjetas();
@@ -137,6 +160,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     final auth = context.read<AuthProvider>();
     final carrito = context.read<CarritoProvider>();
+    final cupon = context.read<CuponProvider>();
+    
     if (auth.clienteId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Sesión inválida. Vuelve a iniciar sesión.'),
@@ -145,6 +170,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     setState(() => _procesando = true);
     try {
+      // Calcular totales con descuento
+      final subtotal = carrito.total;
+      final descuento = cupon.descuentoAplicado;
+      final subtotalConDescuento = subtotal - descuento;
+      final impuesto = subtotalConDescuento * 0.12;
+      final totalFinal = subtotalConDescuento + impuesto;
+
       final ordenRes = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
         headers: {'Content-Type': 'application/json'},
@@ -153,13 +185,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'cli_id': auth.clienteId,
           'estado_orden_id': 30,
           'fecha_orden': DateTime.now().toIso8601String(),
-          'subtotal': carrito.total,
-          'descuento': 0,
-          'impuesto': carrito.total * 0.12,
-          'total': carrito.total * 1.12,
+          'subtotal': subtotal,
+          'descuento': descuento, // Ahora incluye el descuento del cupón
+          'impuesto': impuesto,
+          'total': totalFinal,
           'moneda': 'GTQ',
           'direccion_envio_snapshot': _direccionCtrl.text,
-          'observaciones': '',
+          'observaciones': cupon.cuponAplicado != null ? 'Cupón aplicado: ${cupon.cuponAplicado!['codigo']}' : '',
           'estado': 'ACTIVO',
         }),
       );
@@ -407,16 +439,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     ),
                                     const SizedBox(height: 12),
                                     TextFormField(
-                                      controller: _ultimos4Ctrl,
-                                      decoration: _inputDeco('Últimos 4 dígitos'),
+                                      controller: _numeroCtrl,
+                                      decoration: _inputDeco('Número de tarjeta').copyWith(counterText: ''),
                                       keyboardType: TextInputType.number,
+                                      maxLength: 19,
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
-                                        LengthLimitingTextInputFormatter(4),
+                                        LengthLimitingTextInputFormatter(16),
+                                        _CardNumberFormatter(),
                                       ],
                                       validator: (v) {
-                                        if (v == null || v.isEmpty) return 'Requerido';
-                                        if (v.length != 4) return 'Deben ser 4 dígitos';
+                                        final digits = (v ?? '').replaceAll(' ', '');
+                                        if (digits.isEmpty) return 'Requerido';
+                                        if (digits.length != 16) return 'Ingresa los 16 dígitos';
                                         return null;
                                       },
                                     ),
@@ -494,47 +529,159 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 20),
                     _sectionLabel(Icons.discount_rounded, 'Cupón de descuento'),
                     const SizedBox(height: 10),
-                    Container(
-                      decoration: _cardDeco(),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      child: Row(children: [
-                        Expanded(child: TextFormField(
-                          controller: _cuponCtrl,
-                          decoration: const InputDecoration(
-                            hintText: 'Código de cupón',
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            prefixIcon: Icon(Icons.local_offer_rounded,
-                                color: AlpesColors.nogalMedio, size: 18),
-                          ),
-                        )),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Aplicar',
-                              style: TextStyle(fontWeight: FontWeight.w700,
-                                  color: AlpesColors.cafeOscuro)),
-                        ),
-                      ]),
+                    Consumer<CuponProvider>(
+                      builder: (context, cupon, _) {
+                        final tieneCupon = cupon.cuponAplicado != null;
+                        return Column(
+                          children: [
+                            if (!tieneCupon)
+                              Container(
+                                decoration: _cardDeco(),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                child: Row(children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _cuponCtrl,
+                                      enabled: !cupon.cargando,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Código de cupón',
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        filled: false,
+                                        prefixIcon: Icon(Icons.local_offer_rounded,
+                                            color: AlpesColors.nogalMedio, size: 18),
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: cupon.cargando
+                                        ? null
+                                        : () => _validarCupon(context),
+                                    child: cupon.cargando
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                AlpesColors.cafeOscuro,
+                                              ),
+                                            ),
+                                          )
+                                        : const Text('Aplicar',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                color: AlpesColors.cafeOscuro)),
+                                  ),
+                                ]),
+                              )
+                            else
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.green,
+                                    width: 2,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle,
+                                        color: Colors.green, size: 24),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Cupón aplicado: ${cupon.cuponAplicado!['codigo']}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Descuento: Q ${cupon.descuentoAplicado.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        context
+                                            .read<CuponProvider>()
+                                            .limpiarCupon();
+                                        _cuponCtrl.clear();
+                                      },
+                                      icon: const Icon(Icons.close,
+                                          color: Colors.grey),
+                                      iconSize: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (cupon.mensajeCupon != null &&
+                                cupon.cuponAplicado == null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  cupon.mensajeCupon!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 
                     _sectionLabel(Icons.receipt_rounded, 'Resumen del pedido'),
                     const SizedBox(height: 10),
-                    Container(
-                      decoration: _cardDeco(),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(children: [
-                        _resumenRow('Subtotal', 'Q ${carrito.total.toStringAsFixed(2)}', false),
-                        const SizedBox(height: 10),
-                        _resumenRow('IVA (12%)', 'Q ${(carrito.total * 0.12).toStringAsFixed(2)}', false),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Divider(color: AlpesColors.pergamino),
-                        ),
-                        _resumenRow('Total', 'Q ${(carrito.total * 1.12).toStringAsFixed(2)}', true),
-                      ]),
+                    Consumer<CuponProvider>(
+                      builder: (context, cupon, _) {
+                        final subtotal = carrito.total;
+                        final descuento = cupon.descuentoAplicado;
+                        final subtotalConDescuento = subtotal - descuento;
+                        final impuesto = subtotalConDescuento * 0.12;
+                        final total = subtotalConDescuento + impuesto;
+
+                        return Container(
+                          decoration: _cardDeco(),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(children: [
+                            _resumenRow('Subtotal',
+                                'Q ${subtotal.toStringAsFixed(2)}', false),
+                            if (descuento > 0) ...[
+                              const SizedBox(height: 10),
+                              _resumenRow('Descuento cupón',
+                                  '- Q ${descuento.toStringAsFixed(2)}', false),
+                            ],
+                            const SizedBox(height: 10),
+                            _resumenRow('IVA (12%)', 'Q ${impuesto.toStringAsFixed(2)}',
+                                false),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(color: AlpesColors.pergamino),
+                            ),
+                            _resumenRow('Total',
+                                'Q ${total.toStringAsFixed(2)}', true),
+                          ]),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
 
@@ -607,8 +754,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _direccionCtrl.dispose(); _cuponCtrl.dispose();
-    _titularCtrl.dispose(); _ultimos4Ctrl.dispose();
+    _titularCtrl.dispose(); _numeroCtrl.dispose();
     _mesCtrl.dispose(); _anioCtrl.dispose(); _aliasCtrl.dispose();
     super.dispose();
   }
 }
+
+class _CardNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(' ', '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    final formatted = buffer.toString();
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+

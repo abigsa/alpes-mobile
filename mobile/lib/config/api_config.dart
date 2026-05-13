@@ -1,10 +1,18 @@
 class ApiConfig {
   // Cambia esta URL cuando despliegues el backend
-  static const String baseUrl = 'http://192.168.1.66:3000/api'; //local casa
+  static const String baseUrl = 'http://192.168.3.136:3000/api'; //local casa
 
-  // Endpoints
-  static const String login = '/usuarios/login';
-  static const String registro = '/usuarios/registro';
+  // ===== AUTENTICACIÓN =====
+  static const String autenticacion = '/autenticacion';
+  static const String login = '/autenticacion/login';
+  static const String registro = '/autenticacion/registro';
+  static const String refreshToken = '/autenticacion/refresh';
+  static const String logout = '/autenticacion/logout';
+
+  // ===== USUARIOS =====
+  static const String usuarios = '/usuarios';
+
+  // ===== CLIENTE - CATALOGO =====
   static const String productos = '/productos';
   static const String categorias = '/categorias';
   static const String carrito = '/carritos';
@@ -26,7 +34,7 @@ class ApiConfig {
   static const String historialCompra = '/historial-compra';
   static const String precioHistorico = '/precios-historico';
 
-  // Admin
+  // ===== ADMIN =====
   static const String empleados = '/empleados';
   static const String departamentos = '/departamentos';
   static const String cargos = '/cargos';
@@ -39,6 +47,7 @@ class ApiConfig {
   static const String histLaboral = '/historial-laboral';
   static const String expedienteEmp = '/expedientes-empleado';
 
+  // ===== PROVEEDORES =====
   static const String proveedores = '/proveedores';
   static const String ordenCompra = '/ordenes-compra';
   static const String ordenCompraDet = '/ordenes-compra-detalle';
@@ -48,12 +57,14 @@ class ApiConfig {
   static const String cuentaPagar = '/cuentas-pagar-proveedor';
   static const String pagoProv = '/pagos-proveedor';
 
+  // ===== INVENTARIO =====
   static const String inventarioProducto = '/inventario-producto';
   static const String inventarioMP = '/inventario-materia-prima';
   static const String materiaPrima = '/materias-primas';
   static const String movInv = '/movimientos-inventario';
   static const String movMP = '/movimientos-materia-prima';
 
+  // ===== PRODUCCIÓN =====
   static const String ordenProduccion = '/ordenes-produccion';
   static const String ordenProdTarea = '/ordenes-produccion-tareas';
   static const String planProduccion = '/planes-produccion';
@@ -63,24 +74,27 @@ class ApiConfig {
   static const String listaMateriales = '/listas-materiales';
   static const String listaMatDet = '/listas-materiales-detalle';
 
+  // ===== LOGÍSTICA =====
   static const String herramientas = '/herramientas';
   static const String mantenimiento = '/mantenimiento-herramientas';
   static const String vehiculos = '/vehiculos';
   static const String rutaEntrega = '/rutas-entrega';
 
+  // ===== MARKETING =====
   static const String campanaMarketing = '/campanas-marketing';
   static const String tipoPromocion = '/tipos-promocion';
   static const String promocionProducto = '/promociones-producto';
   static const String reglaPromocion = '/reglas-promocion';
   static const String histPromocion = '/historial-promocion';
 
+  // ===== ENVIOS =====
   static const String zonaEnvio = '/zonas-envio';
   static const String tarifaEnvio = '/tarifas-envio';
   static const String tipoEntrega = '/tipos-entrega';
   static const String politicaEnvio = '/politicas-envio';
   static const String reglaEnvioGratis = '/reglas-envio-gratis';
 
-  static const String usuarios = '/usuarios';
+  // ===== CONFIGURACIÓN =====
   static const String sesiones = '/sesiones';
   static const String rolEmpleado = '/roles-empleado';
   static const String rolPermiso = '/roles-permiso';
@@ -93,4 +107,7 @@ class ApiConfig {
   static const String abastecimiento = '/abastecimientos';
   static const String prefCliente = '/preferencias-cliente';
   static const String cuotasPago = '/cuotas-pago';
+  
+  // ===== UPLOAD =====
+  static const String upload = '/upload';
 }

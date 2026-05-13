@@ -39,7 +39,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
     final result = await auth.registrar({
       'username': _usernameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
-      'password_hash': _passCtrl.text,
+      'contrasena': _passCtrl.text,
+      'nombre': '${_nombresCtrl.text.trim()} ${_apellidosCtrl.text.trim()}',
+      'nombres': _nombresCtrl.text.trim(),
+      'apellidos': _apellidosCtrl.text.trim(),
       'rol_id': 29, // rol cliente
       'estado': 'ACTIVO',
     });
@@ -92,6 +95,28 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 32),
+
+              TextFormField(
+                controller: _nombresCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nombres',
+                  prefixIcon: Icon(Icons.badge_outlined, color: AlpesColors.nogalMedio),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa tus nombres' : null,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _apellidosCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Apellidos',
+                  prefixIcon: Icon(Icons.badge_outlined, color: AlpesColors.nogalMedio),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa tus apellidos' : null,
+              ),
+              const SizedBox(height: 16),
 
               TextFormField(
                 controller: _usernameCtrl,

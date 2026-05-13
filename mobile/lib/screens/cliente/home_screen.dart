@@ -57,7 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _loading = true);
     final auth = context.read<AuthProvider>();
     if (auth.clienteId == null) {
-      setState(() => _loading = false);
+      // Usuario nuevo sin perfil de cliente: al menos mostramos su nombre del auth
+      if (mounted) setState(() => _loading = false);
       return;
     }
     await Future.wait([
@@ -146,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final cli = data['data'] is List
             ? (data['data'] as List).first
             : data['data'];
-        final nombre = (cli['NOMBRES'] ?? cli['nombres'] ?? cli['NOMBRE'] ?? cli['nombre'] ?? '').toString().trim();
+        final nombre   = (cli['NOMBRES']   ?? cli['nombres']   ?? cli['NOMBRE']   ?? cli['nombre']   ?? '').toString().trim();
         final apellido = (cli['APELLIDOS'] ?? cli['apellidos'] ?? cli['APELLIDO'] ?? cli['apellido'] ?? '').toString().trim();
         final full = '$nombre $apellido'.trim();
         if (full.isNotEmpty && mounted) setState(() => _nombreCliente = full);

@@ -61,7 +61,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
           final id = item['CLI_ID'] ?? item['cli_id'];
           return id?.toString() == clienteId.toString();
         }).length;
-        if (favoritos == 0) favoritos = lista.length;
       }
     } catch (_) {}
 
@@ -76,7 +75,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
           final id = item['CLI_ID'] ?? item['cli_id'];
           return id?.toString() == clienteId.toString();
         }).length;
-        if (resenas == 0) resenas = lista.length;
       }
     } catch (_) {}
 

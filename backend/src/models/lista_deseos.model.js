@@ -73,4 +73,16 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// ✅ FIX: función buscar que faltaba — filtra en memoria por criterio/valor
+async function buscar(criterio, valor) {
+  const todos = await listar();
+  if (!criterio || !valor) return todos;
+  const campo = criterio.toLowerCase();
+  return todos.filter(row => {
+    // Intentar varias variantes de mayúsculas/minúsculas del campo
+    const v = row[campo.toUpperCase()] ?? row[campo];
+    return v != null && v.toString() == valor.toString();
+  });
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

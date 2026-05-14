@@ -5,6 +5,7 @@ const w = (fn) => async (req, res) => {
   try {
     await fn(req, res);
   } catch (e) {
+    console.error('❌ Error en controller:', e.message);
     error(res, e.message, e.status || 500);
   }
 };
@@ -15,9 +16,16 @@ module.exports = {
     ok(res, result, "Usuario registrado exitosamente", 201);
   }),
 
+  // ✅ LOGIN - ACEPTA USERNAME (NO EMAIL)
   login: w(async (req, res) => {
-    const { email, contrasena } = req.body;
-    const result = await service.login(email, contrasena);
+    const { username, contrasena } = req.body;
+    console.log('🔐 Controller login recibido:', { username, contrasena });
+    
+    if (!username || !contrasena) {
+      return error(res, "Username y contraseña son requeridos", 400);
+    }
+    
+    const result = await service.login(username, contrasena);
     ok(res, result, "Login exitoso");
   }),
 
@@ -43,4 +51,3 @@ module.exports = {
     ok(res, usuario, "Perfil obtenido");
   }),
 };
-

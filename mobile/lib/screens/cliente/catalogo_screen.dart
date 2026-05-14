@@ -28,6 +28,7 @@ class _CatalogoScreenState extends State<CatalogoScreen>
   final _searchCtrl = TextEditingController();
   TabController? _tabCtrl;
   List<String> _tipos = ['Todos'];
+  bool _cargaIniciada = false; // ✅ evitar doble carga
 
   final _ordenes = {
     'nombre': 'Nombre A–Z',
@@ -40,15 +41,35 @@ class _CatalogoScreenState extends State<CatalogoScreen>
     super.initState();
     _filtroTipo = widget.categoriaInicial?.trim().toUpperCase() ?? 'Todos';
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProductoProvider>().cargarProductos().then((_) {
-        _inicializarTipos();
-      });
+      _cargarProductos();
     });
+  }
+
+  // ✅ FIX: didChangeDependencies se llama cuando el ProxyProvider actualiza
+  // el token en ProductoProvider — así la carga siempre tiene token disponible
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<ProductoProvider>();
+    if (!_cargaIniciada && provider.productos.isEmpty && !provider.loading) {
+      _cargarProductos();
+    }
+  }
+
+  Future<void> _cargarProductos() async {
+    _cargaIniciada = true;
+    final provider = context.read<ProductoProvider>();
+    // Si ya tiene productos, solo inicializar tipos
+    if (provider.productos.isNotEmpty) {
+      _inicializarTipos();
+      return;
+    }
+    await provider.cargarProductos();
+    if (mounted) _inicializarTipos();
   }
 
   void _inicializarTipos() {
     final productos = context.read<ProductoProvider>().productos;
-    // Extraer tipos únicos desde BD, ignorar nulls/vacíos
     final tiposSet = productos
         .map((p) => (p.tipo ?? '').trim().toUpperCase())
         .where((t) => t.isNotEmpty)
@@ -60,7 +81,6 @@ class _CatalogoScreenState extends State<CatalogoScreen>
 
     if (!mounted) return;
 
-    // Reconstruir TabController solo si cambian los tipos
     if (_tipos.length != nuevosTipos.length ||
         !_tipos.every((t) => nuevosTipos.contains(t))) {
       _tabCtrl?.dispose();
@@ -415,6 +435,7 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                     : RefreshIndicator(
                         color: AlpesColors.cafeOscuro,
                         onRefresh: () async {
+                          _cargaIniciada = false;
                           await provider.cargarProductos();
                           _inicializarTipos();
                         },
@@ -483,6 +504,21 @@ class _CatalogoScreenState extends State<CatalogoScreen>
                   fontFamily: 'Poppins',
                   fontSize: 12,
                   color: AlpesColors.nogalMedio)),
+          const SizedBox(height: 20),
+          // ✅ Botón para forzar recarga manual
+          ElevatedButton.icon(
+            onPressed: () {
+              _cargaIniciada = false;
+              _cargarProductos();
+            },
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Recargar', style: TextStyle(fontFamily: 'Poppins')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AlpesColors.cafeOscuro,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
         ]),
       );
 }
@@ -523,7 +559,7 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
           ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── IMAGEN ──
+          // ── IMAGEN ── con BoxFit.contain para que se vea completa
           Expanded(
             flex: 5,
             child: Stack(fit: StackFit.expand, children: [
@@ -532,7 +568,7 @@ class _ProductoCardCatalogoState extends State<_ProductoCardCatalogo> {
                     const BorderRadius.vertical(top: Radius.circular(10)),
                 child: p.imagenUrl != null && p.imagenUrl!.isNotEmpty
                     ? Image.network(p.imagenUrl!,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain, // ✅ contain para ver imagen completa
                         errorBuilder: (_, __, ___) => _placeholder())
                     : _placeholder(),
               ),
@@ -736,7 +772,7 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
           ],
         ),
         child: Row(children: [
-          // Imagen
+          // Imagen ✅ contain para no cortar
           ClipRRect(
             borderRadius:
                 const BorderRadius.horizontal(left: Radius.circular(10)),
@@ -744,7 +780,7 @@ class _ProductoCardListaState extends State<_ProductoCardLista> {
               width: 100,
               child: p.imagenUrl != null && p.imagenUrl!.isNotEmpty
                   ? Image.network(p.imagenUrl!,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Container(
                           color: AlpesColors.cremaFondo,
                           child: const Center(

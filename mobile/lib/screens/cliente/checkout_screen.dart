@@ -75,7 +75,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (auth.clienteId == null) return;
     try {
       final res = await http.get(
-          Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/${auth.clienteId}'));
+        Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/${auth.clienteId}'),
+        headers: {
+          'Authorization': 'Bearer ${auth.token}',
+        },
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true)
         setState(() => _tarjetas = List<Map<String, dynamic>>.from(data['data']));
@@ -109,7 +113,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final res = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${auth.token}',
+        },
         body: jsonEncode({
           'cli_id': auth.clienteId,
           'titular': _titularCtrl.text.trim(),
@@ -179,14 +186,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       final ordenRes = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${auth.token}',
+        },
         body: jsonEncode({
           'num_orden': 'ORD-${DateTime.now().millisecondsSinceEpoch}',
           'cli_id': auth.clienteId,
           'estado_orden_id': 30,
           'fecha_orden': DateTime.now().toIso8601String(),
           'subtotal': subtotal,
-          'descuento': descuento, // Ahora incluye el descuento del cupón
+          'descuento': descuento,
           'impuesto': impuesto,
           'total': totalFinal,
           'moneda': 'GTQ',
@@ -202,7 +212,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       for (final item in carrito.items) {
         await http.post(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${auth.token}',
+          },
           body: jsonEncode({
             'orden_venta_id': ordenId,
             'producto_id': item.productoId,
@@ -216,7 +229,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.pago}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${auth.token}',
+        },
         body: jsonEncode({
           'orden_venta_id': ordenId,
           'metodo_pago_id': _metodoPagoId,
@@ -777,4 +793,3 @@ class _CardNumberFormatter extends TextInputFormatter {
     );
   }
 }
-

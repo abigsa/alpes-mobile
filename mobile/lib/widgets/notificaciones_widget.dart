@@ -376,6 +376,30 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
     _cargar();
   }
 
+  // ✅ FIX 3: resolver el estado igual que en ordenes_venta_screen.dart,
+  // leyendo primero el prefijo [CLAVE] de OBSERVACIONES (que es donde
+  // Oracle guarda el estado real), y como fallback el campo ESTADO texto.
+  // Antes buscaba solo ESTADO/estado que en tu BD es un ID numérico (FK),
+  // por eso nunca hacía match y la campana siempre aparecía vacía.
+  String _resolverEstado(dynamic o) {
+    // PRIORIDAD 1: prefijo [CLAVE] en OBSERVACIONES
+    final obs = (o['OBSERVACIONES'] ?? o['observaciones'] ?? '').toString();
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    if (match != null) {
+      const mapa = {
+        'INGRESADA':  'pendiente',
+        'PENDIENTE':  'pendiente',
+        'EN_PROCESO': 'en proceso',
+        'ENTREGADA':  'entregado',
+        'CANCELADA':  'cancelado',
+      };
+      final clave = match.group(1)!;
+      if (mapa.containsKey(clave)) return mapa[clave]!;
+    }
+    // PRIORIDAD 2: campo ESTADO como texto (si lo tuviera)
+    return (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase().trim();
+  }
+
   Future<void> _cargar() async {
     setState(() => _loading = true);
     final lista = <_Notificacion>[];
@@ -388,15 +412,10 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
       if (data['ok'] == true) {
         final list = data['data'] as List;
 
-        String est(dynamic o) =>
-            (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase().trim();
-
+        // ✅ FIX 3: usar _resolverEstado en todos los filtros
         final nuevos = list.where((o) {
-          final e = est(o);
-          return e == 'nuevo' ||
-              e == 'nueva' ||
-              e == 'pendiente' ||
-              e == 'recibido';
+          final e = _resolverEstado(o);
+          return e == 'nuevo' || e == 'nueva' || e == 'pendiente' || e == 'recibido';
         }).toList();
         if (nuevos.isNotEmpty) {
           lista.add(_Notificacion(
@@ -412,7 +431,7 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final porAprobar = list.where((o) {
-          final e = est(o);
+          final e = _resolverEstado(o);
           return e == 'por aprobar' || e == 'en revision' || e == 'en revisión';
         }).toList();
         if (porAprobar.isNotEmpty) {
@@ -429,11 +448,8 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final aprobadas = list.where((o) {
-          final e = est(o);
-          return e == 'aprobado' ||
-              e == 'aprobada' ||
-              e == 'confirmado' ||
-              e == 'confirmada';
+          final e = _resolverEstado(o);
+          return e == 'aprobado' || e == 'aprobada' || e == 'confirmado' || e == 'confirmada';
         }).toList();
         if (aprobadas.isNotEmpty) {
           lista.add(_Notificacion(
@@ -449,7 +465,7 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final enProceso = list.where((o) {
-          final e = est(o);
+          final e = _resolverEstado(o);
           return e == 'en proceso' ||
               e == 'preparando' ||
               e == 'en preparacion' ||
@@ -469,7 +485,7 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final enRuta = list.where((o) {
-          final e = est(o);
+          final e = _resolverEstado(o);
           return e == 'en camino' ||
               e == 'en ruta' ||
               e == 'enviado' ||
@@ -489,7 +505,7 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final entregados = list.where((o) {
-          final e = est(o);
+          final e = _resolverEstado(o);
           return e == 'entregado' || e == 'entregada';
         }).toList();
         if (entregados.isNotEmpty) {
@@ -506,7 +522,7 @@ class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
         }
 
         final cancelados = list.where((o) {
-          final e = est(o);
+          final e = _resolverEstado(o);
           return e == 'cancelado' ||
               e == 'cancelada' ||
               e == 'rechazado' ||

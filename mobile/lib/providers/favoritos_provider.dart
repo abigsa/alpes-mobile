@@ -6,10 +6,25 @@ import '../config/api_config.dart';
 class FavoritosProvider extends ChangeNotifier {
   final Set<int> _favoritosIds = {};
   bool _loading = false;
+  String? _token; // ✅ token para autenticar requests
 
   Set<int> get favoritosIds => _favoritosIds;
   bool get loading => _loading;
   bool esFavorito(int productoId) => _favoritosIds.contains(productoId);
+
+  // ✅ llamado automáticamente por ProxyProvider en main.dart
+  void setToken(String? token) {
+    _token = token;
+  }
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
+  Map<String, String> get _getHeaders => {
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   Future<void> cargarFavoritos(int clienteId) async {
     _loading = true;
@@ -17,6 +32,7 @@ class FavoritosProvider extends ChangeNotifier {
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}/buscar?criterio=cli_id&valor=$clienteId'),
+        headers: _getHeaders, // ✅
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
@@ -37,12 +53,10 @@ class FavoritosProvider extends ChangeNotifier {
     required int productoId,
   }) async {
     if (_favoritosIds.contains(productoId)) {
-      // Optimistic update: quitar de la UI de inmediato
       _favoritosIds.remove(productoId);
       notifyListeners();
       await _eliminarFavorito(clienteId, productoId);
     } else {
-      // Optimistic update: agregar a la UI de inmediato
       _favoritosIds.add(productoId);
       notifyListeners();
       await _agregarFavorito(clienteId, productoId);
@@ -53,7 +67,7 @@ class FavoritosProvider extends ChangeNotifier {
     try {
       final res = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers, // ✅
         body: jsonEncode({
           'cli_id': clienteId,
           'producto_id': productoId,
@@ -62,7 +76,6 @@ class FavoritosProvider extends ChangeNotifier {
       );
       final data = jsonDecode(res.body);
       if (data['ok'] != true) {
-        // Revertir si falló
         _favoritosIds.remove(productoId);
         notifyListeners();
       }
@@ -76,6 +89,7 @@ class FavoritosProvider extends ChangeNotifier {
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}/buscar?criterio=cli_id&valor=$clienteId'),
+        headers: _getHeaders, // ✅
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
@@ -89,15 +103,16 @@ class FavoritosProvider extends ChangeNotifier {
         }
         if (favorito != null) {
           final id = favorito['LISTA_DESEOS_ID'] ?? favorito['lista_deseos_id'];
-          await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}/$id'));
+          await http.delete(
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.listaDeseseos}/$id'),
+            headers: _getHeaders, // ✅
+          );
         } else {
-          // No se encontró en el servidor, revertir
           _favoritosIds.add(productoId);
           notifyListeners();
         }
       }
     } catch (_) {
-      // Revertir si falló
       _favoritosIds.add(productoId);
       notifyListeners();
     }

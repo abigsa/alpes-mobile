@@ -34,6 +34,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
     final carrito = context.read<CarritoProvider>();
     final favs    = context.watch<FavoritosProvider>();
     final esFav   = favs.esFavorito(widget.productoId);
+    final screenW = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
@@ -105,42 +106,54 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Imagen hero ──
-                          SizedBox(
-                            height: 320,
-                            width: double.infinity,
-                            child: Stack(children: [
-                              Container(
-                                color: AlpesColors.pergamino,
-                                child: _producto!.imagenUrl != null
-                                    ? Image.network(
-                                        _producto!.imagenUrl!,
-                                        width: double.infinity,
-                                        height: 320,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            _imgPlaceholder())
-                                    : _imgPlaceholder(),
-                              ),
-                              if (_producto!.tipo != null)
-                                Positioned(
-                                  bottom: 16, left: 16,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: AlpesColors.cafeOscuro
-                                          .withOpacity(0.85),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(_producto!.tipo!,
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600)),
+                          // ✅ Imagen hero RESPONSIVA — se adapta al ancho de pantalla
+                          LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              // En pantallas anchas (web/tablet) altura proporcional
+                              // En móvil altura fija razonable
+                              final imgH = screenW > 700
+                                  ? (screenW * 0.45).clamp(280.0, 480.0)
+                                  : (screenW * 0.65).clamp(200.0, 320.0);
+                              return SizedBox(
+                                height: imgH,
+                                width: double.infinity,
+                                child: Stack(children: [
+                                  Container(
+                                    color: AlpesColors.pergamino,
+                                    width: double.infinity,
+                                    height: imgH,
+                                    child: _producto!.imagenUrl != null
+                                        ? Image.network(
+                                            _producto!.imagenUrl!,
+                                            width: double.infinity,
+                                            height: imgH,
+                                            // ✅ contain para ver imagen completa sin recortar
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, __, ___) =>
+                                                _imgPlaceholder())
+                                        : _imgPlaceholder(),
                                   ),
-                                ),
-                            ]),
+                                  if (_producto!.tipo != null)
+                                    Positioned(
+                                      bottom: 16, left: 16,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: AlpesColors.cafeOscuro
+                                              .withOpacity(0.85),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(_producto!.tipo!,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                ]),
+                              );
+                            },
                           ),
 
                           // ── Info card ──

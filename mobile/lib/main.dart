@@ -7,6 +7,7 @@ import 'providers/producto_provider.dart';
 import 'providers/favoritos_provider.dart';
 import 'providers/cupon_provider.dart';
 import 'router/app_router.dart';
+import 'utils/http_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,9 +22,33 @@ class AlpesApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => CarritoProvider()),
-        ChangeNotifierProvider(create: (_) => ProductoProvider()),
-        ChangeNotifierProvider(create: (_) => FavoritosProvider()),
+
+        ChangeNotifierProxyProvider<AuthProvider, ProductoProvider>(
+          create: (_) => ProductoProvider(),
+          update: (_, auth, producto) {
+            // ✅ Actualiza token global y en cada provider
+            ApiClient.setToken(auth.token);
+            producto!.setToken(auth.token);
+            return producto;
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, CarritoProvider>(
+          create: (_) => CarritoProvider(),
+          update: (_, auth, carrito) {
+            carrito!.setToken(auth.token);
+            return carrito;
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, FavoritosProvider>(
+          create: (_) => FavoritosProvider(),
+          update: (_, auth, favoritos) {
+            favoritos!.setToken(auth.token);
+            return favoritos;
+          },
+        ),
+
         ChangeNotifierProvider(create: (_) => CuponProvider()),
       ],
       child: Builder(

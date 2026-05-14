@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../config/theme.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/http_client.dart';
 
 class MisResenasScreen extends StatefulWidget {
   const MisResenasScreen({super.key});
@@ -36,73 +37,69 @@ class _MisResenasScreenState extends State<MisResenasScreen> {
     }
 
     try {
-      // Cargar reseñas del cliente
-      final resRes = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.resenas}/buscar?criterio=cli_id&valor=$clienteId'));
+      // 1. Cargar reseñas del cliente
+      final resRes = await ApiClient.get(
+          '${ApiConfig.baseUrl}${ApiConfig.resenas}/buscar?criterio=cli_id&valor=$clienteId');
       final resData = jsonDecode(resRes.body);
       List<Map<String, dynamic>> resenas = [];
       if (resData['ok'] == true) {
         resenas = List<Map<String, dynamic>>.from(resData['data'] ?? []);
       }
 
-      // Cargar productos comprados de órdenes (sin restricción de estado)
-      final ordRes = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=$clienteId'));
-      final ordData = jsonDecode(ordRes.body);
-      List<Map<String, dynamic>> productosComprados = [];
-      final idsYaReseniados = resenas
-          .map((r) => (r['PRODUCTO_ID'] ?? r['producto_id'])?.toString())
-          .toSet();
-
-      if (ordData['ok'] == true) {
-        final ordenes = List<Map<String, dynamic>>.from(ordData['data'] ?? []);
-        
-        for (final orden in ordenes) {
-          final ordenId = orden['ORDEN_VENTA_ID'] ?? orden['orden_venta_id'];
-          if (ordenId == null) continue;
-
-          try {
-            final detRes = await http.get(Uri.parse(
-                '${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}/buscar?criterio=orden_venta_id&valor=$ordenId'));
-            final detData = jsonDecode(detRes.body);
-            if (detData['ok'] == true) {
-              final detalles = List<Map<String, dynamic>>.from(detData['data'] ?? []);
-              for (final det in detalles) {
-                final prodId = (det['PRODUCTO_ID'] ?? det['producto_id'])?.toString();
-                if (prodId != null && !idsYaReseniados.contains(prodId)) {
-                  productosComprados.add({
-                    'producto_id': prodId,
-                    'nombre': det['PRODUCTO_NOMBRE'] ?? det['nombre'] ?? 'Producto',
-                    'imagen': det['IMAGEN'] ?? det['imagen'],
-                  });
-                  idsYaReseniados.add(prodId);
-                }
-              }
+      // 2. Catálogo como mapa de lookup para nombre e imagen
+      Map<String, Map<String, dynamic>> catalogoMap = {};
+      try {
+        final catRes = await ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.productos}');
+        final catData = jsonDecode(catRes.body);
+        if (catData['ok'] == true) {
+          for (final p in (catData['data'] as List)) {
+            final id = (p['PRODUCTO_ID'] ?? p['producto_id'])?.toString();
+            if (id != null) {
+              catalogoMap[id] = {
+                'nombre': p['NOMBRE'] ?? p['nombre'] ?? 'Producto',
+                'imagen': p['IMAGEN_URL'] ?? p['IMAGEN'] ?? p['imagen_url'] ?? p['imagen'],
+              };
             }
-          } catch (_) {}
+          }
+        }
+      } catch (_) {}
+
+      // 3. Enriquecer reseñas con nombre/imagen del catálogo
+      for (int i = 0; i < resenas.length; i++) {
+        final r = resenas[i];
+        final prodId = (r['PRODUCTO_ID'] ?? r['producto_id'])?.toString();
+        if (prodId != null && catalogoMap.containsKey(prodId)) {
+          if ((r['PRODUCTO_NOMBRE'] ?? r['nombre_producto']) == null) {
+            resenas[i] = {
+              ...r,
+              'PRODUCTO_NOMBRE': catalogoMap[prodId]!['nombre'],
+              'IMAGEN': catalogoMap[prodId]!['imagen'],
+            };
+          }
         }
       }
 
-      // Si no hay productos comprados, cargar todo el catálogo
-      if (productosComprados.isEmpty) {
-        try {
-          final catRes = await http.get(Uri.parse(
-              '${ApiConfig.baseUrl}${ApiConfig.productos}/listar'));
-          final catData = jsonDecode(catRes.body);
-          if (catData['ok'] == true) {
-            final productos = List<Map<String, dynamic>>.from(catData['data'] ?? []);
-            for (final prod in productos) {
-              final prodId = (prod['PRODUCTO_ID'] ?? prod['producto_id'])?.toString();
-              if (prodId != null && !idsYaReseniados.contains(prodId)) {
-                productosComprados.add({
-                  'producto_id': prodId,
-                  'nombre': prod['NOMBRE'] ?? prod['nombre'] ?? 'Producto',
-                  'imagen': prod['IMAGEN'] ?? prod['imagen'],
-                });
-              }
-            }
+      final idsYaReseniados = resenas
+          .map((r) => (r['PRODUCTO_ID'] ?? r['producto_id'])?.toString())
+          .where((id) => id != null)
+          .toSet();
+
+      // ✅ FIX: Mostrar SIEMPRE el catálogo completo en el dropdown,
+      // excluyendo solo los productos que ya tienen reseña de este cliente.
+      List<Map<String, dynamic>> productosComprados = [];
+      if (catalogoMap.isNotEmpty) {
+        for (final entry in catalogoMap.entries) {
+          if (!idsYaReseniados.contains(entry.key)) {
+            productosComprados.add({
+              'producto_id': entry.key,
+              'nombre': entry.value['nombre'],
+              'imagen': entry.value['imagen'],
+            });
           }
-        } catch (_) {}
+        }
+        // Ordenar por nombre para mejor UX
+        productosComprados.sort((a, b) =>
+            (a['nombre'] as String).compareTo(b['nombre'] as String));
       }
 
       if (mounted) {
@@ -160,8 +157,7 @@ class _MisResenasScreenState extends State<MisResenasScreen> {
     );
     if (confirm != true) return;
     try {
-      await http.delete(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.resenas}/$resenaId'));
+      await ApiClient.delete('${ApiConfig.baseUrl}${ApiConfig.resenas}/$resenaId');
       _cargarDatos();
     } catch (e) {
       if (mounted) {
@@ -440,18 +436,15 @@ class _FormularioResenaState extends State<_FormularioResena> {
     try {
       final now = DateTime.now().toIso8601String();
       
-      // Determine product ID for new review
       int? productoId;
       if (_esEdicion) {
         productoId = int.tryParse(
             ((widget.resenaExistente!['PRODUCTO_ID'] ?? 
               widget.resenaExistente!['producto_id']).toString())) ?? 0;
       } else {
-        // If we have a selected product from dropdown, use it
         if (_productoSeleccionadoId != null && _productoSeleccionadoId!.isNotEmpty) {
           productoId = int.tryParse(_productoSeleccionadoId!) ?? 0;
         } else {
-          // Otherwise, try to parse manual product name as ID if it's numeric
           final nombreInput = _nombreProductoCtrl.text.trim();
           if (nombreInput.isNotEmpty) {
             productoId = int.tryParse(nombreInput) ?? 999;
@@ -462,28 +455,26 @@ class _FormularioResenaState extends State<_FormularioResena> {
       if (_esEdicion) {
         final r = widget.resenaExistente!;
         final resenaId = r['RESENA_ID'] ?? r['resena_id'];
-        await http.put(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.resenas}/$resenaId'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
+        await ApiClient.put(
+          '${ApiConfig.baseUrl}${ApiConfig.resenas}/$resenaId',
+          body: {
             'cli_id': widget.clienteId,
             'producto_id': productoId,
             'calificacion': _calificacion,
             'comentario': _comentarioCtrl.text.trim(),
             'resena_at': now,
-          }),
+          },
         );
       } else {
-        await http.post(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.resenas}'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
+        await ApiClient.post(
+          '${ApiConfig.baseUrl}${ApiConfig.resenas}',
+          body: {
             'cli_id': widget.clienteId,
             'producto_id': productoId ?? 0,
             'calificacion': _calificacion,
             'comentario': _comentarioCtrl.text.trim(),
             'resena_at': now,
-          }),
+          },
         );
       }
       widget.onGuardado();
@@ -551,7 +542,7 @@ class _FormularioResenaState extends State<_FormularioResena> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 child: Row(children: [
-                                  // Foto del producto
+                                  // ✅ FIX 2: imagen ya viene enriquecida desde el catálogo
                                   Container(
                                     width: 50,
                                     height: 50,
@@ -574,7 +565,7 @@ class _FormularioResenaState extends State<_FormularioResena> {
                                             color: AlpesColors.arenaCalida),
                                   ),
                                   const SizedBox(width: 12),
-                                  // Nombre del producto
+                                  // ✅ FIX 2: nombre ya viene enriquecido desde el catálogo
                                   Expanded(
                                     child: Text(
                                       p['nombre']?.toString() ?? 'Producto',

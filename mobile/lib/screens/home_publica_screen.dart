@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +34,8 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
 
   // ── Slider ──
   int _bannerActivo = 0;
-  final PageController _pageCtrl = PageController(viewportFraction: 0.88);
+  final PageController _pageCtrl = PageController();
+  Timer? _autoScrollTimer;
 
   final List<_HeroSlide> _slides = const [
     _HeroSlide(
@@ -45,7 +47,7 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
     ),
     _HeroSlide(
       etiqueta: 'LINEA COLONIAL',
-      titulo:   'Herencia\nque se\nse sienta',
+      titulo:   'Herencia\nque\nse sienta',
       subtitulo:'Diseño colonial con acabados artesanales de alta durabilidad',
       colorFondo: Color(0xFF1A3A2A),
       colorAccento: Color(0xFFC4A882),
@@ -60,12 +62,8 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
   ];
 
   final List<_Categoria> _categorias = const [
-    _Categoria('Sala',       Icons.weekend_rounded,            Color(0xFF3A2E28)),
-    _Categoria('Comedor',    Icons.table_restaurant_rounded,   Color(0xFF2A3A28)),
-    _Categoria('Dormitorio', Icons.bed_rounded,                Color(0xFF28303A)),
-    _Categoria('Oficina',    Icons.chair_rounded,              Color(0xFF3A283A)),
-    _Categoria('Exterior',   Icons.deck_rounded,               Color(0xFF1A3A2A)),
-    _Categoria('Accesorios', Icons.light_rounded,              Color(0xFF3A3A28)),
+    _Categoria('Interior',  Icons.weekend_rounded,  Color(0xFF2C1810)),
+    _Categoria('Exterior',  Icons.deck_rounded,     Color(0xFF1A3A2A)),
   ];
 
   @override
@@ -85,10 +83,21 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
         .animate(CurvedAnimation(parent: _heroCtrl, curve: Curves.easeOut));
     _heroCtrl.forward();
     _cargarProductos();
+    // Auto-avance del carrusel cada 4 segundos
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      final siguiente = (_bannerActivo + 1) % _slides.length;
+      _pageCtrl.animateToPage(
+        siguiente,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
   void dispose() {
+    _autoScrollTimer?.cancel();
     _entradaCtrl.dispose();
     _heroCtrl.dispose();
     _pageCtrl.dispose();
@@ -116,18 +125,19 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
   }
 
   // ── Helpers de acceso ──
-  void _irALogin()    => context.go('/login');
+  void _irALogin({String? categoria})    => context.go('/login', extra: categoria);
   void _irARegistro() => context.go('/registro');
 
-  void _mostrarAcceso() {
+  void _mostrarAcceso({String? categoria}) {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _ModalAcceso(
-        onLogin:    _irALogin,
+        onLogin:    () => _irALogin(categoria: categoria),
         onRegistro: _irARegistro,
+        categoria:  categoria,
       ),
     );
   }
@@ -207,16 +217,6 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                   color: AlpesColors.oroGuatemalteco),
             ]),
             const Spacer(),
-            // Acciones
-            _HeaderBtn(
-              icon: Icons.search_rounded,
-              onTap: _mostrarAcceso,
-            ),
-            const SizedBox(width: 4),
-            _HeaderBtn(
-              icon: Icons.favorite_border_rounded,
-              onTap: _mostrarAcceso,
-            ),
             const SizedBox(width: 8),
             // Botón acceso
             GestureDetector(
@@ -247,9 +247,13 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             children: [
-              'Sala', 'Comedor', 'Dormitorio',
-              'Oficina', 'Exterior', 'Accesorios', 'Ofertas',
-            ].map((c) => _NavChip(label: c, onTap: _mostrarAcceso)).toList(),
+              'Interior', 'Exterior', 'Ofertas',
+            ].map((c) => _NavChip(
+              label: c,
+              onTap: c == 'Ofertas'
+                  ? () => _mostrarAcceso(categoria: c)
+                  : () => context.push('/catalogo-publico', extra: c),
+            )).toList(),
           ),
         ),
         Container(height: 0.5, color: AlpesColors.pergamino),
@@ -262,7 +266,7 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
   // ═══════════════════════════════════════════════════════════════════════
   Widget _buildHero() {
     return SizedBox(
-      height: 280,
+      height: 300,
       child: Stack(children: [
         PageView.builder(
           controller: _pageCtrl,
@@ -270,15 +274,9 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
           itemCount: _slides.length,
           itemBuilder: (_, i) {
             final s = _slides[i];
-            final isActive = i == _bannerActivo;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              margin: EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: isActive ? 0 : 8),
+            return Container(
               decoration: BoxDecoration(
                 color: s.colorFondo,
-                borderRadius: BorderRadius.circular(isActive ? 0 : 12),
               ),
               child: Stack(fit: StackFit.expand, children: [
                 // Patrón de fondo
@@ -304,7 +302,7 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                 ),
                 // Contenido
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -327,17 +325,17 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.8)),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       // Titulo grande
                       Text(s.titulo,
                           style: const TextStyle(
                               fontFamily: 'Poppins',
                               color: Colors.white,
-                              fontSize: 30,
+                              fontSize: 28,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                               letterSpacing: -0.8)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       // Subtitulo
                       Text(s.subtitulo,
                           style: TextStyle(
@@ -346,33 +344,31 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                               fontSize: 11,
                               height: 1.5),
                           maxLines: 2),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       // CTA
-                      Row(children: [
-                        GestureDetector(
-                          onTap: _mostrarAcceso,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: s.colorAccento,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(mainAxisSize: MainAxisSize.min,
-                                children: [
-                              Text('Explorar coleccion',
-                                  style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      color: s.colorFondo,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700)),
-                              const SizedBox(width: 6),
-                              Icon(Icons.arrow_forward_rounded,
-                                  size: 13, color: s.colorFondo),
-                            ]),
+                      GestureDetector(
+                        onTap: _mostrarAcceso,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: s.colorAccento,
+                            borderRadius: BorderRadius.circular(8),
                           ),
+                          child: Row(mainAxisSize: MainAxisSize.min,
+                              children: [
+                            Text('Explorar coleccion',
+                                style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    color: s.colorFondo,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded,
+                                size: 13, color: s.colorFondo),
+                          ]),
                         ),
-                      ]),
+                      ),
                     ],
                   ),
                 ),
@@ -435,14 +431,14 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
           ]),
         ),
         const SizedBox(height: 24),
-        // Grid 3x2
-        ...[ 
-          _categorias.take(3).toList(),
-          _categorias.skip(3).take(3).toList(),
-        ].map((fila) => Row(
-          children: fila.map((c) => _buildCatCard(c)).toList(),
-        )).toList(),
-        const SizedBox(height: 8),
+        // Dos cards grandes lado a lado
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: _categorias.map((c) => _buildCatCard(c)).toList(),
+          ),
+        ),
+        const SizedBox(height: 20),
       ]),
     );
   }
@@ -450,33 +446,52 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
   Widget _buildCatCard(_Categoria c) {
     return Expanded(
       child: GestureDetector(
-        onTap: _mostrarAcceso,
+        onTap: () => context.push('/catalogo-publico', extra: c.nombre),
         child: Container(
-          height: 130,
-          margin: const EdgeInsets.all(1),
-          color: c.color,
+          height: 200,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            color: c.color,
+            borderRadius: BorderRadius.circular(4),
+          ),
           child: Stack(fit: StackFit.expand, children: [
+            // Gradiente de abajo hacia arriba
             Container(
               decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withOpacity(0.08),
+                    Colors.black.withOpacity(0.65),
                   ],
                 ),
               ),
             ),
+            // Icono grande de fondo decorativo
             Positioned(
-              top: 14, right: 10,
-              child: Icon(c.icono, size: 36,
-                  color: Colors.white.withOpacity(0.1)),
+              top: 16, right: 12,
+              child: Icon(c.icono, size: 64,
+                  color: Colors.white.withOpacity(0.07)),
             ),
+            // Línea decorativa superior
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(4)),
+                  color: AlpesColors.oroGuatemalteco.withOpacity(0.6),
+                ),
+              ),
+            ),
+            // Contenido inferior
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -485,25 +500,27 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
                         style: const TextStyle(
                             fontFamily: 'Poppins',
                             color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.5),
-                            width: 0.7),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3)),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AlpesColors.oroGuatemalteco,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text('VER TODOS',
+                            style: TextStyle(
+                                fontFamily: 'Poppins',
+                                color: Color(0xFF1C0F08),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0)),
                       ),
-                      child: const Text('VER TODOS',
-                          style: TextStyle(
-                              fontFamily: 'Poppins',
-                              color: Colors.white,
-                              fontSize: 7,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8)),
-                    ),
+                    ]),
                   ],
                 ),
               ),
@@ -1041,7 +1058,8 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
 class _ModalAcceso extends StatelessWidget {
   final VoidCallback onLogin;
   final VoidCallback onRegistro;
-  const _ModalAcceso({required this.onLogin, required this.onRegistro});
+  final String? categoria;
+  const _ModalAcceso({required this.onLogin, required this.onRegistro, this.categoria});
 
   @override
   Widget build(BuildContext context) {
@@ -1080,11 +1098,16 @@ class _ModalAcceso extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: AlpesColors.cafeOscuro)),
-            Text('Bienvenido de vuelta',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: AlpesColors.nogalMedio)),
+            Text(
+              categoria != null
+                  ? 'Ver productos de $categoria'
+                  : 'Bienvenido de vuelta',
+              style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  color: categoria != null
+                      ? AlpesColors.oroGuatemalteco
+                      : AlpesColors.nogalMedio)),
           ]),
         ]),
         const SizedBox(height: 28),

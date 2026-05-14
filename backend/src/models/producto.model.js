@@ -1,5 +1,5 @@
 const oracledb = require("oracledb");
-const { getConnection } = require("../config/db");
+const { getConnection, getReplicaConnection } = require("../config/db");
 const { readCursor, closeConn } = require("../utils/oracle");
 const PKG = "PKG_PRODUCTO";
 
@@ -85,22 +85,23 @@ async function obtener(id) {
 }
 
 async function listar() {
-  const conn = await getConnection();
+  const conn = await getReplicaConnection();
   try {
     const result = await conn.execute(
-      `SELECT p.*,
-              (SELECT ph.PRECIO 
-               FROM PRECIO_HISTORICO ph 
-               WHERE ph.PRODUCTO_ID = p.PRODUCTO_ID 
-                 AND (ph.VIGENCIA_FIN IS NULL OR ph.VIGENCIA_FIN >= SYSDATE)
-               ORDER BY ph.VIGENCIA_INICIO DESC
-               FETCH FIRST 1 ROWS ONLY) AS PRECIO
-       FROM PRODUCTO p ORDER BY p.PRODUCTO_ID`,
-      {},
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      `BEGIN ${PKG}.SP_LISTAR_PRODUCTOS(:p_cursor); END;`,
+      { p_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR } }
     );
-    return result.rows || [];
+    return await readCursor(result.outBinds.p_cursor);
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// Usa SP_LISTAR_PRODUCTOS y filtra en JS — mismo patrón que el resto del proyecto
+async function buscar(criterio, valor) {
+  const rows = await listar();
+  const col  = criterio.toUpperCase();
+  return rows.filter(r =>
+    String(r[col] ?? '').toLowerCase().includes(String(valor).toLowerCase())
+  );
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

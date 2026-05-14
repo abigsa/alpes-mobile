@@ -11,7 +11,7 @@ async function insertar(data) {
       {
         p_cli_id: data.cli_id,
         p_estado_carrito: data.estado_carrito,
-        p_ultimo_calculo_at: data.ultimo_calculo_at,
+        p_ultimo_calculo_at: data.ultimo_calculo_at ? new Date(data.ultimo_calculo_at) : new Date(),
         p_carrito_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
@@ -29,7 +29,7 @@ async function actualizar(data) {
         p_carrito_id: data.carrito_id,
         p_cli_id: data.cli_id,
         p_estado_carrito: data.estado_carrito,
-        p_ultimo_calculo_at: data.ultimo_calculo_at,
+        p_ultimo_calculo_at: data.ultimo_calculo_at ? new Date(data.ultimo_calculo_at) : new Date(),
       }
     );
     await conn.commit();
@@ -73,4 +73,11 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar };
+// buscar: usa SP_LISTAR_CARRITO y filtra por criterio en JS
+async function buscar(criterio, valor) {
+  const rows = await listar();
+  const col = criterio.toUpperCase();
+  return rows.filter(r => String(r[col]) === String(valor));
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

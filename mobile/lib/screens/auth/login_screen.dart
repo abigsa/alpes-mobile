@@ -5,7 +5,8 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? categoriaDestino; // si viene del catálogo público, redirige de vuelta
+  const LoginScreen({super.key, this.categoriaDestino});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -45,7 +46,14 @@ class _LoginScreenState extends State<LoginScreen>
     final result = await auth.login(_userCtrl.text.trim(), _passCtrl.text);
     if (!mounted) return;
     if (result['ok'] == true) {
-      context.go(result['role'] == UserRole.admin ? '/admin' : '/home');
+      if (result['role'] == UserRole.admin) {
+        context.go('/admin');
+      } else if (widget.categoriaDestino != null) {
+        // Viene del catálogo público → ir al catálogo privado con esa categoría
+        context.go('/catalogo', extra: widget.categoriaDestino);
+      } else {
+        context.go('/home');
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result['mensaje'] ?? 'Error al iniciar sesión'),
@@ -82,6 +90,36 @@ class _LoginScreenState extends State<LoginScreen>
             child: _circle(280, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
         Positioned(top: 160, left: -30,
             child: _circle(120, Colors.white.withOpacity(0.025))),
+
+        // ── Botón regresar al home público ──
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 18, top: 14),
+            child: Material(
+              color: Colors.white.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => context.go('/home-publica'),
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AlpesColors.oroGuatemalteco,
+                    size: 19,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
 
         // ── Contenido ──
         SafeArea(

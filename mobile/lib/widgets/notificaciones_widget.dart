@@ -31,10 +31,17 @@ class _Notificacion {
 
 // ─────────────────────────────────────────────────────────
 //  BOTÓN — campana con burbuja
+//  Usa OverlayEntry + CompositedTransformFollower para que el
+//  panel siempre aparezca encima de todo el árbol de widgets.
 // ─────────────────────────────────────────────────────────
 class NotificacionesBtn extends StatefulWidget {
   final int count;
-  const NotificacionesBtn({super.key, required this.count});
+  final bool isAdmin;
+  const NotificacionesBtn({
+    super.key,
+    required this.count,
+    this.isAdmin = false,
+  });
   @override
   State<NotificacionesBtn> createState() => _NotificacionesBtnState();
 }
@@ -42,6 +49,9 @@ class NotificacionesBtn extends StatefulWidget {
 class _NotificacionesBtnState extends State<NotificacionesBtn>
     with SingleTickerProviderStateMixin {
   bool _open = false;
+  OverlayEntry? _overlayEntry;
+  final LayerLink _layerLink = LayerLink();
+
   late AnimationController _animCtrl;
   late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
@@ -58,85 +68,112 @@ class _NotificacionesBtnState extends State<NotificacionesBtn>
 
   @override
   void dispose() {
+    _cerrarOverlay();
     _animCtrl.dispose();
     super.dispose();
   }
 
-  void _toggle() {
-    setState(() => _open = !_open);
-    _open ? _animCtrl.forward() : _animCtrl.reverse();
+  void _cerrarOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Campana
-        GestureDetector(
-          onTap: _toggle,
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Stack(alignment: Alignment.topRight, children: [
-              Icon(
-                _open
-                    ? Icons.notifications_rounded
-                    : Icons.notifications_outlined,
-                color: _open
-                    ? AlpesColors.oroGuatemalteco
-                    : Colors.white,
-                size: 22,
-              ),
-              if (widget.count > 0)
-                Container(
-                  width: 16, height: 16,
-                  decoration: const BoxDecoration(
-                      color: AlpesColors.rojoColonial, shape: BoxShape.circle),
-                  alignment: Alignment.center,
-                  child: Text('${widget.count}',
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 9,
-                          fontWeight: FontWeight.w700)),
-                ),
-            ]),
-          ),
-        ),
+  void _cerrar() {
+    if (!_open) return;
+    _animCtrl.reverse().then((_) {
+      _cerrarOverlay();
+      if (mounted) setState(() => _open = false);
+    });
+  }
 
-        // Burbuja panel — desplegable animado
-        if (_open)
-          Positioned(
-            top: 40, right: 0,
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: ScaleTransition(
-                scale: _scaleAnim,
-                alignment: Alignment.topRight,
-                child: Material(
-                  color: Colors.transparent,
-                  child: _BurbujaPanel(
-                    onClose: _toggle,
+  void _toggle() {
+    if (_open) {
+      _cerrar();
+    } else {
+      setState(() => _open = true);
+      _overlayEntry = _buildOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      _animCtrl.forward();
+    }
+  }
+
+  OverlayEntry _buildOverlayEntry() {
+    return OverlayEntry(
+      builder: (ctx) => Stack(
+        children: [
+          // Área transparente que cierra el panel al tocar fuera
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _cerrar,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          // Panel anclado a la campana mediante LayerLink
+          CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: const Offset(-286, 46),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: ScaleTransition(
+                  scale: _scaleAnim,
+                  alignment: Alignment.topRight,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: widget.isAdmin
+                        ? _BurbujaPanelAdmin(onClose: _cerrar)
+                        : _BurbujaPanel(onClose: _cerrar),
                   ),
                 ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-        // Overlay para cerrar al tocar fuera
-        if (_open)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _toggle,
-              child: const SizedBox.expand(),
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: _toggle,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Stack(alignment: Alignment.topRight, children: [
+            Icon(
+              _open
+                  ? Icons.notifications_rounded
+                  : Icons.notifications_outlined,
+              color: _open ? AlpesColors.oroGuatemalteco : Colors.white,
+              size: 22,
             ),
-          ),
-      ],
+            if (widget.count > 0)
+              Container(
+                width: 16,
+                height: 16,
+                decoration: const BoxDecoration(
+                    color: AlpesColors.rojoColonial, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: Text('${widget.count}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700)),
+              ),
+          ]),
+        ),
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────
-//  BURBUJA PANEL
+//  PANEL CLIENTE
 // ─────────────────────────────────────────────────────────
 class _BurbujaPanel extends StatefulWidget {
   final VoidCallback onClose;
@@ -159,16 +196,17 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
     setState(() => _loading = true);
     final lista = <_Notificacion>[];
 
-    // Promociones activas
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.promocion}'));
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.promocion}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
         if (list.isNotEmpty) {
           lista.add(_Notificacion(
             id: 'promo',
-            titulo: '🎉 ${list.length} oferta${list.length > 1 ? 's' : ''} disponible${list.length > 1 ? 's' : ''}',
+            titulo:
+                '🎉 ${list.length} oferta${list.length > 1 ? 's' : ''} disponible${list.length > 1 ? 's' : ''}',
             subtitulo: 'Ver productos en promoción',
             icon: Icons.local_offer_rounded,
             color: const Color(0xFF854F0B),
@@ -179,21 +217,25 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
       }
     } catch (_) {}
 
-    // Estados de pedidos del cliente
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
 
         final aprobadas = list.where((o) {
           final e = (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
-          return e == 'aprobado' || e == 'aprobada' || e == 'confirmado' || e == 'confirmada';
+          return e == 'aprobado' ||
+              e == 'aprobada' ||
+              e == 'confirmado' ||
+              e == 'confirmada';
         }).length;
         if (aprobadas > 0) {
           lista.add(_Notificacion(
             id: 'aprobada',
-            titulo: '✅ ${aprobadas == 1 ? "Tu orden fue aprobada" : "$aprobadas órdenes aprobadas"}',
+            titulo:
+                '✅ ${aprobadas == 1 ? "Tu orden fue aprobada" : "$aprobadas órdenes aprobadas"}',
             subtitulo: 'Ya estamos preparando tu pedido',
             icon: Icons.check_circle_rounded,
             color: const Color(0xFF3B6D11),
@@ -209,7 +251,8 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
         if (enProceso > 0) {
           lista.add(_Notificacion(
             id: 'proceso',
-            titulo: '🔨 ${enProceso == 1 ? "Pedido en preparación" : "$enProceso pedidos en proceso"}',
+            titulo:
+                '🔨 ${enProceso == 1 ? "Pedido en preparación" : "$enProceso pedidos en proceso"}',
             subtitulo: 'Estamos trabajando en tu orden',
             icon: Icons.build_rounded,
             color: const Color(0xFF854F0B),
@@ -220,12 +263,16 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
 
         final enRuta = list.where((o) {
           final e = (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
-          return e == 'en camino' || e == 'en ruta' || e == 'enviado' || e == 'despachado';
+          return e == 'en camino' ||
+              e == 'en ruta' ||
+              e == 'enviado' ||
+              e == 'despachado';
         }).length;
         if (enRuta > 0) {
           lista.add(_Notificacion(
             id: 'ruta',
-            titulo: '🚚 ${enRuta == 1 ? "Tu pedido está en camino" : "$enRuta pedidos en ruta"}',
+            titulo:
+                '🚚 ${enRuta == 1 ? "Tu pedido está en camino" : "$enRuta pedidos en ruta"}',
             subtitulo: 'Camino a tu dirección',
             icon: Icons.local_shipping_rounded,
             color: const Color(0xFF185FA5),
@@ -241,7 +288,8 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
         if (entregados > 0) {
           lista.add(_Notificacion(
             id: 'entregado',
-            titulo: '📦 ${entregados == 1 ? "Pedido entregado" : "$entregados pedidos entregados"}',
+            titulo:
+                '📦 ${entregados == 1 ? "Pedido entregado" : "$entregados pedidos entregados"}',
             subtitulo: 'Califica tu experiencia',
             icon: Icons.inventory_2_rounded,
             color: const Color(0xFF3B6D11),
@@ -263,23 +311,331 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
       ));
     }
 
-    if (mounted) setState(() { _notificaciones = lista; _loading = false; });
+    if (mounted)
+      setState(() {
+        _notificaciones = lista;
+        _loading = false;
+      });
   }
 
   void _marcarLeida(String id) {
     setState(() {
-      final n = _notificaciones.firstWhere((n) => n.id == id, orElse: () => _notificaciones.first);
+      final n = _notificaciones.firstWhere((n) => n.id == id,
+          orElse: () => _notificaciones.first);
       n.leida = true;
     });
   }
 
   void _marcarTodasLeidas() {
     setState(() {
-      for (final n in _notificaciones) { n.leida = true; }
+      for (final n in _notificaciones) {
+        n.leida = true;
+      }
     });
   }
 
   int get _noLeidas => _notificaciones.where((n) => !n.leida).length;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PanelShell(
+      titulo: 'Notificaciones',
+      noLeidas: _noLeidas,
+      loading: _loading,
+      onMarcarTodas: _marcarTodasLeidas,
+      onRefresh: _cargar,
+      notificaciones: _notificaciones,
+      onTap: (n) {
+        _marcarLeida(n.id);
+        if (n.route != null) {
+          widget.onClose();
+          context.go(n.route!);
+        }
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  PANEL ADMIN
+// ─────────────────────────────────────────────────────────
+class _BurbujaPanelAdmin extends StatefulWidget {
+  final VoidCallback onClose;
+  const _BurbujaPanelAdmin({required this.onClose});
+  @override
+  State<_BurbujaPanelAdmin> createState() => _BurbujaPanelAdminState();
+}
+
+class _BurbujaPanelAdminState extends State<_BurbujaPanelAdmin> {
+  List<_Notificacion> _notificaciones = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  // ✅ FIX 3: resolver el estado igual que en ordenes_venta_screen.dart,
+  // leyendo primero el prefijo [CLAVE] de OBSERVACIONES (que es donde
+  // Oracle guarda el estado real), y como fallback el campo ESTADO texto.
+  // Antes buscaba solo ESTADO/estado que en tu BD es un ID numérico (FK),
+  // por eso nunca hacía match y la campana siempre aparecía vacía.
+  String _resolverEstado(dynamic o) {
+    // PRIORIDAD 1: prefijo [CLAVE] en OBSERVACIONES
+    final obs = (o['OBSERVACIONES'] ?? o['observaciones'] ?? '').toString();
+    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
+    if (match != null) {
+      const mapa = {
+        'INGRESADA':  'pendiente',
+        'PENDIENTE':  'pendiente',
+        'EN_PROCESO': 'en proceso',
+        'ENTREGADA':  'entregado',
+        'CANCELADA':  'cancelado',
+      };
+      final clave = match.group(1)!;
+      if (mapa.containsKey(clave)) return mapa[clave]!;
+    }
+    // PRIORIDAD 2: campo ESTADO como texto (si lo tuviera)
+    return (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase().trim();
+  }
+
+  Future<void> _cargar() async {
+    setState(() => _loading = true);
+    final lista = <_Notificacion>[];
+
+    try {
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final data = jsonDecode(res.body);
+
+      if (data['ok'] == true) {
+        final list = data['data'] as List;
+
+        // ✅ FIX 3: usar _resolverEstado en todos los filtros
+        final nuevos = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'nuevo' || e == 'nueva' || e == 'pendiente' || e == 'recibido';
+        }).toList();
+        if (nuevos.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_nuevos',
+            titulo:
+                '🆕 ${nuevos.length} pedido${nuevos.length > 1 ? 's' : ''} nuevo${nuevos.length > 1 ? 's' : ''}',
+            subtitulo: 'Requieren aprobación',
+            icon: Icons.inbox_rounded,
+            color: const Color(0xFFB04500),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final porAprobar = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'por aprobar' || e == 'en revision' || e == 'en revisión';
+        }).toList();
+        if (porAprobar.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_aprobar',
+            titulo:
+                '⏳ ${porAprobar.length} orden${porAprobar.length > 1 ? 'es' : ''} por aprobar',
+            subtitulo: 'Pendientes de tu confirmación',
+            icon: Icons.pending_actions_rounded,
+            color: const Color(0xFF854F0B),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final aprobadas = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'aprobado' || e == 'aprobada' || e == 'confirmado' || e == 'confirmada';
+        }).toList();
+        if (aprobadas.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_aprobadas',
+            titulo:
+                '✅ ${aprobadas.length} orden${aprobadas.length > 1 ? 'es' : ''} aprobada${aprobadas.length > 1 ? 's' : ''}',
+            subtitulo: 'Listas para preparar',
+            icon: Icons.check_circle_rounded,
+            color: const Color(0xFF3B6D11),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final enProceso = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'en proceso' ||
+              e == 'preparando' ||
+              e == 'en preparacion' ||
+              e == 'en preparación';
+        }).toList();
+        if (enProceso.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_proceso',
+            titulo:
+                '🔨 ${enProceso.length} pedido${enProceso.length > 1 ? 's' : ''} en preparación',
+            subtitulo: 'En bodega o producción',
+            icon: Icons.build_rounded,
+            color: const Color(0xFF854F0B),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final enRuta = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'en camino' ||
+              e == 'en ruta' ||
+              e == 'enviado' ||
+              e == 'despachado';
+        }).toList();
+        if (enRuta.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_ruta',
+            titulo:
+                '🚚 ${enRuta.length} pedido${enRuta.length > 1 ? 's' : ''} en ruta',
+            subtitulo: 'Camino al cliente',
+            icon: Icons.local_shipping_rounded,
+            color: const Color(0xFF185FA5),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final entregados = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'entregado' || e == 'entregada';
+        }).toList();
+        if (entregados.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_entregados',
+            titulo:
+                '📦 ${entregados.length} pedido${entregados.length > 1 ? 's' : ''} entregado${entregados.length > 1 ? 's' : ''}',
+            subtitulo: 'Completados exitosamente',
+            icon: Icons.inventory_2_rounded,
+            color: const Color(0xFF3B6D11),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        final cancelados = list.where((o) {
+          final e = _resolverEstado(o);
+          return e == 'cancelado' ||
+              e == 'cancelada' ||
+              e == 'rechazado' ||
+              e == 'rechazada';
+        }).toList();
+        if (cancelados.isNotEmpty) {
+          lista.add(_Notificacion(
+            id: 'admin_cancelados',
+            titulo:
+                '❌ ${cancelados.length} orden${cancelados.length > 1 ? 'es' : ''} cancelada${cancelados.length > 1 ? 's' : ''}',
+            subtitulo: 'Revisar motivo de cancelación',
+            icon: Icons.cancel_rounded,
+            color: const Color(0xFF8B0000),
+            tipo: 'admin_orden',
+            route: '/admin/ordenes',
+          ));
+        }
+
+        if (lista.isNotEmpty) {
+          lista.insert(
+              0,
+              _Notificacion(
+                id: 'admin_resumen',
+                titulo:
+                    '📋 Total: ${list.length} orden${list.length > 1 ? 'es' : ''} en el sistema',
+                subtitulo: 'Ver todas las órdenes',
+                icon: Icons.list_alt_rounded,
+                color: const Color(0xFF2C2C2C),
+                tipo: 'admin_resumen',
+                route: '/admin/ordenes',
+                leida: true,
+              ));
+        }
+      }
+    } catch (_) {}
+
+    if (lista.isEmpty) {
+      lista.add(_Notificacion(
+        id: 'admin_ok',
+        titulo: 'Sin pedidos pendientes ✓',
+        subtitulo: 'No hay órdenes en el sistema',
+        icon: Icons.check_circle_rounded,
+        color: const Color(0xFF3B6D11),
+        tipo: 'info',
+      ));
+    }
+
+    if (mounted)
+      setState(() {
+        _notificaciones = lista;
+        _loading = false;
+      });
+  }
+
+  void _marcarLeida(String id) {
+    setState(() {
+      final n = _notificaciones.firstWhere((n) => n.id == id,
+          orElse: () => _notificaciones.first);
+      n.leida = true;
+    });
+  }
+
+  void _marcarTodasLeidas() {
+    setState(() {
+      for (final n in _notificaciones) {
+        n.leida = true;
+      }
+    });
+  }
+
+  int get _noLeidas => _notificaciones.where((n) => !n.leida).length;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PanelShell(
+      titulo: 'Pedidos — Admin',
+      noLeidas: _noLeidas,
+      loading: _loading,
+      onMarcarTodas: _marcarTodasLeidas,
+      onRefresh: _cargar,
+      notificaciones: _notificaciones,
+      onTap: (n) {
+        _marcarLeida(n.id);
+        if (n.route != null) {
+          widget.onClose();
+          context.go(n.route!);
+        }
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  SHELL COMPARTIDO
+// ─────────────────────────────────────────────────────────
+class _PanelShell extends StatelessWidget {
+  final String titulo;
+  final int noLeidas;
+  final bool loading;
+  final VoidCallback onMarcarTodas;
+  final VoidCallback onRefresh;
+  final List<_Notificacion> notificaciones;
+  final void Function(_Notificacion) onTap;
+
+  const _PanelShell({
+    required this.titulo,
+    required this.noLeidas,
+    required this.loading,
+    required this.onMarcarTodas,
+    required this.onRefresh,
+    required this.notificaciones,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,12 +646,15 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.18),
-              blurRadius: 28, offset: const Offset(0, 8)),
-          BoxShadow(color: Colors.black.withOpacity(0.06),
-              blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 28,
+              offset: const Offset(0, 8)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
-        // Triangulito superior derecho (burbuja)
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -311,41 +670,50 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
               const Icon(Icons.notifications_rounded,
                   color: AlpesColors.oroGuatemalteco, size: 18),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('Notificaciones',
-                    style: TextStyle(color: Colors.white, fontSize: 14,
+              Expanded(
+                child: Text(titulo,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700)),
               ),
-              if (_noLeidas > 0)
+              if (noLeidas > 0)
                 GestureDetector(
-                  onTap: _marcarTodasLeidas,
+                  onTap: onMarcarTodas,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AlpesColors.oroGuatemalteco.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(0.4)),
+                      border: Border.all(
+                          color: AlpesColors.oroGuatemalteco.withOpacity(0.4)),
                     ),
                     child: const Text('Marcar todas',
-                        style: TextStyle(color: AlpesColors.oroGuatemalteco,
-                            fontSize: 10, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            color: AlpesColors.oroGuatemalteco,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600)),
                   ),
                 )
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                       color: const Color(0xFF3B6D11).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20)),
                   child: const Text('Al día ✓',
-                      style: TextStyle(color: Color(0xFF3B6D11),
-                          fontSize: 10, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          color: Color(0xFF3B6D11),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
                 ),
             ]),
           ),
 
           // ── Lista ──
-          _loading
+          loading
               ? const Padding(
                   padding: EdgeInsets.all(32),
                   child: CircularProgressIndicator(
@@ -354,20 +722,16 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: _notificaciones.length,
+                    itemCount: notificaciones.length,
                     separatorBuilder: (_, __) => const Divider(
-                        height: 1, indent: 16, endIndent: 16,
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
                         color: AlpesColors.pergamino),
                     itemBuilder: (ctx, i) {
-                      final n = _notificaciones[i];
+                      final n = notificaciones[i];
                       return GestureDetector(
-                        onTap: () {
-                          _marcarLeida(n.id);
-                          if (n.route != null) {
-                            widget.onClose();
-                            ctx.go(n.route!);
-                          }
-                        },
+                        onTap: () => onTap(n),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 250),
                           color: n.leida
@@ -378,7 +742,8 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
                           child: Row(children: [
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 250),
-                              width: 40, height: 40,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
                                 color: n.leida
                                     ? AlpesColors.pergamino
@@ -392,28 +757,30 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
                                   size: 20),
                             ),
                             const SizedBox(width: 12),
-                            Expanded(child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(n.titulo,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: n.leida
-                                            ? FontWeight.w400
-                                            : FontWeight.w600,
-                                        color: n.leida
-                                            ? AlpesColors.nogalMedio
-                                            : AlpesColors.cafeOscuro)),
-                                Text(n.subtitulo,
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AlpesColors.nogalMedio)),
-                              ],
-                            )),
-                            // Indicador no leída
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(n.titulo,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: n.leida
+                                              ? FontWeight.w400
+                                              : FontWeight.w600,
+                                          color: n.leida
+                                              ? AlpesColors.nogalMedio
+                                              : AlpesColors.cafeOscuro)),
+                                  Text(n.subtitulo,
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AlpesColors.nogalMedio)),
+                                ],
+                              ),
+                            ),
                             if (!n.leida)
                               Container(
-                                width: 8, height: 8,
+                                width: 8,
+                                height: 8,
                                 decoration: BoxDecoration(
                                     color: n.color, shape: BoxShape.circle),
                               )
@@ -433,7 +800,7 @@ class _BurbujaPanelState extends State<_BurbujaPanel> {
                 border: Border(top: BorderSide(color: AlpesColors.pergamino))),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               TextButton.icon(
-                onPressed: _cargar,
+                onPressed: onRefresh,
                 icon: const Icon(Icons.refresh_rounded, size: 14),
                 label: const Text('Actualizar', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(

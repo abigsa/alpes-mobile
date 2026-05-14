@@ -19,4 +19,7 @@ async function eliminar(id) {
   await obtener(id);
   await model.eliminar(id);
 }
-module.exports = { listar, obtener, crear, actualizar, eliminar, buscar };
+async function porCliente(cliId) {
+  return await model.porCliente(cliId);
+}
+module.exports = { listar, obtener, crear, actualizar, eliminar, buscar, porCliente };

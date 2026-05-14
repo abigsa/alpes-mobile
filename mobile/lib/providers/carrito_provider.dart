@@ -27,6 +27,7 @@ class CarritoProvider extends ChangeNotifier {
   final List<CarritoItem> _items = [];
   int? _carritoId;
   bool _loading = false;
+  String? _token; // ✅ token para autenticar requests
 
   List<CarritoItem> get items => _items;
   int? get carritoId => _carritoId;
@@ -35,20 +36,38 @@ class CarritoProvider extends ChangeNotifier {
   double get total => _items.fold(0.0, (sum, i) => sum + i.subtotal);
   bool get isEmpty => _items.isEmpty;
 
+  // ✅ llamado automáticamente por ProxyProvider en main.dart
+  void setToken(String? token) {
+    _token = token;
+  }
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
+  Map<String, String> get _getHeaders => {
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
   Future<void> cargarCarrito(int clienteId) async {
     _loading = true;
     notifyListeners();
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carrito}/buscar?criterio=cli_id&valor=$clienteId'),
+        headers: _getHeaders, // ✅
       );
       final data = jsonDecode(res.body);
-      if (data['ok'] == true && data['data'] != null && (data['data'] as List).isNotEmpty) {
+      if (data['ok'] == true &&
+          data['data'] != null &&
+          (data['data'] as List).isNotEmpty) {
         final carrito = data['data'][0];
         _carritoId = carrito['CARRITO_ID'] ?? carrito['carrito_id'];
         await _cargarDetalle();
       }
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       _loading = false;
       notifyListeners();
     }
@@ -58,18 +77,41 @@ class CarritoProvider extends ChangeNotifier {
     if (_carritoId == null) return;
     final res = await http.get(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/buscar?criterio=carrito_id&valor=$_carritoId'),
+      headers: _getHeaders, // ✅
     );
     final data = jsonDecode(res.body);
     if (data['ok'] == true) {
       _items.clear();
       for (final item in data['data']) {
+        String nombre = item['NOMBRE'] ?? item['nombre'] ?? '';
+        String? imagenUrl = item['IMAGEN_URL'] ?? item['imagen_url'];
+
+        if (nombre.isEmpty) {
+          try {
+            final productoId = item['PRODUCTO_ID'] ?? item['producto_id'];
+            final pRes = await http.get(
+              Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$productoId'),
+              headers: _getHeaders, // ✅
+            );
+            final pData = jsonDecode(pRes.body);
+            if (pData['ok'] == true && pData['data'] != null) {
+              nombre = pData['data']['NOMBRE'] ?? pData['data']['nombre'] ?? 'Producto';
+              imagenUrl = pData['data']['IMAGEN_URL'] ?? pData['data']['imagen_url'];
+            }
+          } catch (_) {
+            nombre = 'Producto';
+          }
+        }
+
         _items.add(CarritoItem(
           carritoDetId: item['CARRITO_DET_ID'] ?? item['carrito_det_id'],
           productoId: item['PRODUCTO_ID'] ?? item['producto_id'],
-          nombre: item['NOMBRE'] ?? item['nombre'] ?? 'Producto',
-          imagenUrl: item['IMAGEN_URL'] ?? item['imagen_url'],
+          nombre: nombre.isEmpty ? 'Producto' : nombre,
+          imagenUrl: imagenUrl,
           cantidad: item['CANTIDAD'] ?? item['cantidad'],
-          precioUnitario: double.tryParse('${item['PRECIO_UNITARIO_SNAPSHOT'] ?? item['precio_unitario_snapshot'] ?? 0}') ?? 0,
+          precioUnitario: double.tryParse(
+                  '${item['PRECIO_UNITARIO_SNAPSHOT'] ?? item['precio_unitario_snapshot'] ?? 0}') ??
+              0,
         ));
       }
     }
@@ -88,13 +130,14 @@ class CarritoProvider extends ChangeNotifier {
 
     final existente = _items.where((i) => i.productoId == productoId);
     if (existente.isNotEmpty) {
-      await actualizarCantidad(existente.first.carritoDetId, existente.first.cantidad + cantidad);
+      await actualizarCantidad(
+          existente.first.carritoDetId, existente.first.cantidad + cantidad);
       return;
     }
 
     final res = await http.post(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers, // ✅
       body: jsonEncode({
         'carrito_id': _carritoId,
         'producto_id': productoId,
@@ -119,7 +162,7 @@ class CarritoProvider extends ChangeNotifier {
   Future<void> _crearCarrito(int clienteId) async {
     final res = await http.post(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carrito}'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers, // ✅
       body: jsonEncode({
         'cli_id': clienteId,
         'estado_carrito': 'ACTIVO',
@@ -136,7 +179,7 @@ class CarritoProvider extends ChangeNotifier {
     final item = _items.firstWhere((i) => i.carritoDetId == detId);
     await http.put(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers, // ✅
       body: jsonEncode({
         'carrito_det_id': detId,
         'carrito_id': _carritoId,
@@ -150,12 +193,30 @@ class CarritoProvider extends ChangeNotifier {
   }
 
   Future<void> eliminarItem(int detId) async {
-    await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'));
+    await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/$detId'),
+      headers: _getHeaders, // ✅
+    );
     _items.removeWhere((i) => i.carritoDetId == detId);
     notifyListeners();
   }
 
   void limpiar() {
+    _items.clear();
+    _carritoId = null;
+    notifyListeners();
+  }
+
+  Future<void> limpiarEnBD() async {
+    if (_carritoId == null) return;
+    try {
+      for (final item in _items) {
+        await http.delete(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.carritoDetalle}/${item.carritoDetId}'),
+          headers: _getHeaders, // ✅
+        );
+      }
+    } catch (_) {}
     _items.clear();
     _carritoId = null;
     notifyListeners();

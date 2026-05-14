@@ -24,7 +24,11 @@ class _KpiData {
   final IconData icon;
   final Color accent;
   final bool isUp;
-  const _KpiData({required this.label, required this.icon, required this.accent, this.isUp = true});
+  const _KpiData(
+      {required this.label,
+      required this.icon,
+      required this.accent,
+      this.isUp = true});
 }
 
 class _NavSection {
@@ -39,53 +43,155 @@ class _NavEntry {
   final String? route;
   final List<_NavEntry> children;
   final bool showBadge;
-  const _NavEntry({required this.label, required this.icon, this.route, this.children = const [], this.showBadge = false});
+  const _NavEntry(
+      {required this.label,
+      required this.icon,
+      this.route,
+      this.children = const [],
+      this.showBadge = false});
 }
 
 // ─────────────────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────────────────
 const _kpiDefs = [
-  _KpiData(label: 'Ventas del mes',   icon: Icons.trending_up_rounded,  accent: AlpesColors.cafeOscuro),
-  _KpiData(label: 'Órdenes activas',  icon: Icons.receipt_long_rounded, accent: AlpesColors.oroGuatemalteco),
-  _KpiData(label: 'Clientes activos', icon: Icons.people_alt_rounded,   accent: AlpesColors.verdeSelva),
-  _KpiData(label: 'Stock bajo',       icon: Icons.inventory_2_rounded,  accent: AlpesColors.rojoColonial, isUp: false),
+  _KpiData(
+      label: 'Ventas del mes',
+      icon: Icons.trending_up_rounded,
+      accent: AlpesColors.cafeOscuro),
+  _KpiData(
+      label: 'Órdenes activas',
+      icon: Icons.receipt_long_rounded,
+      accent: AlpesColors.oroGuatemalteco),
+  _KpiData(
+      label: 'Clientes activos',
+      icon: Icons.people_alt_rounded,
+      accent: AlpesColors.verdeSelva),
+  _KpiData(
+      label: 'Stock bajo',
+      icon: Icons.inventory_2_rounded,
+      accent: AlpesColors.rojoColonial,
+      isUp: false),
 ];
 
 const _navSections = [
   _NavSection(title: 'Comercial', entries: [
     _NavEntry(label: 'Productos', icon: Icons.chair_alt_rounded, children: [
-      _NavEntry(label: 'Lista de productos', icon: Icons.list_alt_rounded,  route: '/admin/productos'),
-      _NavEntry(label: 'Inventario',         icon: Icons.warehouse_rounded, route: '/admin/inventario'),
+      _NavEntry(
+          label: 'Lista de productos',
+          icon: Icons.list_alt_rounded,
+          route: '/admin/productos'),
+      _NavEntry(
+          label: 'Inventario',
+          icon: Icons.warehouse_rounded,
+          route: '/admin/inventario'),
     ]),
-    _NavEntry(label: 'Órdenes',   icon: Icons.receipt_long_rounded, route: '/admin/ordenes',  showBadge: true),
-    _NavEntry(label: 'Clientes',  icon: Icons.people_alt_rounded,   route: '/admin/clientes'),
-    _NavEntry(label: 'Marketing', icon: Icons.campaign_rounded,     route: '/admin/marketing'),
-    _NavEntry(label: 'Reportes',  icon: Icons.bar_chart_rounded,    route: '/admin/reportes'),
+    _NavEntry(
+        label: 'Órdenes',
+        icon: Icons.receipt_long_rounded,
+        route: '/admin/ordenes',
+        showBadge: true),
+    _NavEntry(
+        label: 'Clientes',
+        icon: Icons.people_alt_rounded,
+        route: '/admin/clientes'),
+    _NavEntry(
+        label: 'Marketing',
+        icon: Icons.campaign_rounded,
+        route: '/admin/marketing'),
+    _NavEntry(
+        label: 'Cupones',
+        icon: Icons.local_offer_rounded,
+        route: '/admin/cupones'),
+    _NavEntry(
+        label: 'Reportes',
+        icon: Icons.bar_chart_rounded,
+        route: '/admin/reportes'),
   ]),
   _NavSection(title: 'Operativa', entries: [
-    _NavEntry(label: 'Empleados',   icon: Icons.badge_rounded,          route: '/admin/empleados'),
-    _NavEntry(label: 'Nómina',      icon: Icons.payments_rounded,       route: '/admin/nomina'),
-    _NavEntry(label: 'Proveedores', icon: Icons.local_shipping_rounded, children: [
-      _NavEntry(label: 'Lista proveedores', icon: Icons.list_alt_rounded,    route: '/admin/proveedores'),
-      _NavEntry(label: 'Órdenes compra',   icon: Icons.shopping_bag_rounded, route: '/admin/compras'),
-    ]),
-    _NavEntry(label: 'Producción', icon: Icons.factory_rounded,  route: '/admin/produccion'),
+    _NavEntry(
+        label: 'Empleados',
+        icon: Icons.badge_rounded,
+        route: '/admin/empleados'),
+    _NavEntry(
+        label: 'Nómina', icon: Icons.payments_rounded, route: '/admin/nomina'),
+    _NavEntry(
+        label: 'Proveedores',
+        icon: Icons.local_shipping_rounded,
+        children: [
+          _NavEntry(
+              label: 'Lista proveedores',
+              icon: Icons.list_alt_rounded,
+              route: '/admin/proveedores'),
+          _NavEntry(
+              label: 'Órdenes compra',
+              icon: Icons.shopping_bag_rounded,
+              route: '/admin/compras'),
+        ]),
+    _NavEntry(
+        label: 'Producción',
+        icon: Icons.factory_rounded,
+        route: '/admin/produccion'),
   ]),
 ];
 
 const _modules = [
-  {'label': 'Productos',   'icon': Icons.chair_alt_rounded,      'route': '/admin/productos'},
-  {'label': 'Inventario',  'icon': Icons.warehouse_rounded,       'route': '/admin/inventario'},
-  {'label': 'Órdenes',     'icon': Icons.receipt_long_rounded,    'route': '/admin/ordenes'},
-  {'label': 'Clientes',    'icon': Icons.people_alt_rounded,      'route': '/admin/clientes'},
-  {'label': 'Marketing',   'icon': Icons.campaign_rounded,        'route': '/admin/marketing'},
-  {'label': 'Reportes',    'icon': Icons.bar_chart_rounded,       'route': '/admin/reportes'},
-  {'label': 'Empleados',   'icon': Icons.badge_rounded,           'route': '/admin/empleados'},
-  {'label': 'Nómina',      'icon': Icons.payments_rounded,        'route': '/admin/nomina'},
-  {'label': 'Proveedores', 'icon': Icons.local_shipping_rounded,  'route': '/admin/proveedores'},
-  {'label': 'Compras',     'icon': Icons.shopping_bag_rounded,    'route': '/admin/compras'},
-  {'label': 'Producción',  'icon': Icons.factory_rounded,         'route': '/admin/produccion'},
+  {
+    'label': 'Productos',
+    'icon': Icons.chair_alt_rounded,
+    'route': '/admin/productos'
+  },
+  {
+    'label': 'Inventario',
+    'icon': Icons.warehouse_rounded,
+    'route': '/admin/inventario'
+  },
+  {
+    'label': 'Órdenes',
+    'icon': Icons.receipt_long_rounded,
+    'route': '/admin/ordenes'
+  },
+  {
+    'label': 'Clientes',
+    'icon': Icons.people_alt_rounded,
+    'route': '/admin/clientes'
+  },
+  {
+    'label': 'Marketing',
+    'icon': Icons.campaign_rounded,
+    'route': '/admin/marketing'
+  },
+  {
+    'label': 'Cupones',
+    'icon': Icons.local_offer_rounded,
+    'route': '/admin/cupones'
+  },
+  {
+    'label': 'Reportes',
+    'icon': Icons.bar_chart_rounded,
+    'route': '/admin/reportes'
+  },
+  {
+    'label': 'Empleados',
+    'icon': Icons.badge_rounded,
+    'route': '/admin/empleados'
+  },
+  {'label': 'Nómina', 'icon': Icons.payments_rounded, 'route': '/admin/nomina'},
+  {
+    'label': 'Proveedores',
+    'icon': Icons.local_shipping_rounded,
+    'route': '/admin/proveedores'
+  },
+  {
+    'label': 'Compras',
+    'icon': Icons.shopping_bag_rounded,
+    'route': '/admin/compras'
+  },
+  {
+    'label': 'Producción',
+    'icon': Icons.factory_rounded,
+    'route': '/admin/produccion'
+  },
 ];
 
 // ─────────────────────────────────────────────────────────
@@ -102,11 +208,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final Set<String> _expanded = {};
 
   // KPI reales
-  int    _ordenesCount    = 0;
-  double _ventasMes       = 0;
-  int    _ordenesActivas  = 0;
-  int    _clientesActivos = 0;
-  int    _stockBajo       = 0;
+  int _ordenesCount = 0;
+  double _ventasMes = 0;
+  int _ordenesActivas = 0;
+  int _clientesActivos = 0;
+  int _stockBajo = 0;
 
   @override
   void initState() {
@@ -124,40 +230,49 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _cargarOrdenes() async {
     try {
-      final res  = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final res = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
-        final ahora  = DateTime.now();
+        final ahora = DateTime.now();
         double ventas = 0;
-        int activas   = 0;
+        int activas = 0;
         int pendientes = 0;
         for (final o in list) {
-          final estado = (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
-          final total  = double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
+          final estado =
+              (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
+          final total =
+              double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
           // Ventas del mes actual
           final fecha = o['FECHA_ORDEN'] ?? o['fecha_orden'] ?? '';
           if (fecha.toString().contains('${ahora.year}') &&
-              fecha.toString().contains('-${ahora.month.toString().padLeft(2, '0')}-')) {
+              fecha
+                  .toString()
+                  .contains('-${ahora.month.toString().padLeft(2, '0')}-')) {
             ventas += total;
           }
-          if (estado != 'entregado' && estado != 'cancelado' && estado != 'cerrado') {
+          if (estado != 'entregado' &&
+              estado != 'cancelado' &&
+              estado != 'cerrado') {
             activas++;
             pendientes++;
           }
         }
-        if (mounted) setState(() {
-          _ventasMes      = ventas;
-          _ordenesActivas = activas;
-          _ordenesCount   = pendientes;
-        });
+        if (mounted)
+          setState(() {
+            _ventasMes = ventas;
+            _ordenesActivas = activas;
+            _ordenesCount = pendientes;
+          });
       }
     } catch (_) {}
   }
 
   Future<void> _cargarClientes() async {
     try {
-      final res  = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}'));
+      final res =
+          await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
@@ -168,13 +283,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _cargarInventario() async {
     try {
-      final res  = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'));
+      final res = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'));
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
         // Stock bajo = items con cantidad <= 5
         final bajo = list.where((i) {
-          final qty = int.tryParse('${i['CANTIDAD'] ?? i['cantidad'] ?? i['STOCK'] ?? i['stock'] ?? 0}') ?? 0;
+          final qty = int.tryParse(
+                  '${i['CANTIDAD'] ?? i['cantidad'] ?? i['STOCK'] ?? i['stock'] ?? 0}') ??
+              0;
           return qty <= 5;
         }).length;
         if (mounted) setState(() => _stockBajo = bajo);
@@ -184,13 +302,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth        = context.watch<AuthProvider>();
+    final auth = context.watch<AuthProvider>();
     final nombreMostrar = auth.nombreCompleto;
-    final username    = auth.usuario?['USERNAME'] ?? auth.usuario?['username'] ?? 'Administrador';
-    final initials    = nombreMostrar.isNotEmpty ? nombreMostrar[0].toUpperCase() : 'A';
-    final width       = MediaQuery.of(context).size.width;
-    final isCompact  = width < _kMobile;
-    final isMedium   = width >= _kMobile && width < _kTablet;
+    final username = auth.usuario?['USERNAME'] ??
+        auth.usuario?['username'] ??
+        'Administrador';
+    final initials =
+        nombreMostrar.isNotEmpty ? nombreMostrar[0].toUpperCase() : 'A';
+    final width = MediaQuery.of(context).size.width;
+    final isCompact = width < _kMobile;
+    final isMedium = width >= _kMobile && width < _kTablet;
     final isExpanded = width >= _kTablet;
 
     return Scaffold(
@@ -201,12 +322,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           : null,
       body: Row(
         children: [
-          if (isMedium)   _buildRailCompact(context, auth, nombreMostrar, initials),
-          if (isExpanded) _buildSidebarFull(context, auth, nombreMostrar, initials),
+          if (isMedium)
+            _buildRailCompact(context, auth, nombreMostrar, initials),
+          if (isExpanded)
+            _buildSidebarFull(context, auth, nombreMostrar, initials),
           Expanded(
             child: Column(
               children: [
-                _buildTopBar(context, auth, nombreMostrar, username, initials, !isExpanded),
+                _buildTopBar(context, auth, nombreMostrar, username, initials,
+                    !isExpanded),
                 Expanded(child: _buildBody(context, width)),
               ],
             ),
@@ -219,8 +343,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // ─────────────────────────────────────────────────────────
   //  TOP BAR con menú de usuario
   // ─────────────────────────────────────────────────────────
-  Widget _buildTopBar(BuildContext context, AuthProvider auth,
-      String nombreMostrar, String username, String initials, bool showHamburger) {
+  Widget _buildTopBar(
+      BuildContext context,
+      AuthProvider auth,
+      String nombreMostrar,
+      String username,
+      String initials,
+      bool showHamburger) {
     return SizedBox(
       height: 58,
       child: Stack(
@@ -228,17 +357,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           // Fondo base
           Container(color: AlpesColors.cafeOscuro),
           // Círculos decorativos premium (mismo estilo que sidebar)
-          Positioned(top: -30, right: 120,
-              child: _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
-          Positioned(top: -20, right: 60,
-              child: _circle(50, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
-          Positioned(bottom: -20, left: 200,
-              child: _circle(60, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
-          Positioned(top: -10, left: 300,
-              child: _circle(40, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+          Positioned(
+              top: -30,
+              right: 120,
+              child:
+                  _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
+          Positioned(
+              top: -20,
+              right: 60,
+              child:
+                  _circle(50, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+          Positioned(
+              bottom: -20,
+              left: 200,
+              child:
+                  _circle(60, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+          Positioned(
+              top: -10,
+              left: 300,
+              child:
+                  _circle(40, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
           // Línea dorada sutil en la base
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
               height: 1,
               decoration: BoxDecoration(
@@ -269,24 +412,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     children: [
                       Text('Bienvenido, $nombreMostrar',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 1),
                         decoration: BoxDecoration(
                           color: AlpesColors.oroGuatemalteco.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(0.4)),
+                          border: Border.all(
+                              color:
+                                  AlpesColors.oroGuatemalteco.withOpacity(0.4)),
                         ),
                         child: const Text('Administrador',
                             style: TextStyle(
                                 color: AlpesColors.oroGuatemalteco,
-                                fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.4)),
                       ),
                     ],
                   ),
                 ),
                 // Notificaciones con panel
-                NotificacionesBtn(count: _ordenesCount),
+                NotificacionesBtn(count: _ordenesCount, isAdmin: true),
                 const SizedBox(width: 6),
                 // Menú de usuario
                 _UserMenuBtn(
@@ -321,14 +471,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               OutlinedButton.icon(
                 onPressed: () => _mostrarReporte(context),
                 icon: const Icon(Icons.download_rounded, size: 15),
-                label: const Text('Generar reporte', style: TextStyle(fontSize: 12)),
+                label: const Text('Generar reporte',
+                    style: TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AlpesColors.cafeOscuro,
                   side: const BorderSide(color: AlpesColors.nogalMedio),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ]),
@@ -359,7 +512,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -367,15 +521,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Generar reporte',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AlpesColors.cafeOscuro)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AlpesColors.cafeOscuro)),
             const SizedBox(height: 4),
             const Text('Selecciona el módulo a exportar',
                 style: TextStyle(fontSize: 13, color: AlpesColors.nogalMedio)),
             const SizedBox(height: 20),
-            _reporteBtn(context, Icons.receipt_long_rounded, 'Reporte de ventas',     '/admin/reportes'),
-            _reporteBtn(context, Icons.inventory_2_rounded,  'Reporte de inventario', '/admin/inventario'),
-            _reporteBtn(context, Icons.people_alt_rounded,   'Reporte de clientes',   '/admin/clientes'),
-            _reporteBtn(context, Icons.payments_rounded,     'Reporte de nómina',     '/admin/nomina'),
+            _reporteBtn(context, Icons.receipt_long_rounded,
+                'Reporte de ventas', '/admin/reportes'),
+            _reporteBtn(context, Icons.inventory_2_rounded,
+                'Reporte de inventario', '/admin/inventario'),
+            _reporteBtn(context, Icons.people_alt_rounded,
+                'Reporte de clientes', '/admin/clientes'),
+            _reporteBtn(context, Icons.payments_rounded, 'Reporte de nómina',
+                '/admin/nomina'),
             const SizedBox(height: 8),
           ],
         ),
@@ -383,26 +544,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _reporteBtn(BuildContext context, IconData icon, String label, String route) =>
+  Widget _reporteBtn(
+          BuildContext context, IconData icon, String label, String route) =>
       ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
         leading: Container(
-          width: 38, height: 38,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
               color: AlpesColors.cafeOscuro.withOpacity(0.08),
               borderRadius: BorderRadius.circular(9)),
           child: Icon(icon, size: 18, color: AlpesColors.cafeOscuro),
         ),
-        title: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: AlpesColors.arenaCalida),
-        onTap: () { Navigator.pop(context); context.go(route); },
+        title: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        trailing: const Icon(Icons.chevron_right_rounded,
+            color: AlpesColors.arenaCalida),
+        onTap: () {
+          Navigator.pop(context);
+          context.go(route);
+        },
       );
 
   // ─────────────────────────────────────────────────────────
   //  KPI GRID
   // ─────────────────────────────────────────────────────────
   Widget _buildKpiGrid(double totalWidth) {
-    final cw   = _contentWidth(totalWidth);
+    final cw = _contentWidth(totalWidth);
     final cols = cw > 560 ? 4 : (cw > 320 ? 2 : 1);
 
     // Valores reales mapeados a cada KPI
@@ -432,8 +600,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // ─────────────────────────────────────────────────────────
   Widget _buildModuleGrid(BuildContext context,
       List<Map<String, dynamic>> items, double totalWidth) {
-    final cw   = _contentWidth(totalWidth);
-    final cols = cw > 700 ? 6 : cw > 460 ? 4 : cw > 320 ? 3 : 2;
+    final cw = _contentWidth(totalWidth);
+    final cols = cw > 700
+        ? 6
+        : cw > 460
+            ? 4
+            : cw > 320
+                ? 3
+                : 2;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -460,14 +634,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           // Fondo base
           Container(color: AlpesColors.cafeOscuro),
           // Círculos decorativos premium
-          Positioned(top: -40, right: -40,
-              child: _circle(130, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
-          Positioned(top: 80, left: -50,
-              child: _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
-          Positioned(bottom: 100, right: -30,
-              child: _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
-          Positioned(bottom: -30, left: -20,
-              child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+          Positioned(
+              top: -40,
+              right: -40,
+              child:
+                  _circle(130, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
+          Positioned(
+              top: 80,
+              left: -50,
+              child:
+                  _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+          Positioned(
+              bottom: 100,
+              right: -30,
+              child:
+                  _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+          Positioned(
+              bottom: -30,
+              left: -20,
+              child:
+                  _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
           // Contenido
           Column(
             children: [
@@ -494,28 +680,35 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _circle(double size, Color color) => Container(
-    width: size, height: size,
-    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-  );
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
 
   Widget _buildSidebarHeader(String username, String initials) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
+        border:
+            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
       ),
       child: Row(
         children: [
           Container(
-            width: 38, height: 38,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: AlpesColors.oroGuatemalteco,
               borderRadius: BorderRadius.circular(10),
-              boxShadow: [BoxShadow(
-                color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
-                blurRadius: 12, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                    color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4))
+              ],
             ),
-            child: const Icon(Icons.chair_alt_rounded, color: AlpesColors.cafeOscuro, size: 20),
+            child: const Icon(Icons.chair_alt_rounded,
+                color: AlpesColors.cafeOscuro, size: 20),
           ),
           const SizedBox(width: 10),
           const Expanded(
@@ -524,11 +717,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Muebles de los Alpes',
-                    style: TextStyle(color: Colors.white, fontSize: 12,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700),
                     overflow: TextOverflow.ellipsis),
                 Text('Panel Administrativo',
-                    style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 10)),
+                    style: TextStyle(
+                        color: AlpesColors.arenaCalida, fontSize: 10)),
               ],
             ),
           ),
@@ -540,7 +736,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Widget _buildSidebarFooter(BuildContext context, AuthProvider auth) {
     return Container(
       decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08)))),
+          border:
+              Border(top: BorderSide(color: Colors.white.withOpacity(0.08)))),
       child: _buildFullNavTile(
         icon: Icons.logout_rounded,
         label: 'Cerrar sesión',
@@ -555,26 +752,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _sidebarSectionLabel(String label) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-    child: Text(label.toUpperCase(),
-        style: TextStyle(
-            color: AlpesColors.arenaCalida.withOpacity(0.7),
-            fontSize: 9.5, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
-  );
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+        child: Text(label.toUpperCase(),
+            style: TextStyle(
+                color: AlpesColors.arenaCalida.withOpacity(0.7),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4)),
+      );
 
   Widget _buildFullNavEntry(BuildContext context, _NavEntry entry) {
     if (entry.children.isEmpty) {
       final badge = entry.showBadge ? _ordenesCount : 0;
       return _buildFullNavTile(
-        icon: entry.icon, label: entry.label, badge: badge,
-        onTap: () { if (entry.route != null) context.go(entry.route!); },
+        icon: entry.icon,
+        label: entry.label,
+        badge: badge,
+        onTap: () {
+          if (entry.route != null) context.go(entry.route!);
+        },
       );
     }
     final isOpen = _expanded.contains(entry.label);
     return Column(children: [
       InkWell(
-        onTap: () => setState(() =>
-            isOpen ? _expanded.remove(entry.label) : _expanded.add(entry.label)),
+        onTap: () => setState(() => isOpen
+            ? _expanded.remove(entry.label)
+            : _expanded.add(entry.label)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
           child: Container(
@@ -582,8 +786,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             child: Row(children: [
               Icon(entry.icon, size: 16, color: AlpesColors.arenaCalida),
               const SizedBox(width: 10),
-              Expanded(child: Text(entry.label,
-                  style: const TextStyle(color: Colors.white, fontSize: 13))),
+              Expanded(
+                  child: Text(entry.label,
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 13))),
               AnimatedRotation(
                 turns: isOpen ? 0.25 : 0,
                 duration: const Duration(milliseconds: 180),
@@ -596,25 +802,34 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ),
       AnimatedCrossFade(
         duration: const Duration(milliseconds: 180),
-        crossFadeState: isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+        crossFadeState:
+            isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
         firstChild: const SizedBox.shrink(),
         secondChild: Container(
           color: Colors.black.withOpacity(0.15),
-          child: Column(children: entry.children
-              .map((c) => _buildFullNavTile(
-                    icon: c.icon, label: c.label, indent: true,
-                    onTap: () { if (c.route != null) context.go(c.route!); },
-                  ))
-              .toList()),
+          child: Column(
+              children: entry.children
+                  .map((c) => _buildFullNavTile(
+                        icon: c.icon,
+                        label: c.label,
+                        indent: true,
+                        onTap: () {
+                          if (c.route != null) context.go(c.route!);
+                        },
+                      ))
+                  .toList()),
         ),
       ),
     ]);
   }
 
   Widget _buildFullNavTile({
-    required IconData icon, required String label,
-    int badge = 0, bool indent = false,
-    Color? iconColor, Color? textColor,
+    required IconData icon,
+    required String label,
+    int badge = 0,
+    bool indent = false,
+    Color? iconColor,
+    Color? textColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -622,12 +837,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: indent ? 6 : 10, vertical: 1),
         child: Container(
-          padding: EdgeInsets.only(left: indent ? 28 : 8, right: 8, top: 9, bottom: 9),
+          padding: EdgeInsets.only(
+              left: indent ? 28 : 8, right: 8, top: 9, bottom: 9),
           child: Row(children: [
             Icon(icon, size: 16, color: iconColor ?? AlpesColors.arenaCalida),
             const SizedBox(width: 10),
-            Expanded(child: Text(label,
-                style: TextStyle(color: textColor ?? Colors.white.withOpacity(0.88), fontSize: 13))),
+            Expanded(
+                child: Text(label,
+                    style: TextStyle(
+                        color: textColor ?? Colors.white.withOpacity(0.88),
+                        fontSize: 13))),
             if (badge > 0)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -636,7 +855,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     borderRadius: BorderRadius.circular(10)),
                 child: Text('$badge',
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700)),
               ),
           ]),
         ),
@@ -653,35 +874,53 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       for (final s in _navSections)
         for (final e in s.entries) ...[
           if (e.route != null) e,
-          for (final c in e.children) if (c.route != null) c,
+          for (final c in e.children)
+            if (c.route != null) c,
         ]
     ];
     return SizedBox(
       width: 60,
       child: Stack(children: [
         Container(color: AlpesColors.cafeOscuro),
-        Positioned(top: -20, right: -20, child: _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
-        Positioned(bottom: 60, left: -30, child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+        Positioned(
+            top: -20,
+            right: -20,
+            child: _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
+        Positioned(
+            bottom: 60,
+            left: -30,
+            child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
         Column(children: [
           const SizedBox(height: 48),
           Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             margin: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: AlpesColors.oroGuatemalteco,
               borderRadius: BorderRadius.circular(9),
-              boxShadow: [BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.4), blurRadius: 10)],
+              boxShadow: [
+                BoxShadow(
+                    color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                    blurRadius: 10)
+              ],
             ),
-            child: const Icon(Icons.chair_alt_rounded, color: AlpesColors.cafeOscuro, size: 18),
+            child: const Icon(Icons.chair_alt_rounded,
+                color: AlpesColors.cafeOscuro, size: 18),
           ),
-          Container(height: 1, color: Colors.white.withOpacity(0.08),
+          Container(
+              height: 1,
+              color: Colors.white.withOpacity(0.08),
               margin: const EdgeInsets.symmetric(vertical: 4)),
-          Expanded(child: ListView(
+          Expanded(
+              child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 4),
             children: flat.map((e) => _buildRailIcon(context, e)).toList(),
           )),
           Container(height: 1, color: Colors.white.withOpacity(0.08)),
-          _buildRailIconRaw(icon: Icons.logout_rounded, tooltip: 'Cerrar sesión',
+          _buildRailIconRaw(
+              icon: Icons.logout_rounded,
+              tooltip: 'Cerrar sesión',
               color: AlpesColors.rojoColonial,
               onTap: () async {
                 await auth.logout();
@@ -695,25 +934,38 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildRailIcon(BuildContext context, _NavEntry entry) {
     final badge = entry.showBadge ? _ordenesCount : 0;
-    return _buildRailIconRaw(icon: entry.icon, tooltip: entry.label, badge: badge,
-        onTap: () { if (entry.route != null) context.go(entry.route!); });
+    return _buildRailIconRaw(
+        icon: entry.icon,
+        tooltip: entry.label,
+        badge: badge,
+        onTap: () {
+          if (entry.route != null) context.go(entry.route!);
+        });
   }
 
-  Widget _buildRailIconRaw({required IconData icon, required String tooltip,
-      int badge = 0, Color? color, required VoidCallback onTap}) {
+  Widget _buildRailIconRaw(
+      {required IconData icon,
+      required String tooltip,
+      int badge = 0,
+      Color? color,
+      required VoidCallback onTap}) {
     return Tooltip(
-      message: tooltip, preferBelow: false,
+      message: tooltip,
+      preferBelow: false,
       child: InkWell(
-        onTap: onTap, borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
           child: Stack(alignment: Alignment.topRight, children: [
             Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.06),
                   borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, size: 20, color: color ?? AlpesColors.arenaCalida),
+              child:
+                  Icon(icon, size: 20, color: color ?? AlpesColors.arenaCalida),
             ),
             if (badge > 0)
               Container(
@@ -721,7 +973,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 decoration: const BoxDecoration(
                     color: AlpesColors.rojoColonial, shape: BoxShape.circle),
                 child: Text('$badge',
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700)),
               ),
           ]),
         ),
@@ -738,13 +993,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       width: 260,
       child: Stack(children: [
         Container(color: AlpesColors.cafeOscuro),
-        Positioned(top: -30, right: -30, child: _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
-        Positioned(top: 120, left: -40, child: _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
-        Positioned(bottom: 80, right: -20, child: _circle(110, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
-        Positioned(bottom: -20, left: -30, child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+        Positioned(
+            top: -30,
+            right: -30,
+            child: _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
+        Positioned(
+            top: 120,
+            left: -40,
+            child: _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+        Positioned(
+            bottom: 80,
+            right: -20,
+            child: _circle(110, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+        Positioned(
+            bottom: -20,
+            left: -30,
+            child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
         Column(children: [
           DrawerHeader(
-            margin: EdgeInsets.zero, padding: EdgeInsets.zero,
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.zero,
             decoration: const BoxDecoration(color: Colors.transparent),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 36, 16, 12),
@@ -754,32 +1022,44 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 children: [
                   Row(children: [
                     Container(
-                      width: 40, height: 40,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: AlpesColors.oroGuatemalteco,
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [BoxShadow(
-                            color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
-                            blurRadius: 12, offset: const Offset(0, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                              color:
+                                  AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4))
+                        ],
                       ),
-                      child: const Icon(Icons.chair_alt_rounded, color: AlpesColors.cafeOscuro, size: 22),
+                      child: const Icon(Icons.chair_alt_rounded,
+                          color: AlpesColors.cafeOscuro, size: 22),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(child: Column(
+                    const Expanded(
+                        child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text('Muebles de los Alpes',
-                            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700),
                             overflow: TextOverflow.ellipsis),
                         Text('Panel Administrativo',
-                            style: TextStyle(color: AlpesColors.arenaCalida, fontSize: 10)),
+                            style: TextStyle(
+                                color: AlpesColors.arenaCalida, fontSize: 10)),
                       ],
                     )),
                   ]),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.07),
                       borderRadius: BorderRadius.circular(10),
@@ -787,26 +1067,34 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     ),
                     child: Row(children: [
                       Container(
-                        width: 28, height: 28,
+                        width: 28,
+                        height: 28,
                         decoration: BoxDecoration(
                             color: AlpesColors.oroGuatemalteco,
                             borderRadius: BorderRadius.circular(7)),
                         alignment: Alignment.center,
                         child: Text(initials,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
                                 color: AlpesColors.cafeOscuro)),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(username,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis)),
+                      Expanded(
+                          child: Text(username,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis)),
                     ]),
                   ),
                 ],
               ),
             ),
           ),
-          Expanded(child: ListView(
+          Expanded(
+              child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
               for (final sec in _navSections) ...[
@@ -819,10 +1107,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           )),
           Container(
             decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08)))),
+                border: Border(
+                    top: BorderSide(color: Colors.white.withOpacity(0.08)))),
             child: _buildFullNavTile(
-              icon: Icons.logout_rounded, label: 'Cerrar sesión',
-              iconColor: AlpesColors.rojoColonial, textColor: AlpesColors.rojoColonial,
+              icon: Icons.logout_rounded,
+              label: 'Cerrar sesión',
+              iconColor: AlpesColors.rojoColonial,
+              textColor: AlpesColors.rojoColonial,
               onTap: () async {
                 Navigator.pop(context);
                 await auth.logout();
@@ -839,15 +1130,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (entry.children.isEmpty) {
       final badge = entry.showBadge ? _ordenesCount : 0;
       return _buildFullNavTile(
-        icon: entry.icon, label: entry.label, badge: badge,
-        onTap: () { Navigator.pop(context); if (entry.route != null) context.go(entry.route!); },
+        icon: entry.icon,
+        label: entry.label,
+        badge: badge,
+        onTap: () {
+          Navigator.pop(context);
+          if (entry.route != null) context.go(entry.route!);
+        },
       );
     }
-    final key    = 'drawer_${entry.label}';
+    final key = 'drawer_${entry.label}';
     final isOpen = _expanded.contains(key);
     return Column(children: [
       InkWell(
-        onTap: () => setState(() => isOpen ? _expanded.remove(key) : _expanded.add(key)),
+        onTap: () =>
+            setState(() => isOpen ? _expanded.remove(key) : _expanded.add(key)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
           child: Container(
@@ -855,12 +1152,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             child: Row(children: [
               Icon(entry.icon, size: 16, color: AlpesColors.arenaCalida),
               const SizedBox(width: 10),
-              Expanded(child: Text(entry.label,
-                  style: const TextStyle(color: Colors.white, fontSize: 13))),
+              Expanded(
+                  child: Text(entry.label,
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 13))),
               AnimatedRotation(
                 turns: isOpen ? 0.25 : 0,
                 duration: const Duration(milliseconds: 180),
-                child: const Icon(Icons.chevron_right_rounded, size: 16, color: AlpesColors.arenaCalida),
+                child: const Icon(Icons.chevron_right_rounded,
+                    size: 16, color: AlpesColors.arenaCalida),
               ),
             ]),
           ),
@@ -868,14 +1168,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ),
       AnimatedCrossFade(
         duration: const Duration(milliseconds: 180),
-        crossFadeState: isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+        crossFadeState:
+            isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
         firstChild: const SizedBox.shrink(),
         secondChild: Container(
           color: Colors.black.withOpacity(0.15),
-          child: Column(children: entry.children.map((c) => _buildFullNavTile(
-            icon: c.icon, label: c.label, indent: true,
-            onTap: () { Navigator.pop(context); if (c.route != null) context.go(c.route!); },
-          )).toList()),
+          child: Column(
+              children: entry.children
+                  .map((c) => _buildFullNavTile(
+                        icon: c.icon,
+                        label: c.label,
+                        indent: true,
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (c.route != null) context.go(c.route!);
+                        },
+                      ))
+                  .toList()),
         ),
       ),
     ]);
@@ -891,13 +1200,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _sectionLabel(String label) => Row(children: [
-    Container(width: 3, height: 15,
-        decoration: BoxDecoration(color: AlpesColors.oroGuatemalteco,
-            borderRadius: BorderRadius.circular(2))),
-    const SizedBox(width: 8),
-    Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-        color: AlpesColors.cafeOscuro)),
-  ]);
+        Container(
+            width: 3,
+            height: 15,
+            decoration: BoxDecoration(
+                color: AlpesColors.oroGuatemalteco,
+                borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AlpesColors.cafeOscuro)),
+      ]);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -920,12 +1235,16 @@ class _TopIconBtn extends StatelessWidget {
           Icon(icon, color: Colors.white.withOpacity(0.85), size: 22),
           if (badge > 0)
             Container(
-              width: 16, height: 16,
+              width: 16,
+              height: 16,
               decoration: const BoxDecoration(
                   color: AlpesColors.rojoColonial, shape: BoxShape.circle),
               alignment: Alignment.center,
               child: Text('$badge',
-                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700)),
             ),
         ]),
       ),
@@ -974,22 +1293,28 @@ class _UserMenuBtn extends StatelessWidget {
             children: [
               Row(children: [
                 Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                       color: AlpesColors.oroGuatemalteco,
                       borderRadius: BorderRadius.circular(9)),
                   alignment: Alignment.center,
                   child: Text(initials,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           color: AlpesColors.cafeOscuro)),
                 ),
                 const SizedBox(width: 10),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(nombreMostrar,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
                           color: AlpesColors.cafeOscuro)),
                   Text('@$username',
-                      style: const TextStyle(fontSize: 11, color: AlpesColors.nogalMedio)),
+                      style: const TextStyle(
+                          fontSize: 11, color: AlpesColors.nogalMedio)),
                 ]),
               ]),
               const SizedBox(height: 8),
@@ -1000,36 +1325,51 @@ class _UserMenuBtn extends StatelessWidget {
         PopupMenuItem(
           value: 'perfil',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.person_outline_rounded, size: 16, color: AlpesColors.cafeOscuro)),
+                child: const Icon(Icons.person_outline_rounded,
+                    size: 16, color: AlpesColors.cafeOscuro)),
             const SizedBox(width: 10),
-            const Text('Mi perfil', style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
+            const Text('Mi perfil',
+                style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
           ]),
         ),
         PopupMenuItem(
           value: 'config',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.cafeOscuro.withOpacity(0.07),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.settings_outlined, size: 16, color: AlpesColors.cafeOscuro)),
+                child: const Icon(Icons.settings_outlined,
+                    size: 16, color: AlpesColors.cafeOscuro)),
             const SizedBox(width: 10),
-            const Text('Configuración', style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
+            const Text('Configuración',
+                style: TextStyle(fontSize: 13, color: AlpesColors.cafeOscuro)),
           ]),
         ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'logout',
           child: Row(children: [
-            Container(width: 30, height: 30,
-                decoration: BoxDecoration(color: AlpesColors.rojoColonial.withOpacity(0.08),
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: AlpesColors.rojoColonial.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(7)),
-                child: const Icon(Icons.logout_rounded, size: 16, color: AlpesColors.rojoColonial)),
+                child: const Icon(Icons.logout_rounded,
+                    size: 16, color: AlpesColors.rojoColonial)),
             const SizedBox(width: 10),
             const Text('Cerrar sesión',
-                style: TextStyle(fontSize: 13, color: AlpesColors.rojoColonial)),
+                style:
+                    TextStyle(fontSize: 13, color: AlpesColors.rojoColonial)),
           ]),
         ),
       ],
@@ -1042,20 +1382,27 @@ class _UserMenuBtn extends StatelessWidget {
         ),
         child: Row(children: [
           Container(
-            width: 30, height: 30,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
                 color: AlpesColors.oroGuatemalteco,
                 borderRadius: BorderRadius.circular(8)),
             alignment: Alignment.center,
             child: Text(initials,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                     color: AlpesColors.cafeOscuro)),
           ),
           const SizedBox(width: 8),
           Text(nombreMostrar,
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(width: 6),
-          const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 18),
+          const Icon(Icons.keyboard_arrow_down_rounded,
+              color: Colors.white, size: 18),
         ]),
       ),
     );
@@ -1093,7 +1440,7 @@ class _PerfilSheetState extends State<_PerfilSheet> {
   late final TextEditingController _passConfirmaCtrl;
 
   bool _verActual = false;
-  bool _verNueva  = false;
+  bool _verNueva = false;
   bool _verConfirma = false;
   bool _guardando = false;
   bool _cambiarPass = false;
@@ -1102,18 +1449,24 @@ class _PerfilSheetState extends State<_PerfilSheet> {
   void initState() {
     super.initState();
     final u = widget.auth.usuario;
-    _nombreCtrl   = TextEditingController(text: u?['NOMBRE']   ?? u?['nombre']   ?? '');
-    _apellidoCtrl = TextEditingController(text: u?['APELLIDO'] ?? u?['apellido'] ?? '');
-    _emailCtrl    = TextEditingController(text: u?['EMAIL']    ?? u?['email']    ?? '');
-    _passActualCtrl  = TextEditingController();
-    _passNuevaCtrl   = TextEditingController();
-    _passConfirmaCtrl= TextEditingController();
+    _nombreCtrl =
+        TextEditingController(text: u?['NOMBRE'] ?? u?['nombre'] ?? '');
+    _apellidoCtrl =
+        TextEditingController(text: u?['APELLIDO'] ?? u?['apellido'] ?? '');
+    _emailCtrl = TextEditingController(text: u?['EMAIL'] ?? u?['email'] ?? '');
+    _passActualCtrl = TextEditingController();
+    _passNuevaCtrl = TextEditingController();
+    _passConfirmaCtrl = TextEditingController();
   }
 
   @override
   void dispose() {
-    _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _emailCtrl.dispose();
-    _passActualCtrl.dispose(); _passNuevaCtrl.dispose(); _passConfirmaCtrl.dispose();
+    _nombreCtrl.dispose();
+    _apellidoCtrl.dispose();
+    _emailCtrl.dispose();
+    _passActualCtrl.dispose();
+    _passNuevaCtrl.dispose();
+    _passConfirmaCtrl.dispose();
     super.dispose();
   }
 
@@ -1122,7 +1475,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
     return u?['USERNAME'] ?? u?['username'] ?? 'sin usuario';
   }
 
-  String get _initials => _username.isNotEmpty ? _username[0].toUpperCase() : 'A';
+  String get _initials =>
+      _username.isNotEmpty ? _username[0].toUpperCase() : 'A';
 
   Future<void> _guardarPerfil() async {
     if (!_formKey.currentState!.validate()) return;
@@ -1132,15 +1486,15 @@ class _PerfilSheetState extends State<_PerfilSheet> {
     }
     setState(() => _guardando = true);
     try {
-      final u  = widget.auth.usuario;
+      final u = widget.auth.usuario;
       final id = u?['USU_ID'] ?? u?['usu_id'] ?? u?['ID'] ?? u?['id'];
 
       // Actualizar datos del perfil en el API
       if (id != null) {
         final body = {
-          'nombre'  : _nombreCtrl.text.trim(),
+          'nombre': _nombreCtrl.text.trim(),
           'apellido': _apellidoCtrl.text.trim(),
-          'email'   : _emailCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
         };
         await http.put(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}/$id'),
@@ -1155,16 +1509,18 @@ class _PerfilSheetState extends State<_PerfilSheet> {
           Uri.parse('${ApiConfig.baseUrl}/autenticacion/cambiar-contrasena'),
           headers: {
             'Content-Type': 'application/json',
-            if (widget.auth.token != null) 'Authorization': 'Bearer ${widget.auth.token}',
+            if (widget.auth.token != null)
+              'Authorization': 'Bearer ${widget.auth.token}',
           },
           body: jsonEncode({
             'contrasenaAnterior': _passActualCtrl.text,
-            'contrasenaNueva'   : _passNuevaCtrl.text,
+            'contrasenaNueva': _passNuevaCtrl.text,
           }),
         );
         final data = jsonDecode(res.body);
         if (data['ok'] != true) {
-          _snack(data['mensaje'] ?? 'Error al cambiar contraseña', isError: true);
+          _snack(data['mensaje'] ?? 'Error al cambiar contraseña',
+              isError: true);
           return;
         }
       }
@@ -1172,9 +1528,9 @@ class _PerfilSheetState extends State<_PerfilSheet> {
       // ── Actualizar en memoria y SharedPreferences ──
       // Esto hace que el topbar y el menú se actualicen inmediatamente
       await widget.auth.updatePerfil(
-        nombre  : _nombreCtrl.text.trim(),
+        nombre: _nombreCtrl.text.trim(),
         apellido: _apellidoCtrl.text.trim(),
-        email   : _emailCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
       );
 
       if (mounted) {
@@ -1191,7 +1547,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
   void _snack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? AlpesColors.rojoColonial : AlpesColors.verdeSelva,
+      backgroundColor:
+          isError ? AlpesColors.rojoColonial : AlpesColors.verdeSelva,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
@@ -1200,7 +1557,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Form(
@@ -1211,37 +1569,52 @@ class _PerfilSheetState extends State<_PerfilSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Handle
-                Center(child: Container(
-                  width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(color: AlpesColors.pergamino,
-                      borderRadius: BorderRadius.circular(2)))),
+                Center(
+                    child: Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                            color: AlpesColors.pergamino,
+                            borderRadius: BorderRadius.circular(2)))),
 
                 // Avatar + username (no editable)
                 Row(children: [
                   Container(
-                    width: 56, height: 56,
+                    width: 56,
+                    height: 56,
                     decoration: BoxDecoration(
                         color: AlpesColors.oroGuatemalteco,
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: [BoxShadow(
-                            color: AlpesColors.oroGuatemalteco.withOpacity(0.3),
-                            blurRadius: 12, offset: const Offset(0, 4))]),
+                        boxShadow: [
+                          BoxShadow(
+                              color:
+                                  AlpesColors.oroGuatemalteco.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4))
+                        ]),
                     alignment: Alignment.center,
                     child: Text(_initials,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700,
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                             color: AlpesColors.cafeOscuro)),
                   ),
                   const SizedBox(width: 14),
-                  Expanded(child: Column(
+                  Expanded(
+                      child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Mi perfil',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
                               color: AlpesColors.cafeOscuro)),
                       const SizedBox(height: 4),
                       // Username — solo lectura, no modificable
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                             color: AlpesColors.cafeOscuro.withOpacity(0.07),
                             borderRadius: BorderRadius.circular(8)),
@@ -1250,13 +1623,16 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                               size: 13, color: AlpesColors.nogalMedio),
                           const SizedBox(width: 5),
                           Text('@$_username',
-                              style: const TextStyle(fontSize: 12,
-                                  fontWeight: FontWeight.w600, color: AlpesColors.nogalMedio)),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AlpesColors.nogalMedio)),
                         ]),
                       ),
                       const SizedBox(height: 2),
                       const Text('El usuario no puede modificarse',
-                          style: TextStyle(fontSize: 10, color: AlpesColors.arenaCalida)),
+                          style: TextStyle(
+                              fontSize: 10, color: AlpesColors.arenaCalida)),
                     ],
                   )),
                 ]),
@@ -1266,11 +1642,13 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                 _sectionTitle('Datos personales'),
                 const SizedBox(height: 12),
                 Row(children: [
-                  Expanded(child: _campo('Nombre', _nombreCtrl,
-                      icon: Icons.person_outline_rounded)),
+                  Expanded(
+                      child: _campo('Nombre', _nombreCtrl,
+                          icon: Icons.person_outline_rounded)),
                   const SizedBox(width: 10),
-                  Expanded(child: _campo('Apellido', _apellidoCtrl,
-                      icon: Icons.person_outline_rounded)),
+                  Expanded(
+                      child: _campo('Apellido', _apellidoCtrl,
+                          icon: Icons.person_outline_rounded)),
                 ]),
                 _campo('Correo electrónico', _emailCtrl,
                     icon: Icons.email_outlined,
@@ -1281,7 +1659,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                 GestureDetector(
                   onTap: () => setState(() => _cambiarPass = !_cambiarPass),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: _cambiarPass
                           ? AlpesColors.cafeOscuro.withOpacity(0.06)
@@ -1295,16 +1674,23 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                     ),
                     child: Row(children: [
                       Icon(Icons.lock_reset_rounded,
-                          size: 18, color: _cambiarPass
-                              ? AlpesColors.cafeOscuro : AlpesColors.nogalMedio),
+                          size: 18,
+                          color: _cambiarPass
+                              ? AlpesColors.cafeOscuro
+                              : AlpesColors.nogalMedio),
                       const SizedBox(width: 10),
-                      Expanded(child: Text('Cambiar contraseña',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                              color: _cambiarPass
-                                  ? AlpesColors.cafeOscuro : AlpesColors.nogalMedio))),
-                      Icon(_cambiarPass
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
+                      Expanded(
+                          child: Text('Cambiar contraseña',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _cambiarPass
+                                      ? AlpesColors.cafeOscuro
+                                      : AlpesColors.nogalMedio))),
+                      Icon(
+                          _cambiarPass
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
                           color: AlpesColors.arenaCalida),
                     ]),
                   ),
@@ -1313,23 +1699,30 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                 AnimatedCrossFade(
                   duration: const Duration(milliseconds: 200),
                   crossFadeState: _cambiarPass
-                      ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
                   firstChild: const SizedBox.shrink(),
                   secondChild: Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Column(children: [
-                      _campoPass('Contraseña actual', _passActualCtrl,
-                          _verActual, () => setState(() => _verActual = !_verActual)),
-                      _campoPass('Nueva contraseña', _passNuevaCtrl,
-                          _verNueva, () => setState(() => _verNueva = !_verNueva),
+                      _campoPass(
+                          'Contraseña actual',
+                          _passActualCtrl,
+                          _verActual,
+                          () => setState(() => _verActual = !_verActual)),
+                      _campoPass('Nueva contraseña', _passNuevaCtrl, _verNueva,
+                          () => setState(() => _verNueva = !_verNueva),
                           validator: (v) {
-                            if (_cambiarPass && (v == null || v.length < 8)) {
-                              return 'Mínimo 8 caracteres';
-                            }
-                            return null;
-                          }),
-                      _campoPass('Confirmar nueva contraseña', _passConfirmaCtrl,
-                          _verConfirma, () => setState(() => _verConfirma = !_verConfirma)),
+                        if (_cambiarPass && (v == null || v.length < 8)) {
+                          return 'Mínimo 8 caracteres';
+                        }
+                        return null;
+                      }),
+                      _campoPass(
+                          'Confirmar nueva contraseña',
+                          _passConfirmaCtrl,
+                          _verConfirma,
+                          () => setState(() => _verConfirma = !_verConfirma)),
                     ]),
                   ),
                 ),
@@ -1341,13 +1734,19 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                     onPressed: _guardando ? null : _guardarPerfil,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AlpesColors.cafeOscuro,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _guardando
-                        ? const SizedBox(height: 20, width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                         : const Text('GUARDAR CAMBIOS',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700,
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
                   ),
                 ),
@@ -1360,16 +1759,24 @@ class _PerfilSheetState extends State<_PerfilSheet> {
   }
 
   Widget _sectionTitle(String text) => Row(children: [
-    Container(width: 3, height: 14,
-        decoration: BoxDecoration(color: AlpesColors.oroGuatemalteco,
-            borderRadius: BorderRadius.circular(2))),
-    const SizedBox(width: 8),
-    Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-        color: AlpesColors.cafeOscuro)),
-  ]);
+        Container(
+            width: 3,
+            height: 14,
+            decoration: BoxDecoration(
+                color: AlpesColors.oroGuatemalteco,
+                borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AlpesColors.cafeOscuro)),
+      ]);
 
   Widget _campo(String label, TextEditingController ctrl,
-      {IconData? icon, TextInputType? type, String? Function(String?)? validator}) =>
+          {IconData? icon,
+          TextInputType? type,
+          String? Function(String?)? validator}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextFormField(
@@ -1378,14 +1785,16 @@ class _PerfilSheetState extends State<_PerfilSheet> {
           decoration: InputDecoration(
             labelText: label,
             prefixIcon: icon != null
-                ? Icon(icon, size: 18, color: AlpesColors.nogalMedio) : null,
+                ? Icon(icon, size: 18, color: AlpesColors.nogalMedio)
+                : null,
           ),
           validator: validator,
         ),
       );
 
-  Widget _campoPass(String label, TextEditingController ctrl,
-      bool ver, VoidCallback toggle, {String? Function(String?)? validator}) =>
+  Widget _campoPass(String label, TextEditingController ctrl, bool ver,
+          VoidCallback toggle,
+          {String? Function(String?)? validator}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextFormField(
@@ -1396,8 +1805,12 @@ class _PerfilSheetState extends State<_PerfilSheet> {
             prefixIcon: const Icon(Icons.lock_outline_rounded,
                 size: 18, color: AlpesColors.nogalMedio),
             suffixIcon: IconButton(
-              icon: Icon(ver ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  size: 18, color: AlpesColors.arenaCalida),
+              icon: Icon(
+                  ver
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18,
+                  color: AlpesColors.arenaCalida),
               onPressed: toggle,
             ),
           ),
@@ -1424,7 +1837,7 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
     final k = widget.kpi;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
+      onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1433,7 +1846,8 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: _hovered
                 ? [Colors.white, AlpesColors.oroGuatemalteco.withOpacity(0.06)]
                 : [Colors.white, const Color(0xFFF7F3EE)],
@@ -1446,15 +1860,32 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
             width: _hovered ? 1.5 : 1.0,
           ),
           boxShadow: _hovered
-              ? [BoxShadow(color: k.accent.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8)),
-                 BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]
-              : [BoxShadow(color: k.accent.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 3)),
-                 BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1))],
+              ? [
+                  BoxShadow(
+                      color: k.accent.withOpacity(0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8)),
+                  BoxShadow(
+                      color: AlpesColors.oroGuatemalteco.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2))
+                ]
+              : [
+                  BoxShadow(
+                      color: k.accent.withOpacity(0.07),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3)),
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1))
+                ],
         ),
         child: Row(children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: k.accent.withOpacity(_hovered ? 0.18 : 0.1),
               borderRadius: BorderRadius.circular(9),
@@ -1462,29 +1893,40 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
             child: Icon(k.icon, size: 17, color: k.accent),
           ),
           const SizedBox(width: 10),
-          Expanded(child: Column(
+          Expanded(
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(widget.valor,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700,
-                  color: AlpesColors.cafeOscuro, letterSpacing: -0.5)),
-              Text(k.label, style: const TextStyle(fontSize: 10.5,
-                  color: AlpesColors.nogalMedio, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AlpesColors.cafeOscuro,
+                      letterSpacing: -0.5)),
+              Text(k.label,
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      color: AlpesColors.nogalMedio,
+                      fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis),
             ],
           )),
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 20, height: 20,
+            width: 20,
+            height: 20,
             decoration: BoxDecoration(
               color: k.isUp ? const Color(0xFFEAF3DE) : const Color(0xFFFCEBEB),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
-              k.isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+              k.isUp
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
               size: 11,
-              color: k.isUp ? const Color(0xFF3B6D11) : AlpesColors.rojoColonial,
+              color:
+                  k.isUp ? const Color(0xFF3B6D11) : AlpesColors.rojoColonial,
             ),
           ),
         ]),
@@ -1512,25 +1954,35 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
     final active = _hovered || _pressed;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
+      onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () => context.go(widget.item['route'] as String),
-        onTapDown:   (_) => setState(() => _pressed = true),
-        onTapUp:     (_) => setState(() => _pressed = false),
-        onTapCancel: ()  => setState(() => _pressed = false),
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           transform: Matrix4.identity()
-            ..translate(0.0, _pressed ? 1.0 : _hovered ? -5.0 : 0.0)
+            ..translate(
+                0.0,
+                _pressed
+                    ? 1.0
+                    : _hovered
+                        ? -5.0
+                        : 0.0)
             ..scale(_pressed ? 0.97 : 1.0),
           transformAlignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: active
-                  ? [Colors.white, AlpesColors.oroGuatemalteco.withOpacity(0.08)]
+                  ? [
+                      Colors.white,
+                      AlpesColors.oroGuatemalteco.withOpacity(0.08)
+                    ]
                   : [
                       AlpesColors.cafeOscuro.withOpacity(0.03),
                       AlpesColors.oroGuatemalteco.withOpacity(0.05),
@@ -1544,23 +1996,43 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
               width: active ? 1.5 : 1.0,
             ),
             boxShadow: active
-                ? [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.14), blurRadius: 18, offset: const Offset(0, 8)),
-                   BoxShadow(color: AlpesColors.oroGuatemalteco.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 2))]
-                : [BoxShadow(color: AlpesColors.cafeOscuro.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 3))],
+                ? [
+                    BoxShadow(
+                        color: AlpesColors.cafeOscuro.withOpacity(0.14),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8)),
+                    BoxShadow(
+                        color: AlpesColors.oroGuatemalteco.withOpacity(0.10),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2))
+                  ]
+                : [
+                    BoxShadow(
+                        color: AlpesColors.cafeOscuro.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3))
+                  ],
           ),
           child: Stack(children: [
             // Brillo esquina
-            Positioned(top: -15, right: -15,
+            Positioned(
+              top: -15,
+              right: -15,
               child: Container(
-                width: 50, height: 50,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AlpesColors.oroGuatemalteco.withOpacity(active ? 0.14 : 0.08),
+                  color: AlpesColors.oroGuatemalteco
+                      .withOpacity(active ? 0.14 : 0.08),
                 ),
               ),
             ),
             // Línea dorada top
-            Positioned(top: 0, left: 14, right: 14,
+            Positioned(
+              top: 0,
+              left: 14,
+              right: 14,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 height: active ? 2 : 0,
@@ -1570,7 +2042,8 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                     AlpesColors.oroGuatemalteco.withOpacity(0.8),
                     Colors.transparent,
                   ]),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(2)),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(2)),
                 ),
               ),
             ),
@@ -1580,17 +2053,18 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: active
                         ? AlpesColors.cafeOscuro.withOpacity(0.12)
                         : AlpesColors.cafeOscuro.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: AlpesColors.cafeOscuro.withOpacity(0.06)),
+                    border: Border.all(
+                        color: AlpesColors.cafeOscuro.withOpacity(0.06)),
                   ),
                   child: Icon(widget.item['icon'] as IconData,
-                      color: AlpesColors.cafeOscuro,
-                      size: 19),
+                      color: AlpesColors.cafeOscuro, size: 19),
                 ),
                 const SizedBox(height: 7),
                 Padding(
@@ -1600,10 +2074,12 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                      color: AlpesColors.cafeOscuro.withOpacity(active ? 1.0 : 0.8),
+                      color: AlpesColors.cafeOscuro
+                          .withOpacity(active ? 1.0 : 0.8),
                     ),
                     child: Text(widget.item['label'] as String,
-                        textAlign: TextAlign.center, maxLines: 2,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis),
                   ),
                 ),

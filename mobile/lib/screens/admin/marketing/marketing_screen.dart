@@ -111,7 +111,8 @@ class _MarketingScreenState extends State<MarketingScreen> {
       0,
       (s, c) =>
           s +
-          (double.tryParse('${c['PRESUPUESTO'] ?? c['presupuesto'] ?? 0}') ?? 0),
+          (double.tryParse('${c['PRESUPUESTO'] ?? c['presupuesto'] ?? 0}') ??
+              0),
     );
 
     return Scaffold(
@@ -237,8 +238,10 @@ class _MarketingScreenState extends State<MarketingScreen> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: _canalColor(canal).withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: _canalColor(canal)
+                                              .withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: Text(
                                           canal,
@@ -622,7 +625,8 @@ class __MarketingFormState extends State<_MarketingForm> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Form(

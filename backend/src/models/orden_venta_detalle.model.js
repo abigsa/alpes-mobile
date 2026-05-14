@@ -1,5 +1,5 @@
 const oracledb = require("oracledb");
-const { getConnection } = require("../config/db");
+const { getConnection, getReplicaConnection } = require("../config/db");
 const { readCursor, closeConn } = require("../utils/oracle");
 const PKG = "PKG_ORDEN_VENTA_DETALLE";
 
@@ -69,7 +69,7 @@ async function obtener(id) {
 }
 
 async function listar() {
-  const conn = await getConnection();
+  const conn = await getReplicaConnection();
   try {
     const result = await conn.execute(
       `BEGIN ${PKG}.SP_LISTAR(:p_cursor); END;`,
@@ -79,23 +79,11 @@ async function listar() {
   } finally { await closeConn(conn); }
 }
 
-
+// buscar: usa SP_LISTAR y filtra por criterio en JS
 async function buscar(criterio, valor) {
-  const conn = await getConnection();
-  try {
-    const result = await conn.execute(
-      `SELECT od.*, 
-              p.NOMBRE,
-              p.IMAGEN_URL
-       FROM ORDEN_VENTA_DETALLE od
-       LEFT JOIN PRODUCTO p ON p.PRODUCTO_ID = od.PRODUCTO_ID
-       WHERE od.ORDEN_VENTA_ID = :p_valor
-       ORDER BY od.ORDEN_VENTA_DET_ID`,
-      { p_valor: Number(valor) },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    return result.rows || [];
-  } finally { await closeConn(conn); }
+  const rows = await listar();
+  const col = criterio.toUpperCase();
+  return rows.filter(r => String(r[col]) === String(valor));
 }
 
 module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };

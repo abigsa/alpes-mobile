@@ -12,11 +12,10 @@ async function crear(data) {
   return { carrito_det_id: id, ...data };
 }
 async function actualizar(id, data) {
-  await obtener(id);
   await model.actualizar({ carrito_det_id: id, ...data });
 }
+// FIX: eliminar directo sin validar con obtener primero (el SP puede fallar si ya no existe)
 async function eliminar(id) {
-  await obtener(id);
   await model.eliminar(id);
 }
 module.exports = { listar, obtener, crear, actualizar, eliminar, buscar };

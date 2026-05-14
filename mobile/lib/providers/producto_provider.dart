@@ -37,7 +37,8 @@ class Producto {
       material: json['MATERIAL'] ?? json['material'],
       color: json['COLOR'] ?? json['color'],
       precio: double.tryParse('${json['PRECIO'] ?? json['precio'] ?? 0}'),
-      imagenUrl: json['IMAGEN_URL'] ?? json['imagen_url'],
+      // ✅ múltiples variantes del campo imagen
+      imagenUrl: json['IMAGEN_URL'] ?? json['imagen_url'] ?? json['IMAGEN'] ?? json['imagen'],
       categoriaId: json['CATEGORIA_ID'] ?? json['categoria_id'],
       categoriaNombre: json['CATEGORIA_NOMBRE'] ?? json['categoria_nombre'],
     );
@@ -51,7 +52,9 @@ class ProductoProvider extends ChangeNotifier {
   bool _loading = false;
   String _busqueda = '';
 
-  // Historial para algoritmo de recomendaciones
+  // ✅ token para autenticar requests
+  String? _token;
+
   final List<int> _categoriasVistas = [];
   final List<String> _tiposVistos = [];
 
@@ -61,11 +64,24 @@ class ProductoProvider extends ChangeNotifier {
   bool get loading => _loading;
   String get busqueda => _busqueda;
 
+  // ✅ llamar esto después del login para que el provider tenga el token
+  void setToken(String? token) {
+    _token = token;
+  }
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
   Future<void> cargarProductos() async {
     _loading = true;
     notifyListeners();
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'));
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
+        headers: _headers,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         _productos = (data['data'] as List).map((p) => Producto.fromJson(p)).toList();
@@ -86,6 +102,7 @@ class ProductoProvider extends ChangeNotifier {
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/buscar?criterio=nombre&valor=$criterio'),
+        headers: _headers,
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
@@ -99,11 +116,13 @@ class ProductoProvider extends ChangeNotifier {
 
   Future<Producto?> obtenerProducto(int id) async {
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$id'));
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/$id'),
+        headers: _headers,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true && data['data'] != null) {
         final p = Producto.fromJson(data['data']);
-        // Registrar para algoritmo de recomendaciones
         if (p.categoriaId != null) _registrarVistaCategoria(p.categoriaId!);
         if (p.tipo != null) _registrarVistaTipo(p.tipo!);
         return p;
@@ -127,15 +146,16 @@ class ProductoProvider extends ChangeNotifier {
   }
 
   void registrarFavorito(int productoId) {
-    final p = _productos.firstWhere((p) => p.productoId == productoId, orElse: () => _productos.first);
+    final p = _productos.firstWhere(
+      (p) => p.productoId == productoId,
+      orElse: () => _productos.first,
+    );
     if (p.categoriaId != null) _registrarVistaCategoria(p.categoriaId!);
     if (p.tipo != null) _registrarVistaTipo(p.tipo!);
   }
 
   void _calcularRecomendaciones() {
     if (_productos.isEmpty) return;
-    
-    // Score por categoría y tipo vistos
     final scored = <Producto, int>{};
     for (final p in _productos) {
       int score = 0;
@@ -147,13 +167,12 @@ class ProductoProvider extends ChangeNotifier {
       }
       if (score > 0) scored[p] = score;
     }
-
     final sorted = scored.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     _recomendados = sorted.take(10).map((e) => e.key).toList();
-    
-    // Si no hay suficientes recomendados, llenar con productos al azar
     if (_recomendados.length < 6) {
-      final resto = _productos.where((p) => !_recomendados.contains(p)).take(6 - _recomendados.length);
+      final resto = _productos
+          .where((p) => !_recomendados.contains(p))
+          .take(6 - _recomendados.length);
       _recomendados.addAll(resto);
     }
     notifyListeners();

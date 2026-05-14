@@ -101,4 +101,23 @@ async function buscar(criterio, valor) {
 }
 
 
-module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar };
+
+async function loginDirecto(username) {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT u.USU_ID, u.USERNAME, u.PASSWORD_HASH, u.EMAIL, u.TELEFONO,
+              u.ROL_ID, u.CLI_ID, u.EMP_ID, u.ESTADO,
+              r.ROL_NOMBRE
+       FROM USUARIO u
+       LEFT JOIN ROL r ON r.ROL_ID = u.ROL_ID
+       WHERE UPPER(u.USERNAME) = UPPER(:p_username)
+         AND u.ESTADO = 'ACTIVO'`,
+      { p_username: username },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows?.[0] || null;
+  } finally { await closeConn(conn); }
+}
+
+module.exports = { insertar, actualizar, eliminar, obtener, listar, buscar, loginDirecto };

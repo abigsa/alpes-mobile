@@ -10,6 +10,7 @@ import 'package:archive/archive.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../config/api_config.dart';
 import '../../../config/theme.dart';
@@ -1222,11 +1223,9 @@ class _ReportesScreenState extends State<ReportesScreen>
 
       if (format == _ReportOutputFormat.pdf) {
         final bytes = await _crearPdfReporte(data);
-        await FileSaver.instance.saveFile(
-          name: 'reporte_muebles_de_los_alpes_${range.fileSuffix}',
+        await Printing.sharePdf(
           bytes: bytes,
-          ext: 'pdf',
-          mimeType: MimeType.pdf,
+          filename: 'reporte_muebles_de_los_alpes_${range.fileSuffix}.pdf',
         );
       } else {
         final bytes = _crearExcelReporte(data);

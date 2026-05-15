@@ -19,11 +19,35 @@ class _PerfilScreenState extends State<PerfilScreen> {
   int _favoritos = 0;
   int _resenas = 0;
   bool _loadingStats = true;
+  String _nombreCliente = '';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarStats();
+      _cargarNombreCliente();
+    });
+  }
+
+  Future<void> _cargarNombreCliente() async {
+    final auth = context.read<AuthProvider>();
+    final clienteId = auth.clienteId;
+    if (clienteId == null) return;
+    try {
+      final res = await http.get(
+        Uri.parse('\${ApiConfig.baseUrl}\${ApiConfig.cliente}/\$clienteId'),
+        headers: auth.authHeaders,
+      );
+      final data = jsonDecode(res.body);
+      if (data['ok'] == true && data['data'] != null) {
+        final cli = data['data'] is List ? (data['data'] as List).first : data['data'];
+        final nombres = (cli['NOMBRES'] ?? cli['nombres'] ?? cli['NOMBRE'] ?? cli['nombre'] ?? '').toString().trim();
+        final apellidos = (cli['APELLIDOS'] ?? cli['apellidos'] ?? cli['APELLIDO'] ?? cli['apellido'] ?? '').toString().trim();
+        final full = '\$nombres \$apellidos'.trim();
+        if (full.isNotEmpty && mounted) setState(() => _nombreCliente = full);
+      }
+    } catch (_) {}
   }
 
   Future<void> _cargarStats() async {
@@ -88,10 +112,110 @@ class _PerfilScreenState extends State<PerfilScreen> {
     }
   }
 
+  void _mostrarEditar(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final nombreCtrl = TextEditingController(text: _nombreCliente.isNotEmpty ? _nombreCliente : auth.nombreCompleto);
+    final emailCtrl = TextEditingController(text: auth.usuario?['EMAIL'] ?? auth.usuario?['email'] ?? '');
+    final telCtrl = TextEditingController(text: auth.usuario?['TELEFONO'] ?? auth.usuario?['telefono'] ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AlpesColors.cremaFondo,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AlpesColors.arenaCalida,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Editar perfil',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AlpesColors.cafeOscuro)),
+            const SizedBox(height: 20),
+            _campoEditar('Nombre completo', nombreCtrl, Icons.person_outline_rounded),
+            const SizedBox(height: 12),
+            _campoEditar('Correo electrónico', emailCtrl, Icons.email_outlined),
+            const SizedBox(height: 12),
+            _campoEditar('Teléfono', telCtrl, Icons.phone_outlined, tipo: TextInputType.phone),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final parts = nombreCtrl.text.trim().split(' ');
+                  final result = await auth.updatePerfil(
+                    nombre: parts.isNotEmpty ? parts.first : '',
+                    apellido: parts.length > 1 ? parts.sublist(1).join(' ') : '',
+                    email: emailCtrl.text.trim(),
+                    telefono: telCtrl.text.trim(),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(result['ok'] == true ? 'Perfil actualizado' : result['mensaje'] ?? 'Error al actualizar'),
+                      backgroundColor: result['ok'] == true ? AlpesColors.verdeSelva : AlpesColors.rojoColonial,
+                    ));
+                    if (result['ok'] == true) _cargarNombreCliente();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AlpesColors.cafeOscuro,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Guardar cambios', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _campoEditar(String label, TextEditingController ctrl, IconData icon, {TextInputType tipo = TextInputType.text}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AlpesColors.nogalMedio)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: ctrl,
+          keyboardType: tipo,
+          style: const TextStyle(fontSize: 14, color: AlpesColors.cafeOscuro),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, size: 18, color: AlpesColors.arenaCalida),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AlpesColors.pergamino)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AlpesColors.pergamino)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AlpesColors.oroGuatemalteco, width: 1.5)),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final nombre = auth.nombreCompleto;
+    final nombre = _nombreCliente.isNotEmpty ? _nombreCliente : auth.nombreCompleto;
     final email = auth.usuario?['EMAIL'] ?? auth.usuario?['email'] ?? '';
     final username =
         auth.usuario?['USERNAME'] ?? auth.usuario?['username'] ?? '';
@@ -134,7 +258,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   child: const Icon(Icons.edit_rounded,
                       color: Colors.white, size: 16),
                 ),
-                onPressed: () {},
+                onPressed: () => _mostrarEditar(context),
               ),
               const SizedBox(width: 8),
             ],

@@ -91,10 +91,10 @@ class FavoritosScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
-                    childAspectRatio: 0.70,
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.72,
                   ),
                   itemCount: lista.length,
                   itemBuilder: (_, i) =>

@@ -50,8 +50,10 @@ import '../screens/catalogo_publico_screen.dart';
 
 class AppRouter {
   static GoRouter createRouter(BuildContext context) {
+    final auth = context.read<AuthProvider>();
     return GoRouter(
       initialLocation: '/splash',
+      refreshListenable: auth,
       redirect: (context, state) {
         final auth = context.read<AuthProvider>();
         final isLoggingIn = state.matchedLocation == '/login' ||

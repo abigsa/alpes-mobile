@@ -1,6 +1,23 @@
 class ApiConfig {
-  // Cambia esta URL cuando despliegues el backend
-  static const String baseUrl = 'http://192.168.1.66:3000/api'; //local casa
+  // ════════════════════════════════════════════════════════
+  //  CAMBIA SOLO ESTA LÍNEA según dónde estés trabajando
+  // ════════════════════════════════════════════════════════
+  static const _env = _Env.tunnel; // local | tunnel | produccion
+  // ════════════════════════════════════════════════════════
+
+  static String get baseUrl {
+    switch (_env) {
+      case _Env.local:
+        return 'http://10.106.85.210:3000/api'; // tu IP local actual
+      case _Env.tunnel:
+        return 'https://food-corrections-considering-licensing.trycloudflare.com/api';
+      case _Env.produccion:
+        return 'https://api.alpes.com/api';
+    }
+  }
+
+  // API Key para el tunnel — debe coincidir con INTERNAL_API_KEY del .env
+  static const String apiKey = 'alpes-dev-2026-secreto';
 
   // ===== AUTENTICACIÓN =====
   static const String autenticacion = '/autenticacion';
@@ -14,7 +31,7 @@ class ApiConfig {
 
   // ===== CLIENTE - CATALOGO =====
   static const String productos = '/productos';
-  static const String productosPublico = '/productos/publico'; // sin auth
+  static const String productosPublico = '/productos/publico';
   static const String categorias = '/categorias';
   static const String carrito = '/carritos';
   static const String carritoDetalle = '/carritos-detalle';
@@ -88,7 +105,7 @@ class ApiConfig {
   static const String reglaPromocion = '/reglas-promocion';
   static const String histPromocion = '/historial-promocion';
 
-  // ===== ENVIOS =====
+  // ===== ENVÍOS =====
   static const String zonaEnvio = '/zonas-envio';
   static const String tarifaEnvio = '/tarifas-envio';
   static const String tipoEntrega = '/tipos-entrega';
@@ -112,3 +129,5 @@ class ApiConfig {
   // ===== UPLOAD =====
   static const String upload = '/upload';
 }
+
+enum _Env { local, tunnel, produccion }

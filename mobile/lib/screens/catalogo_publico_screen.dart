@@ -45,7 +45,7 @@ class _CatalogoPublicoScreenState extends State<CatalogoPublicoScreen> {
     setState(() => _cargando = true);
     try {
       final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'))
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productosPublico}'))
           .timeout(const Duration(seconds: 12));
       final data = jsonDecode(res.body);
       if (data['ok'] == true && mounted) {

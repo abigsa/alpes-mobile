@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class ProduccionScreen extends StatefulWidget {
   const ProduccionScreen({super.key});
 
@@ -25,12 +28,19 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.ordenProduccion)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.productos)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.estadoProduccion)),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.ordenProduccion),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.productos),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.estadoProduccion),
+          headers: _auth.authHeaders,
+        ),
       ]);
 
       final ordenesData = jsonDecode(responses[0].body);
@@ -59,6 +69,7 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
   }
 
   Future<void> _eliminar(dynamic id) async {
+  final _auth = context.read<AuthProvider>();
   final ok = await showDialog<bool>(
     context: context,
     builder: (_) => AlertDialog(
@@ -87,6 +98,7 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
 
   await http.delete(
     Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenProduccion}/$id'),
+    headers: _auth.authHeaders,
   );
   _cargar();
 }
@@ -629,6 +641,7 @@ class __ProduccionFormState extends State<_ProduccionForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
     if (!_fechasValidas()) return;
 
@@ -658,12 +671,12 @@ class __ProduccionFormState extends State<_ProduccionForm> {
       final res = id != null
           ? await http.put(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             )
           : await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             );
 

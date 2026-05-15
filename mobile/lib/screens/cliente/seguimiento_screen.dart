@@ -52,19 +52,29 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     }
 
     try {
-      final res = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'));
+      // ✅ FIX: enviar token JWT — las 3 rutas (ordenes-venta, envios, seguimiento-envio)
+      //    están protegidas con authenticateToken en el backend.
+      final res = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         _ordenes = List<Map<String, dynamic>>.from(data['data']);
+      } else {
+        debugPrint('⚠️ /ordenes-venta/buscar -> ${res.statusCode}: ${res.body}');
       }
 
       for (final orden in _ordenes) {
         final ordenId = _idOrden(orden);
         if (ordenId == null) continue;
         try {
-          final envRes = await http.get(Uri.parse(
-              '${ApiConfig.baseUrl}${ApiConfig.envio}/buscar?criterio=orden_venta_id&valor=$ordenId'));
+          final envRes = await http.get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.envio}/buscar?criterio=orden_venta_id&valor=$ordenId'),
+            headers: auth.authHeaders,
+          );
           final envData = jsonDecode(envRes.body);
           if (envData['ok'] == true && (envData['data'] as List).isNotEmpty) {
             final envio =
@@ -73,8 +83,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             final envioIdReal =
                 int.tryParse('${envio['ENVIO_ID'] ?? envio['envio_id'] ?? ''}');
             if (envioIdReal != null) {
-              final segRes = await http.get(Uri.parse(
-                  '${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=$envioIdReal'));
+              final segRes = await http.get(
+                Uri.parse(
+                    '${ApiConfig.baseUrl}${ApiConfig.seguimiento}/buscar?criterio=envio_id&valor=$envioIdReal'),
+                headers: auth.authHeaders,
+              );
               final segData = jsonDecode(segRes.body);
               _eventos[ordenId] = segData['ok'] == true
                   ? List<Map<String, dynamic>>.from(segData['data'])
@@ -86,12 +99,15 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             _envios[ordenId] = null;
             _eventos[ordenId] = [];
           }
-        } catch (_) {
+        } catch (e) {
+          debugPrint('❌ Error cargando envío/seguimiento orden=$ordenId: $e');
           _envios[ordenId] = null;
           _eventos[ordenId] = [];
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ Error general en seguimiento _cargar: $e');
+    }
 
     if (_ordenes.isNotEmpty) {
       final primero = _idOrden(_ordenes.first);

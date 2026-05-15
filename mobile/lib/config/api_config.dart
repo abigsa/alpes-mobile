@@ -1,6 +1,6 @@
 class ApiConfig {
   // Cambia esta URL cuando despliegues el backend
-  static const String baseUrl = 'http://192.168.3.136:3000/api'; //local casa
+  static const String baseUrl = 'http://192.168.1.66:3000/api'; //local casa
 
   // ===== AUTENTICACIÓN =====
   static const String autenticacion = '/autenticacion';
@@ -14,6 +14,7 @@ class ApiConfig {
 
   // ===== CLIENTE - CATALOGO =====
   static const String productos = '/productos';
+  static const String productosPublico = '/productos/publico'; // ✅ sin auth
   static const String categorias = '/categorias';
   static const String carrito = '/carritos';
   static const String carritoDetalle = '/carritos-detalle';
@@ -107,7 +108,7 @@ class ApiConfig {
   static const String abastecimiento = '/abastecimientos';
   static const String prefCliente = '/preferencias-cliente';
   static const String cuotasPago = '/cuotas-pago';
-  
+
   // ===== UPLOAD =====
   static const String upload = '/upload';
 }

@@ -6,6 +6,8 @@ import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 import '../../../providers/cupon_provider.dart';
 
+import '../../../providers/auth_provider.dart';
+
 class CuponesScreen extends StatefulWidget {
   const CuponesScreen({super.key});
 

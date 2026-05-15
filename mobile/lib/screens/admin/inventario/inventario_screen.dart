@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class InventarioScreen extends StatefulWidget {
   const InventarioScreen({super.key});
 
@@ -83,11 +86,16 @@ class _InventarioScreenState extends State<InventarioScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.productos)),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.inventarioProducto),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.productos),
+          headers: _auth.authHeaders,
+        ),
       ]);
 
       final inventarioData = jsonDecode(responses[0].body);
@@ -109,6 +117,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
   }
 
   Future<void> _eliminar(int id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -135,6 +144,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
 
     await http.delete(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}/$id'),
+      headers: _auth.authHeaders,
     );
 
     _cargar();
@@ -1094,10 +1104,12 @@ class __InventarioFormState extends State<_InventarioForm> {
   }
 
   Future<void> _cargarProductos() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loadingProductos = true);
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
+        headers: _auth.authHeaders,
       );
       final data = jsonDecode(res.body);
 
@@ -1121,6 +1133,7 @@ class __InventarioFormState extends State<_InventarioForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_formKey.currentState!.validate()) return;
 
     if (_productoId == null) {
@@ -1154,13 +1167,13 @@ class __InventarioFormState extends State<_InventarioForm> {
       if (id != null) {
         res = await http.put(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}/$id'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       } else {
         res = await http.post(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       }

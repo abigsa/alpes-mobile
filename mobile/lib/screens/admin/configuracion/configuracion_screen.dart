@@ -24,9 +24,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   void initState() { super.initState(); _cargar(); }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
-      final res  = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.usuarios));
+      final res  = await http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.usuarios),
+        headers: _auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true)
         setState(() => _usuarios = List<Map<String, dynamic>>.from(data['data']));
@@ -34,6 +37,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   Future<void> _eliminarUsuario(dynamic id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Eliminar usuario', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -49,7 +53,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       ],
     ));
     if (ok != true) return;
-    await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}/$id'));
+    await http.delete(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}/$id'),
+      headers: _auth.authHeaders,
+    );
     _cargar();
   }
 
@@ -331,6 +337,7 @@ class _UsuarioFormState extends State<_UsuarioForm> {
   void dispose() { _uc.dispose(); _ec.dispose(); _pc.dispose(); super.dispose(); }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
@@ -339,10 +346,10 @@ class _UsuarioFormState extends State<_UsuarioForm> {
       final id = widget.item?['USUARIO_ID'] ?? widget.item?['usuario_id'];
       if (id != null) {
         await http.put(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}/$id'),
-            headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
+            headers: _auth.authHeaders, body: jsonEncode(body));
       } else {
         await http.post(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usuarios}'),
-            headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
+            headers: _auth.authHeaders, body: jsonEncode(body));
       }
       if (mounted) { Navigator.pop(context); widget.onGuardado(); }
     } catch (_) {} finally { if (mounted) setState(() => _loading = false); }

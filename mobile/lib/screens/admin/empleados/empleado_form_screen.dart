@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class EmpleadoFormScreen extends StatefulWidget {
   final int? empleadoId;
   const EmpleadoFormScreen({super.key, this.empleadoId});
@@ -28,7 +31,10 @@ class _EmpleadoFormScreenState extends State<EmpleadoFormScreen> {
   }
 
   Future<void> _cargar() async {
-    final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.empleados}/${widget.empleadoId}'));
+    final _auth = context.read<AuthProvider>();
+    final res = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.empleados}/${widget.empleadoId}'),
+      headers: _auth.authHeaders,
+    );
     final data = jsonDecode(res.body);
     if (data['ok'] == true && data['data'] != null) {
       final emp = data['data'];
@@ -42,6 +48,7 @@ class _EmpleadoFormScreenState extends State<EmpleadoFormScreen> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
@@ -62,13 +69,13 @@ class _EmpleadoFormScreenState extends State<EmpleadoFormScreen> {
         body['emp_id'] = widget.empleadoId!;
         res = await http.put(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.empleados}/${widget.empleadoId}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       } else {
         res = await http.post(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.empleados}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       }

@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class OrdenesCompraScreen extends StatefulWidget {
   const OrdenesCompraScreen({super.key});
 
@@ -35,13 +38,22 @@ class _OrdenesCompraScreenState extends State<OrdenesCompraScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.ordenCompra)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.proveedores)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.estadoOrdenCompra)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.condicionPago)),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.ordenCompra),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.proveedores),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.estadoOrdenCompra),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.condicionPago),
+          headers: _auth.authHeaders,
+        ),
       ]);
 
       final ordenesData = jsonDecode(responses[0].body);
@@ -91,6 +103,7 @@ class _OrdenesCompraScreenState extends State<OrdenesCompraScreen> {
   }
 
   Future<void> _eliminar(dynamic id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -117,6 +130,7 @@ class _OrdenesCompraScreenState extends State<OrdenesCompraScreen> {
 
     await http.delete(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenCompra}/$id'),
+      headers: _auth.authHeaders,
     );
     _cargar();
   }
@@ -140,6 +154,7 @@ class _OrdenesCompraScreenState extends State<OrdenesCompraScreen> {
   }
 
   Future<void> _abrirFormConDetalle([Map<String, dynamic>? item]) async {
+    final _auth = context.read<AuthProvider>();
     if (item == null) {
       _abrirForm();
       return;
@@ -160,6 +175,7 @@ class _OrdenesCompraScreenState extends State<OrdenesCompraScreen> {
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenCompra}/$id'),
+        headers: _auth.authHeaders,
       );
 
       final data = jsonDecode(res.body);
@@ -626,6 +642,7 @@ class __CompraFormState extends State<_CompraForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
 
     setState(() => _g = true);
@@ -654,12 +671,12 @@ class __CompraFormState extends State<_CompraForm> {
       final res = id != null
           ? await http.put(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             )
           : await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             );
 

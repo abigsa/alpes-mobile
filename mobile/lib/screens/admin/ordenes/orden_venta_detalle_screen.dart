@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class OrdenVentaDetalleScreen extends StatefulWidget {
   final int ordenId;
   const OrdenVentaDetalleScreen({super.key, required this.ordenId});
@@ -25,6 +28,7 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
   Map<String, dynamic>? _orden;
   List<Map<String, dynamic>> _detalles = [];
   List<Map<String, dynamic>> _estadosOrden = [];
+  List<Map<String, dynamic>> _productos = []; // ✅ catálogo para resolver nombres
   bool _loading = true;
   bool _guardando = false;
 
@@ -45,12 +49,23 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/${widget.ordenId}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}/buscar?criterio=orden_venta_id&valor=${widget.ordenId}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/${widget.ordenId}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}/buscar?criterio=orden_venta_id&valor=${widget.ordenId}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}'),
+          headers: _auth.authHeaders,
+        ),
+        // ✅ Catálogo de productos para resolver el NOMBRE a partir del PRODUCTO_ID
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
+          headers: _auth.authHeaders,
+        ),
       ]);
 
       if (!mounted) return;
@@ -58,6 +73,7 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
         final od = jsonDecode(responses[0].body);
         final dd = jsonDecode(responses[1].body);
         final ed = jsonDecode(responses[2].body);
+        final pd = jsonDecode(responses[3].body);
 
         if (od['ok'] == true) {
           _orden = Map<String, dynamic>.from(od['data']);
@@ -66,9 +82,23 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
         }
         if (dd['ok'] == true) _detalles = List<Map<String, dynamic>>.from(dd['data']);
         if (ed['ok'] == true) _estadosOrden = List<Map<String, dynamic>>.from(ed['data']);
+        if (pd['ok'] == true) _productos = List<Map<String, dynamic>>.from(pd['data']);
       });
     } catch (_) {}
     finally { if (mounted) setState(() => _loading = false); }
+  }
+
+  /// ✅ Devuelve el nombre real del producto buscando en el catálogo cargado.
+  /// Si no se encuentra, devuelve "Producto #ID" como fallback.
+  String _nombreProducto(dynamic productoId) {
+    if (productoId == null) return 'Producto';
+    for (final p in _productos) {
+      final pid = p['PRODUCTO_ID'] ?? p['producto_id'];
+      if ('$pid' == '$productoId') {
+        return (p['NOMBRE'] ?? p['nombre'] ?? 'Producto #$productoId').toString();
+      }
+    }
+    return 'Producto #$productoId';
   }
 
   int? _toInt(dynamic v) => v == null ? null : int.tryParse('$v');
@@ -138,6 +168,7 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
   }
 
   Future<void> _cambiarEstado(String nuevaClave) async {
+    final _auth = context.read<AuthProvider>();
     if (_orden == null) return;
 
     final estadoLogico = _estadosLogicos.firstWhere((e) => e['key'] == nuevaClave);
@@ -188,7 +219,7 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
       // Usar el endpoint directo que hace UPDATE sin SP
       final res = await http.patch(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/$id/estado'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _auth.authHeaders,
         body: jsonEncode({
           'estado_orden_id': nuevoId ?? _estadoSeleccionadoId,
           'observaciones': comentario,
@@ -521,7 +552,10 @@ class _OrdenVentaDetalleScreenState extends State<OrdenVentaDetalleScreen> {
         )
       else
         ..._detalles.map((d) {
-          final nombre = d['NOMBRE'] ?? d['nombre'] ?? 'Producto #${d['PRODUCTO_ID'] ?? d['producto_id']}';
+          final productoId = d['PRODUCTO_ID'] ?? d['producto_id'];
+          // ✅ Resolver nombre real desde el catálogo cargado; si por algún motivo
+          //    el SP de detalle ya trae 'NOMBRE', se usa ese primero.
+          final nombre = (d['NOMBRE'] ?? d['nombre'] ?? _nombreProducto(productoId)).toString();
           final cantidad = d['CANTIDAD'] ?? d['cantidad'] ?? 0;
           final precio = d['PRECIO_UNITARIO_SNAPSHOT'] ?? d['precio_unitario_snapshot'] ?? 0;
           final subtotal = d['SUBTOTAL_LINEA'] ?? d['subtotal_linea'] ?? 0;

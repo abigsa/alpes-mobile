@@ -107,7 +107,7 @@ class _HomePublicaScreenState extends State<HomePublicaScreen>
   Future<void> _cargarProductos() async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'))
+          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productosPublico}'))
           .timeout(const Duration(seconds: 10));
       final data = jsonDecode(res.body);
       if (data['ok'] == true && mounted) {

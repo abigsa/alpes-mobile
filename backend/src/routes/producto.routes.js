@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const ctrl = require("../controllers/producto.controller");
 const { authenticateToken } = require('../middleware/auth.middleware');
+router.get("/publico", ctrl.listar);
 router.get("/", authenticateToken, ctrl.listar);
 router.get("/buscar", authenticateToken, ctrl.buscar);
 router.get("/:id", authenticateToken, ctrl.obtener);

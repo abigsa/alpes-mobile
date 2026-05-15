@@ -16,6 +16,7 @@ class MisOrdenesScreen extends StatefulWidget {
 
 class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
   List<Map<String, dynamic>> _ordenes = [];
+  List<Map<String, dynamic>> _estadosOrden = []; // ✅ catálogo ESTADO_ORDEN
   bool _loading = true;
   String _filtro = 'Todos';
   final _filtros = [
@@ -40,14 +41,34 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
       return;
     }
     try {
-      final res = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'));
+      // ✅ FIX: enviar token JWT — la ruta /api/ordenes-venta está protegida
+      final res = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=${auth.clienteId}'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
-        setState(
-            () => _ordenes = List<Map<String, dynamic>>.from(data['data']));
+        _ordenes = List<Map<String, dynamic>>.from(data['data']);
+      } else {
+        debugPrint(
+            '⚠️ /ordenes-venta/buscar -> ${res.statusCode}: ${res.body}');
       }
-    } catch (_) {}
+
+      // ✅ Cargar catálogo de estados para poder mapear ESTADO_ORDEN_ID → nombre
+      final estRes = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}'),
+        headers: auth.authHeaders,
+      );
+      final estData = jsonDecode(estRes.body);
+      if (estData['ok'] == true) {
+        _estadosOrden = List<Map<String, dynamic>>.from(estData['data']);
+      } else {
+        debugPrint('⚠️ /estados-orden -> ${estRes.statusCode}: ${estRes.body}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando órdenes: $e');
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -96,21 +117,87 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
     }
   }
 
-  @override
+  /// Normaliza un texto: quita tildes, lo pasa a mayúsculas y trim.
+  String _norm(String s) {
+    const acc = 'ÁÉÍÓÚÄËÏÖÜÀÈÌÒÙÂÊÎÔÛÑ';
+    const pla = 'AEIOUAEIOUAEIOUAEIOUN';
+    var out = s.toUpperCase().trim();
+    for (var i = 0; i < acc.length; i++) {
+      out = out.replaceAll(acc[i], pla[i]);
+    }
+    return out;
+  }
+
+  /// Resuelve el estado real de una orden usando 3 estrategias en orden:
+  ///   1) Prefijo [CLAVE] en OBSERVACIONES (lo dejan las actualizaciones de estado)
+  ///   2) Cruce ESTADO_ORDEN_ID → nombre desde el catálogo _estadosOrden
+  ///   3) Campo ESTADO de la orden (último recurso)
   String _resolverEstado(Map<String, dynamic> o) {
+    // 1) Prefijo [CLAVE] en OBSERVACIONES
     final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ''}';
     final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
     if (match != null) {
       const mapa = {
-        'INGRESADA':  'Pendiente',
-        'PENDIENTE':  'Pendiente',
+        'INGRESADA': 'Pendiente',
+        'PENDIENTE': 'Pendiente',
         'EN_PROCESO': 'En proceso',
-        'ENTREGADA':  'Entregado',
-        'CANCELADA':  'Cancelado',
+        'ENTREGADA': 'Entregado',
+        'CANCELADA': 'Cancelado',
       };
-      return mapa[match.group(1)!] ?? 'Pendiente';
+      final r = mapa[match.group(1)!];
+      if (r != null) return r;
     }
-    return (o['ESTADO'] ?? o['estado'] ?? 'Pendiente').toString();
+
+    // 2) Cruce contra catálogo ESTADO_ORDEN por ID
+    final idEstado = o['ESTADO_ORDEN_ID'] ?? o['estado_orden_id'];
+    if (idEstado != null) {
+      for (final e in _estadosOrden) {
+        final eid = e['ESTADO_ORDEN_ID'] ?? e['estado_orden_id'];
+        if ('$eid' == '$idEstado') {
+          final raw =
+              (e['NOMBRE'] ?? e['nombre'] ?? e['CODIGO'] ?? e['codigo'] ?? '')
+                  .toString();
+          final n = _norm(raw);
+          // Mapear cualquier variante del backend al label de UI
+          if (n.contains('INGRES') ||
+              n.contains('PEND') ||
+              n.contains('NUEVA') ||
+              n.contains('REGISTR') ||
+              n.contains('CREAD')) return 'Pendiente';
+          if (n.contains('PROCES') ||
+              n.contains('PREPAR') ||
+              n.contains('PRODUCC') ||
+              n.contains('CAMINO') ||
+              n.contains('TRANSITO') ||
+              n.contains('ENVIAD')) {
+            return 'En proceso';
+          }
+          if (n.contains('ENTREG') ||
+              n.contains('COMPLET') ||
+              n.contains('FINALIZ') ||
+              n.contains('CERRAD')) return 'Entregado';
+          if (n.contains('CANCEL') ||
+              n.contains('ANULAD') ||
+              n.contains('RECHAZ')) {
+            return 'Cancelado';
+          }
+          // Si el SP devuelve un nombre legible, usarlo tal cual con primera mayúscula
+          if (raw.isNotEmpty) {
+            return raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+          }
+        }
+      }
+    }
+
+    // 3) Campo ESTADO de la orden (último recurso)
+    final estadoCrudo = '${o['ESTADO'] ?? o['estado'] ?? ''}';
+    final n = _norm(estadoCrudo);
+    if (n.contains('INGRES') || n.contains('PEND') || n.isEmpty)
+      return 'Pendiente';
+    if (n.contains('PROCES') || n.contains('CAMINO')) return 'En proceso';
+    if (n.contains('ENTREG') || n.contains('COMPLET')) return 'Entregado';
+    if (n.contains('CANCEL') || n.contains('ANULAD')) return 'Cancelado';
+    return 'Pendiente';
   }
 
   @override
@@ -118,7 +205,8 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
     var filtradas = _filtro == 'Todos'
         ? _ordenes
         : _ordenes
-            .where((o) => _resolverEstado(o).toLowerCase() == _filtro.toLowerCase())
+            .where((o) =>
+                _resolverEstado(o).toLowerCase() == _filtro.toLowerCase())
             .toList();
 
     return Scaffold(
@@ -238,22 +326,8 @@ class _MisOrdenesScreenState extends State<MisOrdenesScreen> {
     final total = double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
     final fecha = o['FECHA_ORDEN'] ?? o['fecha_orden'] ?? '';
 
-    // Leer estado real — prioridad: prefijo [CLAVE] en observaciones
-    final obs = '${o['OBSERVACIONES'] ?? o['observaciones'] ?? ''}';
-    final match = RegExp(r'^\[([A-Z_]+)\]').firstMatch(obs);
-    String estado;
-    if (match != null) {
-      const mapa = {
-        'INGRESADA':  'Pendiente',
-        'PENDIENTE':  'Pendiente',
-        'EN_PROCESO': 'En proceso',
-        'ENTREGADA':  'Entregado',
-        'CANCELADA':  'Cancelado',
-      };
-      estado = mapa[match.group(1)!] ?? 'Pendiente';
-    } else {
-      estado = (o['ESTADO'] ?? o['estado'] ?? 'Pendiente').toString();
-    }
+    // ✅ Usar el mismo resolvedor para consistencia con el filtro
+    final estado = _resolverEstado(o);
 
     return GestureDetector(
       onTap: () => context.go('/orden/$id'),

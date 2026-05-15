@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class OrdenesVentaScreen extends StatefulWidget {
   const OrdenesVentaScreen({super.key});
 
@@ -44,14 +47,25 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}'),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.metodoPago}'),
+          headers: _auth.authHeaders,
+        ),
       ]);
       if (!mounted) return;
       final ordenesData = jsonDecode(responses[0].body);

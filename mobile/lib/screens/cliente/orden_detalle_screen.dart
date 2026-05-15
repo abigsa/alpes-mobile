@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/api_config.dart';
+import '../../providers/auth_provider.dart';
 
 class OrdenDetalleScreen extends StatefulWidget {
   final int ordenId;
@@ -15,6 +17,7 @@ class OrdenDetalleScreen extends StatefulWidget {
 class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Map<String, dynamic>? _orden;
   List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _productos = []; // ✅ catálogo para resolver nombres
   bool _loading = true;
 
   @override
@@ -23,20 +26,64 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     _cargar();
   }
 
+  /// Resuelve el nombre del producto a partir del catálogo cargado.
+  String _nombreProducto(dynamic productoId) {
+    if (productoId == null) return 'Producto';
+    for (final p in _productos) {
+      final pid = p['PRODUCTO_ID'] ?? p['producto_id'];
+      if ('$pid' == '$productoId') {
+        return (p['NOMBRE'] ?? p['nombre'] ?? 'Producto #$productoId').toString();
+      }
+    }
+    return 'Producto #$productoId';
+  }
+
   Future<void> _cargar() async {
     try {
-      final ordenRes = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/${widget.ordenId}'));
+      final auth = context.read<AuthProvider>();
+      // ✅ FIX: enviar token JWT — /api/ordenes-venta y /api/ordenes-venta-detalle
+      //    están protegidas con authenticateToken en el backend.
+      final ordenRes = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/${widget.ordenId}'),
+        headers: auth.authHeaders,
+      );
       final ordenData = jsonDecode(ordenRes.body);
-      if (ordenData['ok'] == true) _orden = ordenData['data'];
+      if (ordenData['ok'] == true) {
+        _orden = ordenData['data'];
+      } else {
+        debugPrint('⚠️ /ordenes-venta/${widget.ordenId} -> '
+            '${ordenRes.statusCode}: ${ordenRes.body}');
+      }
 
-      final detRes = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}/buscar?criterio=orden_venta_id&valor=${widget.ordenId}'));
+      final detRes = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}/buscar?criterio=orden_venta_id&valor=${widget.ordenId}'),
+        headers: auth.authHeaders,
+      );
       final detData = jsonDecode(detRes.body);
-      if (detData['ok'] == true)
+      if (detData['ok'] == true) {
         _items = List<Map<String, dynamic>>.from(detData['data']);
-    } catch (_) {}
-    setState(() => _loading = false);
+      } else {
+        debugPrint('⚠️ /ordenes-venta-detalle/buscar -> '
+            '${detRes.statusCode}: ${detRes.body}');
+      }
+
+      // ✅ Catálogo de productos para mostrar el nombre real
+      final prodRes = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
+        headers: auth.authHeaders,
+      );
+      final prodData = jsonDecode(prodRes.body);
+      if (prodData['ok'] == true) {
+        _productos = List<Map<String, dynamic>>.from(prodData['data']);
+      } else {
+        debugPrint('⚠️ /productos -> ${prodRes.statusCode}: ${prodRes.body}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando detalle de orden: $e');
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -102,20 +149,28 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       Text('Productos',
                           style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 8),
-                      ..._items.map((item) => Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              title: Text(
-                                  'Producto #${item['PRODUCTO_ID'] ?? item['producto_id']}'),
-                              subtitle: Text(
-                                  'Cantidad: ${item['CANTIDAD'] ?? item['cantidad']}'),
-                              trailing: Text(
-                                  'Q${item['SUBTOTAL_LINEA'] ?? item['subtotal_linea'] ?? 0}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: AlpesColors.cafeOscuro)),
-                            ),
-                          )),
+                      ..._items.map((item) {
+                        final productoId =
+                            item['PRODUCTO_ID'] ?? item['producto_id'];
+                        // ✅ Mostrar nombre real desde el catálogo
+                        final nombre = (item['NOMBRE'] ??
+                                item['nombre'] ??
+                                _nombreProducto(productoId))
+                            .toString();
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            title: Text(nombre),
+                            subtitle: Text(
+                                'Cantidad: ${item['CANTIDAD'] ?? item['cantidad']}'),
+                            trailing: Text(
+                                'Q${item['SUBTOTAL_LINEA'] ?? item['subtotal_linea'] ?? 0}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AlpesColors.cafeOscuro)),
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,

@@ -3400,7 +3400,7 @@ class _ReportesScreenState extends State<ReportesScreen>
             crossAxisCount: isNarrow ? 1 : 3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: isNarrow ? 2.2 : 5.5,
+            childAspectRatio: isNarrow ? 3.8 : 4.2,
           ),
           itemBuilder: (_, index) => _buildKpiCard(cards[index]),
         );
@@ -3412,7 +3412,7 @@ class _ReportesScreenState extends State<ReportesScreen>
     return ScaleTransition(
       scale: Tween<double>(begin: .96, end: 1).animate(_fadeAnimation),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -3437,14 +3437,14 @@ class _ReportesScreenState extends State<ReportesScreen>
         child: Row(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(.14),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white.withOpacity(.18)),
               ),
-              child: Icon(data.icon, color: Colors.white, size: 26),
+              child: Icon(data.icon, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -3462,14 +3462,14 @@ class _ReportesScreenState extends State<ReportesScreen>
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
                   Text(
                     data.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 21,
+                      fontSize: 18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: .2,
                     ),

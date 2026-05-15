@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 
 // ─────────────────────────────────────────────────────────
 //  DATA
@@ -51,7 +53,12 @@ class _VentasMensualesChartState extends State<VentasMensualesChart>
   Future<void> _cargar() async {
     setState(() => _loading = true);
     try {
-      final res  = await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final auth = context.read<AuthProvider>();
+      // ✅ FIX: /api/ordenes-venta está protegida con authenticateToken
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list  = data['data'] as List;
@@ -82,16 +89,27 @@ class _VentasMensualesChartState extends State<VentasMensualesChart>
           lista.add(_MesData(_mesesNombres[mes - 1], mapa[mes] ?? 0));
         }
 
-        setState(() { _datos = lista; _loading = false; });
-        _animCtrl.forward(from: 0);
+        if (mounted) {
+          setState(() { _datos = lista; _loading = false; });
+          _animCtrl.forward(from: 0);
+        }
+        return;
+      } else {
+        debugPrint('⚠️ chart /ordenes-venta -> ${res.statusCode}: ${res.body}');
       }
-    } catch (_) {
-      // Datos de ejemplo si falla
+    } catch (e) {
+      debugPrint('❌ chart _cargar: $e');
+    }
+
+    // ✅ FIX BUG: si data['ok'] no fue true (401, error, etc.) el spinner se quedaba
+    //    girando para siempre. Ahora siempre cerramos _loading y mostramos un
+    //    fallback con datos vacíos para que la pantalla NO quede colgada.
+    if (mounted) {
       setState(() {
         _datos = const [
-          _MesData('Jul', 38200), _MesData('Ago', 42500),
-          _MesData('Sep', 35800), _MesData('Oct', 51200),
-          _MesData('Nov', 67800), _MesData('Dic', 49000),
+          _MesData('Jul', 0), _MesData('Ago', 0),
+          _MesData('Sep', 0), _MesData('Oct', 0),
+          _MesData('Nov', 0), _MesData('Dic', 0),
         ];
         _loading = false;
       });

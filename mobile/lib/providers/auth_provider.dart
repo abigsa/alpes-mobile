@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../utils/http_client.dart';
 
 enum UserRole { cliente, admin, none }
 
@@ -49,6 +50,7 @@ class AuthProvider extends ChangeNotifier {
       _usuario = jsonDecode(userData);
       _token = token;
       _refreshToken = refreshToken;
+      ApiClient.setToken(_token); // ✅ inyectar token al cliente HTTP
 
       final rolNombre =
           (_usuario?['rol'] ?? '').toString().toUpperCase().trim();
@@ -65,8 +67,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> login(
-      String username, String password) async {
+  Future<Map<String, dynamic>> login(String username, String password) async {
     _loading = true;
     notifyListeners();
     try {
@@ -83,11 +84,13 @@ class AuthProvider extends ChangeNotifier {
 
         _token = userData['accessToken'] ?? userData['token'];
         _refreshToken = userData['refreshToken'];
+        ApiClient.setToken(_token); // ✅ inyectar token al cliente HTTP
 
         // ✅ FIX: guardar cli_id como 'clienteId' separado de usuarioId
         _usuario = {
-          'usuarioId': userData['usuarioId'],   // USU_ID (para operaciones de usuario)
-          'clienteId': userData['cli_id'],       // CLI_ID (para filtros de cliente)
+          'usuarioId':
+              userData['usuarioId'], // USU_ID (para operaciones de usuario)
+          'clienteId': userData['cli_id'], // CLI_ID (para filtros de cliente)
           'nombre': userData['nombre'],
           'email': userData['email'],
           'rol': userData['rol'],
@@ -123,8 +126,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> registrar(
-      Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> registrar(Map<String, dynamic> data) async {
     _loading = true;
     notifyListeners();
     try {
@@ -135,10 +137,7 @@ class AuthProvider extends ChangeNotifier {
       );
       final res = jsonDecode(response.body);
       if (response.statusCode == 201) return {'ok': true};
-      return {
-        'ok': false,
-        'mensaje': res['message'] ?? 'Error al registrar'
-      };
+      return {'ok': false, 'mensaje': res['message'] ?? 'Error al registrar'};
     } catch (e) {
       return {'ok': false, 'mensaje': 'Error de conexión: $e'};
     } finally {
@@ -184,10 +183,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return {'ok': true};
       }
-      return {
-        'ok': false,
-        'mensaje': res['message'] ?? 'Error al actualizar'
-      };
+      return {'ok': false, 'mensaje': res['message'] ?? 'Error al actualizar'};
     } catch (e) {
       return {'ok': false, 'mensaje': 'Error de conexión: $e'};
     } finally {
@@ -206,8 +202,7 @@ class AuthProvider extends ChangeNotifier {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _token =
-            data['data']['accessToken'] ?? data['data']['token'];
+        _token = data['data']['accessToken'] ?? data['data']['token'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token ?? '');
         notifyListeners();
@@ -232,6 +227,7 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _refreshToken = null;
     _usuario = null;
+    ApiClient.setToken(null); // ✅ limpiar token al cerrar sesión
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();

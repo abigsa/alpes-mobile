@@ -14,7 +14,7 @@ class ApiConfig {
 
   // ===== CLIENTE - CATALOGO =====
   static const String productos = '/productos';
-  static const String productosPublico = '/productos/publico'; // ✅ sin auth
+  static const String productosPublico = '/productos/publico'; // sin auth
   static const String categorias = '/categorias';
   static const String carrito = '/carritos';
   static const String carritoDetalle = '/carritos-detalle';

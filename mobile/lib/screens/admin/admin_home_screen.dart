@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import '../../utils/http_client.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/api_config.dart';
@@ -230,8 +231,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _cargarOrdenes() async {
     try {
-      final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'));
+      final res =
+          await ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}');
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
@@ -240,11 +241,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         int activas = 0;
         int pendientes = 0;
         for (final o in list) {
-          final estado =
-              (o['ESTADO'] ?? o['estado'] ?? '').toString().toLowerCase();
+          final estado = (o['ESTADO'] ??
+                  o['estado'] ??
+                  o['OBSERVACIONES'] ??
+                  o['observaciones'] ??
+                  '')
+              .toString()
+              .toLowerCase();
           final total =
               double.tryParse('${o['TOTAL'] ?? o['total'] ?? 0}') ?? 0;
-          // Ventas del mes actual
           final fecha = o['FECHA_ORDEN'] ?? o['fecha_orden'] ?? '';
           if (fecha.toString().contains('${ahora.year}') &&
               fecha
@@ -252,9 +257,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   .contains('-${ahora.month.toString().padLeft(2, '0')}-')) {
             ventas += total;
           }
-          if (estado != 'entregado' &&
-              estado != 'cancelado' &&
-              estado != 'cerrado') {
+          final cancelada =
+              estado.contains('cancel') || estado.contains('anulad');
+          final entregada = estado.contains('entreg') ||
+              estado.contains('complet') ||
+              estado.contains('cerrad');
+          if (!cancelada && !entregada) {
             activas++;
             pendientes++;
           }
@@ -272,7 +280,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Future<void> _cargarClientes() async {
     try {
       final res =
-          await http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}'));
+          await ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.cliente}');
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
@@ -283,8 +291,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _cargarInventario() async {
     try {
-      final res = await http.get(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'));
+      final res = await ApiClient.get(
+          '${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}');
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = data['data'] as List;
@@ -360,23 +368,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Positioned(
               top: -30,
               right: 120,
-              child:
-                  _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
+              child: _circle(
+                  80, AlpesColors.oroGuatemalteco.withValues(alpha: 0.07))),
           Positioned(
               top: -20,
               right: 60,
-              child:
-                  _circle(50, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+              child: _circle(
+                  50, AlpesColors.oroGuatemalteco.withValues(alpha: 0.05))),
           Positioned(
               bottom: -20,
               left: 200,
-              child:
-                  _circle(60, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+              child: _circle(
+                  60, AlpesColors.oroGuatemalteco.withValues(alpha: 0.04))),
           Positioned(
               top: -10,
               left: 300,
-              child:
-                  _circle(40, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+              child: _circle(
+                  40, AlpesColors.oroGuatemalteco.withValues(alpha: 0.06))),
           // Línea dorada sutil en la base
           Positioned(
             bottom: 0,
@@ -387,8 +395,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [
                   Colors.transparent,
-                  AlpesColors.oroGuatemalteco.withOpacity(0.4),
-                  AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                  AlpesColors.oroGuatemalteco.withValues(alpha: 0.4),
+                  AlpesColors.oroGuatemalteco.withValues(alpha: 0.4),
                   Colors.transparent,
                 ]),
               ),
@@ -419,11 +427,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AlpesColors.oroGuatemalteco.withOpacity(0.2),
+                          color: AlpesColors.oroGuatemalteco
+                              .withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color:
-                                  AlpesColors.oroGuatemalteco.withOpacity(0.4)),
+                              color: AlpesColors.oroGuatemalteco
+                                  .withValues(alpha: 0.4)),
                         ),
                         child: const Text('Administrador',
                             style: TextStyle(
@@ -552,7 +561,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-              color: AlpesColors.cafeOscuro.withOpacity(0.08),
+              color: AlpesColors.cafeOscuro.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(9)),
           child: Icon(icon, size: 18, color: AlpesColors.cafeOscuro),
         ),
@@ -637,23 +646,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Positioned(
               top: -40,
               right: -40,
-              child:
-                  _circle(130, AlpesColors.oroGuatemalteco.withOpacity(0.07))),
+              child: _circle(
+                  130, AlpesColors.oroGuatemalteco.withValues(alpha: 0.07))),
           Positioned(
               top: 80,
               left: -50,
-              child:
-                  _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+              child: _circle(
+                  100, AlpesColors.oroGuatemalteco.withValues(alpha: 0.04))),
           Positioned(
               bottom: 100,
               right: -30,
-              child:
-                  _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+              child: _circle(
+                  120, AlpesColors.oroGuatemalteco.withValues(alpha: 0.05))),
           Positioned(
               bottom: -30,
               left: -20,
-              child:
-                  _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+              child: _circle(
+                  90, AlpesColors.oroGuatemalteco.withValues(alpha: 0.06))),
           // Contenido
           Column(
             children: [
@@ -689,8 +698,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
       decoration: BoxDecoration(
-        border:
-            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
+        border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
       ),
       child: Row(
         children: [
@@ -702,7 +711,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                    color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                    color: AlpesColors.oroGuatemalteco.withValues(alpha: 0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4))
               ],
@@ -736,8 +745,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Widget _buildSidebarFooter(BuildContext context, AuthProvider auth) {
     return Container(
       decoration: BoxDecoration(
-          border:
-              Border(top: BorderSide(color: Colors.white.withOpacity(0.08)))),
+          border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)))),
       child: _buildFullNavTile(
         icon: Icons.logout_rounded,
         label: 'Cerrar sesión',
@@ -755,7 +764,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
         child: Text(label.toUpperCase(),
             style: TextStyle(
-                color: AlpesColors.arenaCalida.withOpacity(0.7),
+                color: AlpesColors.arenaCalida.withValues(alpha: 0.7),
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.4)),
@@ -806,7 +815,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
         firstChild: const SizedBox.shrink(),
         secondChild: Container(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           child: Column(
               children: entry.children
                   .map((c) => _buildFullNavTile(
@@ -845,7 +854,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Expanded(
                 child: Text(label,
                     style: TextStyle(
-                        color: textColor ?? Colors.white.withOpacity(0.88),
+                        color:
+                            textColor ?? Colors.white.withValues(alpha: 0.88),
                         fontSize: 13))),
             if (badge > 0)
               Container(
@@ -885,11 +895,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         Positioned(
             top: -20,
             right: -20,
-            child: _circle(80, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
+            child: _circle(
+                80, AlpesColors.oroGuatemalteco.withValues(alpha: 0.08))),
         Positioned(
             bottom: 60,
             left: -30,
-            child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+            child: _circle(
+                90, AlpesColors.oroGuatemalteco.withValues(alpha: 0.05))),
         Column(children: [
           const SizedBox(height: 48),
           Container(
@@ -901,7 +913,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               borderRadius: BorderRadius.circular(9),
               boxShadow: [
                 BoxShadow(
-                    color: AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                    color: AlpesColors.oroGuatemalteco.withValues(alpha: 0.4),
                     blurRadius: 10)
               ],
             ),
@@ -910,14 +922,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
           Container(
               height: 1,
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               margin: const EdgeInsets.symmetric(vertical: 4)),
           Expanded(
               child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 4),
             children: flat.map((e) => _buildRailIcon(context, e)).toList(),
           )),
-          Container(height: 1, color: Colors.white.withOpacity(0.08)),
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.08)),
           _buildRailIconRaw(
               icon: Icons.logout_rounded,
               tooltip: 'Cerrar sesión',
@@ -962,7 +974,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10)),
               child:
                   Icon(icon, size: 20, color: color ?? AlpesColors.arenaCalida),
@@ -996,19 +1008,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         Positioned(
             top: -30,
             right: -30,
-            child: _circle(120, AlpesColors.oroGuatemalteco.withOpacity(0.08))),
+            child: _circle(
+                120, AlpesColors.oroGuatemalteco.withValues(alpha: 0.08))),
         Positioned(
             top: 120,
             left: -40,
-            child: _circle(100, AlpesColors.oroGuatemalteco.withOpacity(0.04))),
+            child: _circle(
+                100, AlpesColors.oroGuatemalteco.withValues(alpha: 0.04))),
         Positioned(
             bottom: 80,
             right: -20,
-            child: _circle(110, AlpesColors.oroGuatemalteco.withOpacity(0.05))),
+            child: _circle(
+                110, AlpesColors.oroGuatemalteco.withValues(alpha: 0.05))),
         Positioned(
             bottom: -20,
             left: -30,
-            child: _circle(90, AlpesColors.oroGuatemalteco.withOpacity(0.06))),
+            child: _circle(
+                90, AlpesColors.oroGuatemalteco.withValues(alpha: 0.06))),
         Column(children: [
           DrawerHeader(
             margin: EdgeInsets.zero,
@@ -1029,8 +1045,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                              color:
-                                  AlpesColors.oroGuatemalteco.withOpacity(0.4),
+                              color: AlpesColors.oroGuatemalteco
+                                  .withValues(alpha: 0.4),
                               blurRadius: 12,
                               offset: const Offset(0, 4))
                         ],
@@ -1061,9 +1077,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.07),
+                      color: Colors.white.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1)),
                     ),
                     child: Row(children: [
                       Container(
@@ -1108,7 +1125,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Container(
             decoration: BoxDecoration(
                 border: Border(
-                    top: BorderSide(color: Colors.white.withOpacity(0.08)))),
+                    top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08)))),
             child: _buildFullNavTile(
               icon: Icons.logout_rounded,
               label: 'Cerrar sesión',
@@ -1172,7 +1190,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             isOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
         firstChild: const SizedBox.shrink(),
         secondChild: Container(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           child: Column(
               children: entry.children
                   .map((c) => _buildFullNavTile(
@@ -1232,7 +1250,7 @@ class _TopIconBtn extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(6),
         child: Stack(alignment: Alignment.topRight, children: [
-          Icon(icon, color: Colors.white.withOpacity(0.85), size: 22),
+          Icon(icon, color: Colors.white.withValues(alpha: 0.85), size: 22),
           if (badge > 0)
             Container(
               width: 16,
@@ -1329,7 +1347,7 @@ class _UserMenuBtn extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                    color: AlpesColors.cafeOscuro.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(7)),
                 child: const Icon(Icons.person_outline_rounded,
                     size: 16, color: AlpesColors.cafeOscuro)),
@@ -1345,7 +1363,7 @@ class _UserMenuBtn extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                    color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                    color: AlpesColors.cafeOscuro.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(7)),
                 child: const Icon(Icons.settings_outlined,
                     size: 16, color: AlpesColors.cafeOscuro)),
@@ -1362,7 +1380,7 @@ class _UserMenuBtn extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                    color: AlpesColors.rojoColonial.withOpacity(0.08),
+                    color: AlpesColors.rojoColonial.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(7)),
                 child: const Icon(Icons.logout_rounded,
                     size: 16, color: AlpesColors.rojoColonial)),
@@ -1376,9 +1394,9 @@ class _UserMenuBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withOpacity(0.15)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(children: [
           Container(
@@ -1526,7 +1544,6 @@ class _PerfilSheetState extends State<_PerfilSheet> {
       }
 
       // ── Actualizar en memoria y SharedPreferences ──
-      // Esto hace que el topbar y el menú se actualicen inmediatamente
       await widget.auth.updatePerfil(
         nombre: _nombreCtrl.text.trim(),
         apellido: _apellidoCtrl.text.trim(),
@@ -1588,8 +1605,8 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                              color:
-                                  AlpesColors.oroGuatemalteco.withOpacity(0.3),
+                              color: AlpesColors.oroGuatemalteco
+                                  .withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4))
                         ]),
@@ -1611,12 +1628,12 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                               fontWeight: FontWeight.w700,
                               color: AlpesColors.cafeOscuro)),
                       const SizedBox(height: 4),
-                      // Username — solo lectura, no modificable
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                            color: AlpesColors.cafeOscuro.withOpacity(0.07),
+                            color:
+                                AlpesColors.cafeOscuro.withValues(alpha: 0.07),
                             borderRadius: BorderRadius.circular(8)),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.lock_outline_rounded,
@@ -1663,12 +1680,12 @@ class _PerfilSheetState extends State<_PerfilSheet> {
                         horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: _cambiarPass
-                          ? AlpesColors.cafeOscuro.withOpacity(0.06)
+                          ? AlpesColors.cafeOscuro.withValues(alpha: 0.06)
                           : AlpesColors.cremaFondo,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: _cambiarPass
-                            ? AlpesColors.oroGuatemalteco.withOpacity(0.4)
+                            ? AlpesColors.oroGuatemalteco.withValues(alpha: 0.4)
                             : AlpesColors.pergamino,
                       ),
                     ),
@@ -1849,34 +1866,38 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: _hovered
-                ? [Colors.white, AlpesColors.oroGuatemalteco.withOpacity(0.06)]
+                ? [
+                    Colors.white,
+                    AlpesColors.oroGuatemalteco.withValues(alpha: 0.06)
+                  ]
                 : [Colors.white, const Color(0xFFF7F3EE)],
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _hovered
-                ? AlpesColors.oroGuatemalteco.withOpacity(0.5)
-                : AlpesColors.pergamino.withOpacity(0.8),
+                ? AlpesColors.oroGuatemalteco.withValues(alpha: 0.5)
+                : AlpesColors.pergamino.withValues(alpha: 0.8),
             width: _hovered ? 1.5 : 1.0,
           ),
           boxShadow: _hovered
               ? [
                   BoxShadow(
-                      color: k.accent.withOpacity(0.15),
+                      color: k.accent.withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 8)),
                   BoxShadow(
-                      color: AlpesColors.oroGuatemalteco.withOpacity(0.08),
+                      color:
+                          AlpesColors.oroGuatemalteco.withValues(alpha: 0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 2))
                 ]
               : [
                   BoxShadow(
-                      color: k.accent.withOpacity(0.07),
+                      color: k.accent.withValues(alpha: 0.07),
                       blurRadius: 10,
                       offset: const Offset(0, 3)),
                   BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 4,
                       offset: const Offset(0, 1))
                 ],
@@ -1887,7 +1908,7 @@ class _HoverKpiCardState extends State<_HoverKpiCard> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: k.accent.withOpacity(_hovered ? 0.18 : 0.1),
+              color: k.accent.withValues(alpha: _hovered ? 0.18 : 0.1),
               borderRadius: BorderRadius.circular(9),
             ),
             child: Icon(k.icon, size: 17, color: k.accent),
@@ -1981,34 +2002,35 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
               colors: active
                   ? [
                       Colors.white,
-                      AlpesColors.oroGuatemalteco.withOpacity(0.08)
+                      AlpesColors.oroGuatemalteco.withValues(alpha: 0.08)
                     ]
                   : [
-                      AlpesColors.cafeOscuro.withOpacity(0.03),
-                      AlpesColors.oroGuatemalteco.withOpacity(0.05),
+                      AlpesColors.cafeOscuro.withValues(alpha: 0.03),
+                      AlpesColors.oroGuatemalteco.withValues(alpha: 0.05),
                     ],
             ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: active
-                  ? AlpesColors.oroGuatemalteco.withOpacity(0.6)
-                  : AlpesColors.oroGuatemalteco.withOpacity(0.2),
+                  ? AlpesColors.oroGuatemalteco.withValues(alpha: 0.6)
+                  : AlpesColors.oroGuatemalteco.withValues(alpha: 0.2),
               width: active ? 1.5 : 1.0,
             ),
             boxShadow: active
                 ? [
                     BoxShadow(
-                        color: AlpesColors.cafeOscuro.withOpacity(0.14),
+                        color: AlpesColors.cafeOscuro.withValues(alpha: 0.14),
                         blurRadius: 18,
                         offset: const Offset(0, 8)),
                     BoxShadow(
-                        color: AlpesColors.oroGuatemalteco.withOpacity(0.10),
+                        color:
+                            AlpesColors.oroGuatemalteco.withValues(alpha: 0.10),
                         blurRadius: 6,
                         offset: const Offset(0, 2))
                   ]
                 : [
                     BoxShadow(
-                        color: AlpesColors.cafeOscuro.withOpacity(0.06),
+                        color: AlpesColors.cafeOscuro.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 3))
                   ],
@@ -2024,7 +2046,7 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AlpesColors.oroGuatemalteco
-                      .withOpacity(active ? 0.14 : 0.08),
+                      .withValues(alpha: active ? 0.14 : 0.08),
                 ),
               ),
             ),
@@ -2039,7 +2061,7 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [
                     Colors.transparent,
-                    AlpesColors.oroGuatemalteco.withOpacity(0.8),
+                    AlpesColors.oroGuatemalteco.withValues(alpha: 0.8),
                     Colors.transparent,
                   ]),
                   borderRadius:
@@ -2057,11 +2079,11 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                   height: 40,
                   decoration: BoxDecoration(
                     color: active
-                        ? AlpesColors.cafeOscuro.withOpacity(0.12)
-                        : AlpesColors.cafeOscuro.withOpacity(0.07),
+                        ? AlpesColors.cafeOscuro.withValues(alpha: 0.12)
+                        : AlpesColors.cafeOscuro.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(
-                        color: AlpesColors.cafeOscuro.withOpacity(0.06)),
+                        color: AlpesColors.cafeOscuro.withValues(alpha: 0.06)),
                   ),
                   child: Icon(widget.item['icon'] as IconData,
                       color: AlpesColors.cafeOscuro, size: 19),
@@ -2075,7 +2097,7 @@ class _HoverModuleTileState extends State<_HoverModuleTile> {
                       fontSize: 10.5,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                       color: AlpesColors.cafeOscuro
-                          .withOpacity(active ? 1.0 : 0.8),
+                          .withValues(alpha: active ? 1.0 : 0.8),
                     ),
                     child: Text(widget.item['label'] as String,
                         textAlign: TextAlign.center,

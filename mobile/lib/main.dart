@@ -22,7 +22,6 @@ class AlpesApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-
         ChangeNotifierProxyProvider<AuthProvider, ProductoProvider>(
           create: (_) => ProductoProvider(),
           update: (_, auth, producto) {
@@ -32,7 +31,6 @@ class AlpesApp extends StatelessWidget {
             return producto;
           },
         ),
-
         ChangeNotifierProxyProvider<AuthProvider, CarritoProvider>(
           create: (_) => CarritoProvider(),
           update: (_, auth, carrito) {
@@ -40,7 +38,6 @@ class AlpesApp extends StatelessWidget {
             return carrito;
           },
         ),
-
         ChangeNotifierProxyProvider<AuthProvider, FavoritosProvider>(
           create: (_) => FavoritosProvider(),
           update: (_, auth, favoritos) {
@@ -48,8 +45,13 @@ class AlpesApp extends StatelessWidget {
             return favoritos;
           },
         ),
-
-        ChangeNotifierProvider(create: (_) => CuponProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, CuponProvider>(
+          create: (_) => CuponProvider(),
+          update: (_, auth, cupon) {
+            cupon!.setToken(auth.token);
+            return cupon;
+          },
+        ),
       ],
       child: Builder(
         builder: (context) {

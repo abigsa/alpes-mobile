@@ -313,10 +313,10 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withOpacity(0.22)),
         boxShadow: [
           BoxShadow(
@@ -326,41 +326,37 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 20, color: accent),
+            child: Icon(icon, size: 16, color: accent),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AlpesColors.nogalMedio,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AlpesColors.cafeOscuro,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AlpesColors.cafeOscuro,
             ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: AlpesColors.nogalMedio,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -599,15 +595,17 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
                 child: Column(
                   children: [
-                    _metricCard(
-                      label: 'Ventas filtradas',
-                      value: 'Q ${_totalFiltrado.toStringAsFixed(2)}',
-                      icon: Icons.payments_outlined,
-                      accent: AlpesColors.cafeOscuro,
-                    ),
-                    const SizedBox(height: 10),
                     Row(
                       children: [
+                        Expanded(
+                          child: _metricCard(
+                            label: 'Ventas',
+                            value: 'Q ${_totalFiltrado >= 1000 ? "${(_totalFiltrado/1000).toStringAsFixed(1)}k" : _totalFiltrado.toStringAsFixed(0)}',
+                            icon: Icons.payments_outlined,
+                            accent: AlpesColors.cafeOscuro,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: _metricCard(
                             label: 'Pendientes',
@@ -616,7 +614,11 @@ class _OrdenesVentaScreenState extends State<OrdenesVentaScreen> {
                             accent: const Color(0xFF854F0B),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
                         Expanded(
                           child: _metricCard(
                             label: 'Items visibles',

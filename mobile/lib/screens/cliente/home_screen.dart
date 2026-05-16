@@ -192,7 +192,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AlpesColors.cremaFondo,
-      body: Stack(
+      body: SafeArea(
+        child: Stack(
         children: [
           Row(
             children: [
@@ -273,6 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _AlpesBotBtn(),
           ),
         ],
+      ),
       ),
       bottomNavigationBar:
           !hasSidebar ? const BottomNavCliente(currentIndex: 0) : null,
@@ -425,10 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const Spacer(),
           const Divider(color: Colors.white12, height: 1),
           GestureDetector(
-            onTap: () async {
-              await auth.logout();
-              if (context.mounted) context.go('/login');
-            },
+            onTap: () => auth.logout(),
             child: Container(
               margin: const EdgeInsets.all(10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -787,10 +786,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const Divider(color: Colors.white12, height: 1),
             // Cerrar sesión
             _sidebarItem(Icons.logout_rounded, 'Cerrar sesión', '', ctx,
-                onTapExtra: () async {
+                onTapExtra: () {
               Navigator.pop(ctx);
-              await auth.logout();
-              if (ctx.mounted) ctx.go('/login');
+              auth.logout();
             }),
           ]),
         ),
@@ -1074,19 +1072,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ]),
-        // Circulo decorativo
-        Positioned(
-          top: 0,
-          right: 0,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AlpesColors.oroGuatemalteco.withOpacity(0.05),
-            ),
-          ),
-        ),
       ]),
     );
   }
@@ -1127,7 +1112,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _kpiCard(IconData icon, String value, String label, Color accent) =>
       Container(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -1141,21 +1126,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               color: accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
             ),
-            child: Icon(icon, color: accent, size: 16),
+            child: Icon(icon, color: accent, size: 14),
           ),
-          const SizedBox(height: 8),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AlpesColors.cafeOscuro,
-                  letterSpacing: -0.5)),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AlpesColors.cafeOscuro,
+                    letterSpacing: -0.5)),
+          ),
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(
@@ -1574,43 +1563,43 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _sectionLabel('Accesos rápidos'),
       const SizedBox(height: 10),
-      GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 4,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 2.8,
-        children: accesos
-            .map((a) => GestureDetector(
-                  onTap: () => context.go(a['route'] as String),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AlpesColors.pergamino),
-                      boxShadow: [
-                        BoxShadow(
-                            color: AlpesColors.cafeOscuro.withOpacity(0.04),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2))
-                      ],
-                    ),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(a['icon'] as IconData,
-                              size: 18, color: AlpesColors.cafeOscuro),
-                          const SizedBox(width: 6),
-                          Text(a['label'] as String,
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AlpesColors.cafeOscuro)),
-                        ]),
-                  ),
-                ))
-            .toList(),
+      Row(
+        children: List.generate(accesos.length, (i) => Expanded(
+          child: GestureDetector(
+            onTap: () => context.go(accesos[i]['route'] as String),
+            child: Container(
+              height: 54,
+              margin: EdgeInsets.only(right: i < accesos.length - 1 ? 8 : 0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AlpesColors.pergamino),
+                boxShadow: [
+                  BoxShadow(
+                      color: AlpesColors.cafeOscuro.withOpacity(0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2))
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(accesos[i]['icon'] as IconData,
+                      size: 18, color: AlpesColors.cafeOscuro),
+                  const SizedBox(height: 4),
+                  Text(accesos[i]['label'] as String,
+                      style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: AlpesColors.cafeOscuro),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ),
+        )),
       ),
     ]);
   }
@@ -2415,13 +2404,10 @@ class _PerfilMenuBtn extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.white,
       elevation: 8,
-      onSelected: (val) async {
+      onSelected: (val) {
         if (val == 'perfil') context.go('/perfil');
         if (val == 'tarjetas') context.go('/mis-tarjetas');
-        if (val == 'logout') {
-          await auth.logout();
-          if (context.mounted) context.go('/login');
-        }
+        if (val == 'logout') auth.logout();
       },
       itemBuilder: (_) => [
         PopupMenuItem(

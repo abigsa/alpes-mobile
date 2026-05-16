@@ -39,7 +39,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-api-key"], // ← agregado x-api-key
 };
 
 app.use(cors(corsOptions));
@@ -60,13 +60,13 @@ app.use(hpp());
 // ============================================
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 200,           // 200 en dev — bajar a 100 en producción
   message: "Demasiadas solicitudes, intenta después",
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 20,            // 20 en dev — bajar a 5 en producción
   message: "Demasiados intentos de login, intenta después de 15 minutos",
   skipSuccessfulRequests: true,
 });
@@ -201,6 +201,9 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Servidor en puerto ${PORT}`);
       console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
+      console.log(`🛡️  Helmet: ACTIVADO`);
+      console.log(`⏱️  Rate Limiting: ACTIVADO`);
+      console.log(`🔑 x-api-key: ACTIVADO`);
     });
   } catch (error) {
     console.error("❌ Error inicializando servidor:", error);

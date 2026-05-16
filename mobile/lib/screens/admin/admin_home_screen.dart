@@ -328,7 +328,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       drawer: (isCompact || isMedium)
           ? _buildFullDrawer(context, auth, nombreMostrar, initials)
           : null,
-      body: Row(
+      body: SafeArea(
+        child: Row(
         children: [
           if (isMedium)
             _buildRailCompact(context, auth, nombreMostrar, initials),
@@ -344,6 +345,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -597,7 +599,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         crossAxisCount: cols,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: cols >= 4 ? 2.2 : 2.4,
+        childAspectRatio: cols >= 4 ? 2.2 : cols == 2 ? 1.8 : 1.6,
       ),
       itemCount: _kpiDefs.length,
       itemBuilder: (_, i) => _HoverKpiCard(kpi: _kpiDefs[i], valor: valores[i]),

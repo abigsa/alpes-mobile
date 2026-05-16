@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class ProveedoresScreen extends StatefulWidget {
   const ProveedoresScreen({super.key});
 
@@ -31,10 +34,12 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final res = await http.get(
         Uri.parse(ApiConfig.baseUrl + ApiConfig.proveedores),
+        headers: _auth.authHeaders,
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
@@ -64,6 +69,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
   }
 
   Future<void> _eliminar(dynamic id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -88,6 +94,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
     if (ok != true) return;
     await http.delete(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.proveedores}/$id'),
+      headers: _auth.authHeaders,
     );
     _cargar();
   }
@@ -108,6 +115,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
   }
 
   Future<void> _abrirFormConDetalle([Map<String, dynamic>? item]) async {
+    final _auth = context.read<AuthProvider>();
     if (item == null) {
       _abrirForm();
       return;
@@ -126,6 +134,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.proveedores}/$id'),
+        headers: _auth.authHeaders,
       );
 
       final data = jsonDecode(res.body);
@@ -473,6 +482,7 @@ class __ProveedoresFormState extends State<_ProveedoresForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
     setState(() => _g = true);
     try {
@@ -491,12 +501,12 @@ class __ProveedoresFormState extends State<_ProveedoresForm> {
       final res = id != null
           ? await http.put(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             )
           : await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             );
 

@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class MarketingScreen extends StatefulWidget {
   const MarketingScreen({super.key});
 
@@ -23,10 +26,12 @@ class _MarketingScreenState extends State<MarketingScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final res = await http.get(
         Uri.parse(ApiConfig.baseUrl + ApiConfig.campanaMarketing),
+        headers: _auth.authHeaders,
       );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
@@ -39,6 +44,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
   }
 
   Future<void> _eliminar(dynamic id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -65,6 +71,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
     await http.delete(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.campanaMarketing}/$id'),
+      headers: _auth.authHeaders,
     );
     _cargar();
   }
@@ -524,6 +531,7 @@ class __MarketingFormState extends State<_MarketingForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
     if (!_fechasValidas()) return;
 
@@ -548,12 +556,12 @@ class __MarketingFormState extends State<_MarketingForm> {
       final res = id != null
           ? await http.put(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             )
           : await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             );
 

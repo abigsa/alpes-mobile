@@ -10,6 +10,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class ProductoFormScreen extends StatefulWidget {
   final int? productoId;
   const ProductoFormScreen({super.key, this.productoId});
@@ -46,8 +49,10 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     final res = await http.get(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/${widget.productoId}'),
+      headers: _auth.authHeaders,
     );
     final data = jsonDecode(res.body);
     if (data['ok'] == true) {
@@ -139,8 +144,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   }
 
   // ── Subir imagen ───────────────────────────────────────
-  Future<void> _subirImagen(int productoId) async {
-    if (_imagenBytes == null && _imagenLocal == null) return;
+  Future<void> _subirImagen(int productoId) async {    if (_imagenBytes == null && _imagenLocal == null) return;
     setState(() => _subiendoImagen = true);
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/upload/producto/$productoId');
@@ -178,6 +182,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
   // ── Guardar producto ───────────────────────────────────
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
@@ -197,13 +202,13 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         body['producto_id'] = widget.productoId!;
         res = await http.put(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}/${widget.productoId}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       } else {
         res = await http.post(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _auth.authHeaders,
           body: jsonEncode(body),
         );
       }

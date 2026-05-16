@@ -13,6 +13,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../../config/api_config.dart';
 import '../../../config/theme.dart';
+import '../../../utils/http_client.dart';
 
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({super.key});
@@ -22,7 +23,9 @@ class ReportesScreen extends StatefulWidget {
 }
 
 enum _TrendChartMode { columnas, linea, area }
+
 enum _ReportOutputFormat { pdf, excel }
+
 enum _ReportPeriodType { rangoMeses, trimestre, anual }
 
 class _ReportesScreenState extends State<ReportesScreen>
@@ -130,14 +133,14 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}')),
-        http.get(
-          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.cliente}'),
+        ApiClient.get(
+          '${ApiConfig.baseUrl}${ApiConfig.inventarioProducto}',
         ),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productos}')),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.productos}'),
       ]);
 
       final decoded = responses.map((response) {
@@ -233,7 +236,8 @@ class _ReportesScreenState extends State<ReportesScreen>
       _ventasTotales += total;
 
       if (fecha != null) {
-        _ventasPorAnio.putIfAbsent(fecha.year, () => List<double>.filled(12, 0));
+        _ventasPorAnio.putIfAbsent(
+            fecha.year, () => List<double>.filled(12, 0));
         _ventasPorAnio[fecha.year]![fecha.month - 1] += total;
 
         monthlyActiveClients.putIfAbsent(fecha.year, () => {});
@@ -458,9 +462,7 @@ class _ReportesScreenState extends State<ReportesScreen>
             estado,
             const ['DESCRIPCION', 'descripcion'],
           );
-          final raw = (codigo ?? nombre ?? descripcion ?? '')
-              .toString()
-              .trim();
+          final raw = (codigo ?? nombre ?? descripcion ?? '').toString().trim();
           if (raw.isNotEmpty) return raw;
         }
       }
@@ -511,10 +513,9 @@ class _ReportesScreenState extends State<ReportesScreen>
         const ['PRODUCTO_ID', 'producto_id'],
       );
       if ('$currentId' == '$productoId') {
-        final nombre =
-            (_readValue(producto, const ['NOMBRE', 'nombre']) ?? '')
-                .toString()
-                .trim();
+        final nombre = (_readValue(producto, const ['NOMBRE', 'nombre']) ?? '')
+            .toString()
+            .trim();
         final referencia =
             (_readValue(producto, const ['REFERENCIA', 'referencia']) ?? '')
                 .toString()
@@ -751,9 +752,9 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}')),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.ordenVenta}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.ordenVentaDet}'),
+        ApiClient.get('${ApiConfig.baseUrl}${ApiConfig.estadoOrden}'),
       ]);
 
       final decoded = responses.map((response) {
@@ -792,15 +793,18 @@ class _ReportesScreenState extends State<ReportesScreen>
       final ratioB = _ratioRiesgo(b);
       return ratioB.compareTo(ratioA);
     });
-    return copia.where((item) {
-      final stock = _toInt(
-        _readValue(item, const ['STOCK', 'stock', 'CANTIDAD', 'cantidad']),
-      );
-      final minimo = _toInt(
-        _readValue(item, const ['STOCK_MINIMO', 'stock_minimo']),
-      );
-      return stock <= 5 || (minimo > 0 && stock <= minimo);
-    }).take(8).toList();
+    return copia
+        .where((item) {
+          final stock = _toInt(
+            _readValue(item, const ['STOCK', 'stock', 'CANTIDAD', 'cantidad']),
+          );
+          final minimo = _toInt(
+            _readValue(item, const ['STOCK_MINIMO', 'stock_minimo']),
+          );
+          return stock <= 5 || (minimo > 0 && stock <= minimo);
+        })
+        .take(8)
+        .toList();
   }
 
   double _ratioRiesgo(Map<String, dynamic> inventario) {
@@ -813,8 +817,6 @@ class _ReportesScreenState extends State<ReportesScreen>
     if (minimo <= 0) return stock <= 5 ? 1 : 0;
     return 1 - (stock / minimo).clamp(0, 1);
   }
-
-
 
   Future<void> _mostrarDialogoReporte() async {
     if (_loading || _generandoReporte) return;
@@ -843,7 +845,8 @@ class _ReportesScreenState extends State<ReportesScreen>
             return BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 7, sigmaY: 7),
               child: Dialog(
-                insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+                insetPadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
                 backgroundColor: Colors.transparent,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 560),
@@ -856,7 +859,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(.28)),
+                      border: Border.all(
+                          color: AlpesColors.oroGuatemalteco.withOpacity(.28)),
                       boxShadow: [
                         BoxShadow(
                           color: AlpesColors.cafeOscuro.withOpacity(.22),
@@ -876,7 +880,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                                 width: 58,
                                 height: 58,
                                 decoration: BoxDecoration(
-                                  color: AlpesColors.oroGuatemalteco.withOpacity(.22),
+                                  color: AlpesColors.oroGuatemalteco
+                                      .withOpacity(.22),
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                                 child: const Icon(
@@ -916,18 +921,23 @@ class _ReportesScreenState extends State<ReportesScreen>
                           children: [
                             _reportChoiceChip(
                               label: 'Rango de meses',
-                              selected: periodType == _ReportPeriodType.rangoMeses,
-                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.rangoMeses),
+                              selected:
+                                  periodType == _ReportPeriodType.rangoMeses,
+                              onTap: () => setDialogState(() =>
+                                  periodType = _ReportPeriodType.rangoMeses),
                             ),
                             _reportChoiceChip(
                               label: 'Trimestre',
-                              selected: periodType == _ReportPeriodType.trimestre,
-                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.trimestre),
+                              selected:
+                                  periodType == _ReportPeriodType.trimestre,
+                              onTap: () => setDialogState(() =>
+                                  periodType = _ReportPeriodType.trimestre),
                             ),
                             _reportChoiceChip(
                               label: 'Anual',
                               selected: periodType == _ReportPeriodType.anual,
-                              onTap: () => setDialogState(() => periodType = _ReportPeriodType.anual),
+                              onTap: () => setDialogState(
+                                  () => periodType = _ReportPeriodType.anual),
                             ),
                           ],
                         ),
@@ -939,9 +949,11 @@ class _ReportesScreenState extends State<ReportesScreen>
                                 label: 'Año',
                                 value: year,
                                 items: _availableYears
-                                    .map((item) => DropdownMenuItem<int>(value: item, child: Text('$item')))
+                                    .map((item) => DropdownMenuItem<int>(
+                                        value: item, child: Text('$item')))
                                     .toList(),
-                                onChanged: (value) => setDialogState(() => year = value ?? year),
+                                onChanged: (value) =>
+                                    setDialogState(() => year = value ?? year),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -951,12 +963,17 @@ class _ReportesScreenState extends State<ReportesScreen>
                                   label: 'Trimestre',
                                   value: quarter,
                                   items: const [
-                                    DropdownMenuItem(value: 1, child: Text('Q1 · Ene-Mar')),
-                                    DropdownMenuItem(value: 2, child: Text('Q2 · Abr-Jun')),
-                                    DropdownMenuItem(value: 3, child: Text('Q3 · Jul-Sep')),
-                                    DropdownMenuItem(value: 4, child: Text('Q4 · Oct-Dic')),
+                                    DropdownMenuItem(
+                                        value: 1, child: Text('Q1 · Ene-Mar')),
+                                    DropdownMenuItem(
+                                        value: 2, child: Text('Q2 · Abr-Jun')),
+                                    DropdownMenuItem(
+                                        value: 3, child: Text('Q3 · Jul-Sep')),
+                                    DropdownMenuItem(
+                                        value: 4, child: Text('Q4 · Oct-Dic')),
                                   ],
-                                  onChanged: (value) => setDialogState(() => quarter = value ?? quarter),
+                                  onChanged: (value) => setDialogState(
+                                      () => quarter = value ?? quarter),
                                 ),
                               ),
                           ],
@@ -973,7 +990,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                                   onChanged: (value) {
                                     setDialogState(() {
                                       startMonth = value ?? startMonth;
-                                      if (startMonth > endMonth) endMonth = startMonth;
+                                      if (startMonth > endMonth)
+                                        endMonth = startMonth;
                                     });
                                   },
                                 ),
@@ -987,7 +1005,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                                   onChanged: (value) {
                                     setDialogState(() {
                                       endMonth = value ?? endMonth;
-                                      if (endMonth < startMonth) startMonth = endMonth;
+                                      if (endMonth < startMonth)
+                                        startMonth = endMonth;
                                     });
                                   },
                                 ),
@@ -1005,7 +1024,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                                 label: 'PDF profesional',
                                 icon: Icons.picture_as_pdf_rounded,
                                 selected: format == _ReportOutputFormat.pdf,
-                                onTap: () => setDialogState(() => format = _ReportOutputFormat.pdf),
+                                onTap: () => setDialogState(
+                                    () => format = _ReportOutputFormat.pdf),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -1014,7 +1034,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                                 label: 'Excel editable',
                                 icon: Icons.table_chart_rounded,
                                 selected: format == _ReportOutputFormat.excel,
-                                onTap: () => setDialogState(() => format = _ReportOutputFormat.excel),
+                                onTap: () => setDialogState(
+                                    () => format = _ReportOutputFormat.excel),
                               ),
                             ),
                           ],
@@ -1024,14 +1045,21 @@ class _ReportesScreenState extends State<ReportesScreen>
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () => Navigator.of(dialogContext).pop(),
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AlpesColors.cafeOscuro,
-                                  side: BorderSide(color: AlpesColors.arenaCalida.withOpacity(.6)),
-                                  padding: const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  side: BorderSide(
+                                      color: AlpesColors.arenaCalida
+                                          .withOpacity(.6)),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 15),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
                                 ),
-                                child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w800)),
+                                child: const Text('Cancelar',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800)),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1051,11 +1079,16 @@ class _ReportesScreenState extends State<ReportesScreen>
                                 style: FilledButton.styleFrom(
                                   backgroundColor: AlpesColors.cafeOscuro,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 15),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
                                 ),
-                                icon: const Icon(Icons.download_rounded, size: 18),
-                                label: const Text('Generar', style: TextStyle(fontWeight: FontWeight.w900)),
+                                icon: const Icon(Icons.download_rounded,
+                                    size: 18),
+                                label: const Text('Generar',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w900)),
                               ),
                             ),
                           ],
@@ -1107,8 +1140,10 @@ class _ReportesScreenState extends State<ReportesScreen>
               isExpanded: true,
               items: items,
               onChanged: onChanged,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AlpesColors.cafeOscuro),
-              style: const TextStyle(color: AlpesColors.cafeOscuro, fontWeight: FontWeight.w700),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AlpesColors.cafeOscuro),
+              style: const TextStyle(
+                  color: AlpesColors.cafeOscuro, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -1132,7 +1167,9 @@ class _ReportesScreenState extends State<ReportesScreen>
           color: selected ? AlpesColors.cafeOscuro : Colors.white,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AlpesColors.cafeOscuro : AlpesColors.arenaCalida.withOpacity(.42),
+            color: selected
+                ? AlpesColors.cafeOscuro
+                : AlpesColors.arenaCalida.withOpacity(.42),
           ),
         ),
         child: Row(
@@ -1140,7 +1177,9 @@ class _ReportesScreenState extends State<ReportesScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? Colors.white : AlpesColors.cafeOscuro),
+              Icon(icon,
+                  size: 16,
+                  color: selected ? Colors.white : AlpesColors.cafeOscuro),
               const SizedBox(width: 7),
             ],
             Flexible(
@@ -1223,25 +1262,36 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   _ReportData _buildReportData(_ReportRange range) {
     final ordersInRange = _ordenes.where((orden) {
-      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      final fecha =
+          _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
       if (fecha == null) return false;
       return fecha.year == range.year &&
           fecha.month >= range.startMonth &&
           fecha.month <= range.endMonth;
     }).toList()
       ..sort((a, b) {
-        final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-        final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+        final fechaA =
+            _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+        final fechaB =
+            _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
         return fechaA.compareTo(fechaB);
       });
 
-    final orderIds = ordersInRange.map(_orderId).where((id) => id.isNotEmpty).toSet();
+    final orderIds =
+        ordersInRange.map(_orderId).where((id) => id.isNotEmpty).toSet();
     final detailsByOrder = <String, List<Map<String, dynamic>>>{};
 
     for (final detalle in _detallesOrden) {
-      final orderId = (_readValue(detalle, const ['ORDEN_VENTA_ID', 'orden_venta_id']) ?? '').toString();
+      final orderId =
+          (_readValue(detalle, const ['ORDEN_VENTA_ID', 'orden_venta_id']) ??
+                  '')
+              .toString();
       if (!orderIds.contains(orderId)) continue;
-      detailsByOrder.putIfAbsent(orderId, () => <Map<String, dynamic>>[]).add(detalle);
+      detailsByOrder
+          .putIfAbsent(orderId, () => <Map<String, dynamic>>[])
+          .add(detalle);
     }
 
     final monthlyProductMap = <String, _ProductMonthlyReportRow>{};
@@ -1249,20 +1299,41 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     for (final orden in ordersInRange) {
       final orderId = _orderId(orden);
-      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      final fecha =
+          _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
       if (fecha == null) continue;
 
-      final orderDetails = detailsByOrder[orderId] ?? const <Map<String, dynamic>>[];
+      final orderDetails =
+          detailsByOrder[orderId] ?? const <Map<String, dynamic>>[];
       final orderTotal = _orderTotal(orden);
       final rawTotals = <Map<String, dynamic>, double>{};
       int orderQty = 0;
       double rawTotalSum = 0;
 
       for (final detalle in orderDetails) {
-        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
-        final price = _toDouble(_readValue(detalle, const ['PRECIO_UNITARIO', 'precio_unitario', 'PRECIO', 'precio', 'VALOR_UNITARIO', 'valor_unitario']));
-        final explicitSubtotal = _readValue(detalle, const ['SUBTOTAL', 'subtotal', 'TOTAL', 'total', 'MONTO', 'monto', 'IMPORTE', 'importe']);
-        final rawSubtotal = explicitSubtotal == null ? quantity * price : _toDouble(explicitSubtotal);
+        final quantity =
+            _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        final price = _toDouble(_readValue(detalle, const [
+          'PRECIO_UNITARIO',
+          'precio_unitario',
+          'PRECIO',
+          'precio',
+          'VALOR_UNITARIO',
+          'valor_unitario'
+        ]));
+        final explicitSubtotal = _readValue(detalle, const [
+          'SUBTOTAL',
+          'subtotal',
+          'TOTAL',
+          'total',
+          'MONTO',
+          'monto',
+          'IMPORTE',
+          'importe'
+        ]);
+        final rawSubtotal = explicitSubtotal == null
+            ? quantity * price
+            : _toDouble(explicitSubtotal);
         rawTotals[detalle] = rawSubtotal;
         rawTotalSum += rawSubtotal;
         orderQty += quantity;
@@ -1271,13 +1342,16 @@ class _ReportesScreenState extends State<ReportesScreen>
       for (final detalle in orderDetails) {
         final productoId = _detailProductId(detalle);
         final producto = _productNameById(productoId);
-        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        final quantity =
+            _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
         items += quantity;
 
         double allocatedTotal;
         final rawSubtotal = rawTotals[detalle] ?? 0;
         if (rawTotalSum > 0) {
-          allocatedTotal = orderTotal > 0 ? orderTotal * (rawSubtotal / rawTotalSum) : rawSubtotal;
+          allocatedTotal = orderTotal > 0
+              ? orderTotal * (rawSubtotal / rawTotalSum)
+              : rawSubtotal;
         } else if (orderQty > 0) {
           allocatedTotal = orderTotal * (quantity / orderQty);
         } else {
@@ -1304,12 +1378,18 @@ class _ReportesScreenState extends State<ReportesScreen>
         return byMonth != 0 ? byMonth : a.product.compareTo(b.product);
       });
 
-    final totalSales = ordersInRange.fold<double>(0, (sum, orden) => sum + _orderTotal(orden));
-    final cancelled = ordersInRange.where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Cancelado').length;
-    final delivered = ordersInRange.where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Entregado').length;
+    final totalSales =
+        ordersInRange.fold<double>(0, (sum, orden) => sum + _orderTotal(orden));
+    final cancelled = ordersInRange
+        .where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Cancelado')
+        .length;
+    final delivered = ordersInRange
+        .where((orden) => _prettyEstado(_resolverEstado(orden)) == 'Entregado')
+        .length;
     final clients = ordersInRange
         .map(_orderClientName)
-        .where((name) => name.trim().isNotEmpty && name != 'Cliente sin identificar')
+        .where((name) =>
+            name.trim().isNotEmpty && name != 'Cliente sin identificar')
         .toSet()
         .length;
 
@@ -1322,22 +1402,42 @@ class _ReportesScreenState extends State<ReportesScreen>
       cancelledOrders: cancelled,
       deliveredOrders: delivered,
       itemsSold: items,
-      averageTicket: ordersInRange.isEmpty ? 0 : totalSales / ordersInRange.length,
+      averageTicket:
+          ordersInRange.isEmpty ? 0 : totalSales / ordersInRange.length,
       monthlyProducts: rows,
       orders: ordersInRange,
     );
   }
 
   String _orderId(Map<String, dynamic> orden) {
-    return (_readValue(orden, const ['ORDEN_VENTA_ID', 'orden_venta_id', 'ID', 'id']) ?? '').toString();
+    return (_readValue(orden,
+                const ['ORDEN_VENTA_ID', 'orden_venta_id', 'ID', 'id']) ??
+            '')
+        .toString();
   }
 
   String _orderNumber(Map<String, dynamic> orden) {
-    return (_readValue(orden, const ['NUM_ORDEN', 'num_orden', 'NUMERO_ORDEN', 'numero_orden', 'ORDEN_VENTA_ID', 'orden_venta_id']) ?? '—').toString();
+    return (_readValue(orden, const [
+              'NUM_ORDEN',
+              'num_orden',
+              'NUMERO_ORDEN',
+              'numero_orden',
+              'ORDEN_VENTA_ID',
+              'orden_venta_id'
+            ]) ??
+            '—')
+        .toString();
   }
 
   double _orderTotal(Map<String, dynamic> orden) {
-    return _toDouble(_readValue(orden, const ['TOTAL', 'total', 'MONTO_TOTAL', 'monto_total', 'IMPORTE_TOTAL', 'importe_total']));
+    return _toDouble(_readValue(orden, const [
+      'TOTAL',
+      'total',
+      'MONTO_TOTAL',
+      'monto_total',
+      'IMPORTE_TOTAL',
+      'importe_total'
+    ]));
   }
 
   String _orderClientName(Map<String, dynamic> orden) {
@@ -1378,19 +1478,36 @@ class _ReportesScreenState extends State<ReportesScreen>
 
   String _clientNameById(String clientId) {
     for (final cliente in _clientes) {
-      final currentId = _readValue(cliente, const ['CLIENTE_ID', 'cliente_id', 'CLI_ID', 'cli_id', 'ID', 'id']);
+      final currentId = _readValue(cliente,
+          const ['CLIENTE_ID', 'cliente_id', 'CLI_ID', 'cli_id', 'ID', 'id']);
       if ('$currentId' != clientId) continue;
 
-      final nombre = (_readValue(cliente, const ['NOMBRE', 'nombre', 'NOMBRES', 'nombres', 'RAZON_SOCIAL', 'razon_social']) ?? '').toString().trim();
-      final apellido = (_readValue(cliente, const ['APELLIDO', 'apellido', 'APELLIDOS', 'apellidos']) ?? '').toString().trim();
-      final empresa = (_readValue(cliente, const ['EMPRESA', 'empresa']) ?? '').toString().trim();
-      final fullName = [nombre, apellido].where((part) => part.isNotEmpty).join(' ').trim();
+      final nombre = (_readValue(cliente, const [
+                'NOMBRE',
+                'nombre',
+                'NOMBRES',
+                'nombres',
+                'RAZON_SOCIAL',
+                'razon_social'
+              ]) ??
+              '')
+          .toString()
+          .trim();
+      final apellido = (_readValue(cliente,
+                  const ['APELLIDO', 'apellido', 'APELLIDOS', 'apellidos']) ??
+              '')
+          .toString()
+          .trim();
+      final empresa = (_readValue(cliente, const ['EMPRESA', 'empresa']) ?? '')
+          .toString()
+          .trim();
+      final fullName =
+          [nombre, apellido].where((part) => part.isNotEmpty).join(' ').trim();
       if (fullName.isNotEmpty) return fullName;
       if (empresa.isNotEmpty) return empresa;
     }
     return 'Cliente #$clientId';
   }
-
 
   String _detailProductId(Map<String, dynamic> detalle) {
     final direct = _readValue(detalle, const [
@@ -1422,7 +1539,8 @@ class _ReportesScreenState extends State<ReportesScreen>
           'id',
         ]);
         if ('$currentInventoryId' == '$inventoryId') {
-          final productoId = _readValue(item, const ['PRODUCTO_ID', 'producto_id']);
+          final productoId =
+              _readValue(item, const ['PRODUCTO_ID', 'producto_id']);
           if (productoId != null && productoId.toString().trim().isNotEmpty) {
             return productoId.toString().trim();
           }
@@ -1484,7 +1602,8 @@ class _ReportesScreenState extends State<ReportesScreen>
           .toString()
           .trim();
 
-      if (nombre.isNotEmpty && referencia.isNotEmpty) return '$nombre · $referencia';
+      if (nombre.isNotEmpty && referencia.isNotEmpty)
+        return '$nombre · $referencia';
       if (nombre.isNotEmpty) return nombre;
       if (referencia.isNotEmpty) return 'Ref. $referencia';
     }
@@ -1494,23 +1613,27 @@ class _ReportesScreenState extends State<ReportesScreen>
       if ('$currentId' == cleanId) return _resolverProducto(item);
     }
 
-    return cleanId == 'SIN_REFERENCIA' ? 'Producto sin referencia' : 'Producto #$cleanId';
+    return cleanId == 'SIN_REFERENCIA'
+        ? 'Producto sin referencia'
+        : 'Producto #$cleanId';
   }
-
 
   Uint8List _crearExcelReporte(_ReportData data) {
     final ventasPorMes = <int, double>{};
     final ordenesPorMes = <int, int>{};
     final itemsPorMes = <int, int>{};
 
-    for (int month = data.range.startMonth; month <= data.range.endMonth; month++) {
+    for (int month = data.range.startMonth;
+        month <= data.range.endMonth;
+        month++) {
       ventasPorMes[month] = 0;
       ordenesPorMes[month] = 0;
       itemsPorMes[month] = 0;
     }
 
     for (final orden in data.orders) {
-      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      final fecha =
+          _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
       if (fecha == null) continue;
       final total = _orderTotal(orden);
       ventasPorMes[fecha.month] = (ventasPorMes[fecha.month] ?? 0) + total;
@@ -1522,7 +1645,8 @@ class _ReportesScreenState extends State<ReportesScreen>
       itemsPorMes[row.month] = (itemsPorMes[row.month] ?? 0) + row.quantity;
       final item = productoTotales.putIfAbsent(
         row.productId,
-        () => _ProductMonthlyReportRow(month: 0, product: row.product, productId: row.productId),
+        () => _ProductMonthlyReportRow(
+            month: 0, product: row.product, productId: row.productId),
       );
       item.quantity += row.quantity;
       item.total += row.total;
@@ -1536,10 +1660,14 @@ class _ReportesScreenState extends State<ReportesScreen>
       });
 
     final sortedOrders = [...data.orders]..sort((a, b) {
-      final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-      final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-      return fechaB.compareTo(fechaA);
-    });
+        final fechaA =
+            _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+        final fechaB =
+            _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+        return fechaB.compareTo(fechaA);
+      });
 
     String xml(String value) => value
         .replaceAll('&', '&amp;')
@@ -1566,7 +1694,8 @@ class _ReportesScreenState extends State<ReportesScreen>
     }
 
     String numCell(int row, int col, num value, {int style = 0}) {
-      final clean = value.isFinite ? value.toStringAsFixed(value is int ? 0 : 2) : '0';
+      final clean =
+          value.isFinite ? value.toStringAsFixed(value is int ? 0 : 2) : '0';
       return '<c r="${cellRef(row, col)}" s="$style"><v>$clean</v></c>';
     }
 
@@ -1577,7 +1706,9 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     String money(double value) => _formatCurrency(value);
     final generatedDate = _formatDate(data.generatedAt);
-    final months = [for (int m = data.range.startMonth; m <= data.range.endMonth; m++) m];
+    final months = [
+      for (int m = data.range.startMonth; m <= data.range.endMonth; m++) m
+    ];
 
     String worksheetXml({
       required List<String> rows,
@@ -1590,14 +1721,16 @@ class _ReportesScreenState extends State<ReportesScreen>
       final widths = colWidths ?? List<double>.filled(maxCol, 16);
       final cols = StringBuffer('<cols>');
       for (int i = 0; i < widths.length; i++) {
-        cols.write('<col min="${i + 1}" max="${i + 1}" width="${widths[i]}" customWidth="1"/>');
+        cols.write(
+            '<col min="${i + 1}" max="${i + 1}" width="${widths[i]}" customWidth="1"/>');
       }
       cols.write('</cols>');
 
       final mergeXml = merges.isEmpty
           ? ''
           : '<mergeCells count="${merges.length}">${merges.map((e) => '<mergeCell ref="$e"/>').join()}</mergeCells>';
-      final drawingXml = drawingRelId == null ? '' : '<drawing r:id="$drawingRelId"/>';
+      final drawingXml =
+          drawingRelId == null ? '' : '<drawing r:id="$drawingRelId"/>';
 
       return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -1614,7 +1747,8 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     List<String> titleRows(String title, String subtitle) {
       return [
-        rowXml(1, [textCell(1, 0, 'MUEBLES DE LOS ALPES', style: 1)], height: 28),
+        rowXml(1, [textCell(1, 0, 'MUEBLES DE LOS ALPES', style: 1)],
+            height: 28),
         rowXml(2, [textCell(2, 0, title, style: 2)], height: 22),
         rowXml(3, [textCell(3, 0, subtitle, style: 3)], height: 20),
         rowXml(5, [
@@ -1626,15 +1760,18 @@ class _ReportesScreenState extends State<ReportesScreen>
       ];
     }
 
-    String sectionRow(int row, String title) => rowXml(row, [textCell(row, 0, title, style: 11)], height: 23);
+    String sectionRow(int row, String title) =>
+        rowXml(row, [textCell(row, 0, title, style: 11)], height: 23);
 
     List<String> headerCells(int row, List<String> headers) => [
-          for (int c = 0; c < headers.length; c++) textCell(row, c, headers[c], style: 6),
+          for (int c = 0; c < headers.length; c++)
+            textCell(row, c, headers[c], style: 6),
         ];
 
     final dashRows = <String>[];
     final dashMerges = <String>['A1:H1', 'A2:H2', 'A3:H3', 'A7:H7'];
-    dashRows.addAll(titleRows('REPORTE EJECUTIVO', 'Dashboard profesional con datos reales, KPIs y lectura comercial'));
+    dashRows.addAll(titleRows('REPORTE EJECUTIVO',
+        'Dashboard profesional con datos reales, KPIs y lectura comercial'));
     dashRows.add(sectionRow(7, 'PANEL EJECUTIVO DEL PERIODO'));
 
     final kpis = [
@@ -1645,7 +1782,11 @@ class _ReportesScreenState extends State<ReportesScreen>
       ['Items vendidos', '${data.itemsSold}', 'Unidades vendidas'],
       ['Entregadas', '${data.deliveredOrders}', 'Órdenes cerradas'],
       ['Canceladas', '${data.cancelledOrders}', 'No concretadas'],
-      ['Productos vendidos', '${rankingProductos.length}', 'Referencias con venta'],
+      [
+        'Productos vendidos',
+        '${rankingProductos.length}',
+        'Referencias con venta'
+      ],
     ];
 
     for (int i = 0; i < kpis.length; i++) {
@@ -1676,38 +1817,69 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     dashMerges.add('A18:H18');
     dashRows.add(sectionRow(18, 'TENDENCIA MENSUAL DE VENTAS'));
-    dashRows.add(rowXml(19, headerCells(19, ['Mes', 'Ventas', 'Órdenes', 'Items', 'Ticket', '% total', 'Lectura', '']), height: 21));
+    dashRows.add(rowXml(
+        19,
+        headerCells(19, [
+          'Mes',
+          'Ventas',
+          'Órdenes',
+          'Items',
+          'Ticket',
+          '% total',
+          'Lectura',
+          ''
+        ]),
+        height: 21));
     int dashRow = 20;
     for (final month in months) {
       final sales = ventasPorMes[month] ?? 0;
       final orders = ordenesPorMes[month] ?? 0;
       final items = itemsPorMes[month] ?? 0;
-      dashRows.add(rowXml(dashRow, [
-        textCell(dashRow, 0, _getMonthName(month - 1), style: 8),
-        numCell(dashRow, 1, sales, style: 5),
-        numCell(dashRow, 2, orders, style: 9),
-        numCell(dashRow, 3, items, style: 9),
-        numCell(dashRow, 4, orders == 0 ? 0 : sales / orders, style: 5),
-        numCell(dashRow, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales, style: 10),
-        textCell(dashRow, 6, sales > 0 ? 'Mes con movimiento' : 'Sin ventas registradas', style: 8),
-      ], height: 22));
+      dashRows.add(rowXml(
+          dashRow,
+          [
+            textCell(dashRow, 0, _getMonthName(month - 1), style: 8),
+            numCell(dashRow, 1, sales, style: 5),
+            numCell(dashRow, 2, orders, style: 9),
+            numCell(dashRow, 3, items, style: 9),
+            numCell(dashRow, 4, orders == 0 ? 0 : sales / orders, style: 5),
+            numCell(
+                dashRow, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales,
+                style: 10),
+            textCell(dashRow, 6,
+                sales > 0 ? 'Mes con movimiento' : 'Sin ventas registradas',
+                style: 8),
+          ],
+          height: 22));
       dashRow++;
     }
 
     dashMerges.add('A${dashRow + 2}:H${dashRow + 2}');
     dashRows.add(sectionRow(dashRow + 2, 'ÓRDENES RECIENTES DEL PERIODO'));
-    dashRows.add(rowXml(dashRow + 3, headerCells(dashRow + 3, ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado', '', '']), height: 21));
+    dashRows.add(rowXml(
+        dashRow + 3,
+        headerCells(dashRow + 3,
+            ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado', '', '']),
+        height: 21));
     for (int i = 0; i < math.min(8, sortedOrders.length); i++) {
       final orden = sortedOrders[i];
       final r = dashRow + 4 + i;
-      dashRows.add(rowXml(r, [
-        textCell(r, 0, _orderNumber(orden), style: 8),
-        textCell(r, 1, _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))), style: 9),
-        textCell(r, 2, _orderClientName(orden), style: 8),
-        numCell(r, 3, _itemsPorOrden(orden), style: 9),
-        numCell(r, 4, _orderTotal(orden), style: 5),
-        textCell(r, 5, _prettyEstado(_resolverEstado(orden)), style: 9),
-      ], height: 23));
+      dashRows.add(rowXml(
+          r,
+          [
+            textCell(r, 0, _orderNumber(orden), style: 8),
+            textCell(
+                r,
+                1,
+                _formatDate(_parseDate(
+                    _readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
+                style: 9),
+            textCell(r, 2, _orderClientName(orden), style: 8),
+            numCell(r, 3, _itemsPorOrden(orden), style: 9),
+            numCell(r, 4, _orderTotal(orden), style: 5),
+            textCell(r, 5, _prettyEstado(_resolverEstado(orden)), style: 9),
+          ],
+          height: 23));
     }
 
     final dashboardXml = worksheetXml(
@@ -1719,30 +1891,46 @@ class _ReportesScreenState extends State<ReportesScreen>
     );
 
     final chartRows = <String>[];
-    final chartMerges = <String>['A1:K1', 'A2:K2', 'A3:K3', 'A7:K7', 'A10:E10', 'G10:K10'];
-    chartRows.addAll(titleRows('GRÁFICOS REALES DE EXCEL', 'Gráficos nativos vinculados a datos reales del periodo'));
+    final chartMerges = <String>[
+      'A1:K1',
+      'A2:K2',
+      'A3:K3',
+      'A7:K7',
+      'A10:E10',
+      'G10:K10'
+    ];
+    chartRows.addAll(titleRows('GRÁFICOS REALES DE EXCEL',
+        'Gráficos nativos vinculados a datos reales del periodo'));
     chartRows.add(sectionRow(7, 'VISUALIZACIÓN COMERCIAL DEL PERIODO'));
-    chartRows.add(rowXml(10, [
-      textCell(10, 0, 'Gráfico 1: ventas mensuales', style: 12),
-      textCell(10, 6, 'Gráfico 2: ranking de productos por ventas', style: 12),
-    ], height: 22));
+    chartRows.add(rowXml(
+        10,
+        [
+          textCell(10, 0, 'Gráfico 1: ventas mensuales', style: 12),
+          textCell(10, 6, 'Gráfico 2: ranking de productos por ventas',
+              style: 12),
+        ],
+        height: 22));
 
     final monthlyStart = 25;
     final rankStart = 25;
-    final maxChartRows = math.max(months.length, math.min(8, rankingProductos.length));
+    final maxChartRows =
+        math.max(months.length, math.min(8, rankingProductos.length));
 
-    chartRows.add(rowXml(monthlyStart, [
-      textCell(monthlyStart, 0, 'Mes', style: 6),
-      textCell(monthlyStart, 1, 'Ventas', style: 6),
-      textCell(monthlyStart, 2, 'Órdenes', style: 6),
-      textCell(monthlyStart, 3, 'Items', style: 6),
-      textCell(monthlyStart, 4, 'Ticket', style: 6),
-      textCell(monthlyStart, 5, '% total', style: 6),
-      textCell(monthlyStart, 7, 'Producto', style: 6),
-      textCell(monthlyStart, 8, 'Ventas', style: 6),
-      textCell(monthlyStart, 9, 'Cantidad', style: 6),
-      textCell(monthlyStart, 10, '% total', style: 6),
-    ], height: 21));
+    chartRows.add(rowXml(
+        monthlyStart,
+        [
+          textCell(monthlyStart, 0, 'Mes', style: 6),
+          textCell(monthlyStart, 1, 'Ventas', style: 6),
+          textCell(monthlyStart, 2, 'Órdenes', style: 6),
+          textCell(monthlyStart, 3, 'Items', style: 6),
+          textCell(monthlyStart, 4, 'Ticket', style: 6),
+          textCell(monthlyStart, 5, '% total', style: 6),
+          textCell(monthlyStart, 7, 'Producto', style: 6),
+          textCell(monthlyStart, 8, 'Ventas', style: 6),
+          textCell(monthlyStart, 9, 'Cantidad', style: 6),
+          textCell(monthlyStart, 10, '% total', style: 6),
+        ],
+        height: 21));
 
     for (int i = 0; i < maxChartRows; i++) {
       final r = monthlyStart + 1 + i;
@@ -1758,7 +1946,8 @@ class _ReportesScreenState extends State<ReportesScreen>
           numCell(r, 2, orders, style: 9),
           numCell(r, 3, itemsPorMes[month] ?? 0, style: 9),
           numCell(r, 4, orders == 0 ? 0 : sales / orders, style: 5),
-          numCell(r, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales, style: 10),
+          numCell(r, 5, data.totalSales <= 0 ? 0 : sales / data.totalSales,
+              style: 10),
         ]);
       }
 
@@ -1768,7 +1957,9 @@ class _ReportesScreenState extends State<ReportesScreen>
           textCell(r, 7, item.product, style: 8),
           numCell(r, 8, item.total, style: 5),
           numCell(r, 9, item.quantity, style: 9),
-          numCell(r, 10, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
+          numCell(
+              r, 10, data.totalSales <= 0 ? 0 : item.total / data.totalSales,
+              style: 10),
         ]);
       }
 
@@ -1785,22 +1976,42 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     final detailRows = <String>[];
     final detailMerges = <String>['A1:I1', 'A2:I2', 'A3:I3'];
-    detailRows.addAll(titleRows('DETALLE MENSUAL POR PRODUCTO', 'Ventas distribuidas desde el total real de cada orden'));
-    detailRows.add(rowXml(7, headerCells(7, ['Año', 'Mes #', 'Mes', 'ID producto', 'Producto', 'Cantidad', 'Ventas', '% total', 'Ticket estimado']), height: 21));
+    detailRows.addAll(titleRows('DETALLE MENSUAL POR PRODUCTO',
+        'Ventas distribuidas desde el total real de cada orden'));
+    detailRows.add(rowXml(
+        7,
+        headerCells(7, [
+          'Año',
+          'Mes #',
+          'Mes',
+          'ID producto',
+          'Producto',
+          'Cantidad',
+          'Ventas',
+          '% total',
+          'Ticket estimado'
+        ]),
+        height: 21));
     for (int i = 0; i < data.monthlyProducts.length; i++) {
       final item = data.monthlyProducts[i];
       final r = 8 + i;
-      detailRows.add(rowXml(r, [
-        numCell(r, 0, data.range.year, style: 9),
-        numCell(r, 1, item.month, style: 9),
-        textCell(r, 2, _getMonthName(item.month - 1), style: 8),
-        textCell(r, 3, item.productId, style: 8),
-        textCell(r, 4, item.product, style: 8),
-        numCell(r, 5, item.quantity, style: 9),
-        numCell(r, 6, item.total, style: 5),
-        numCell(r, 7, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
-        numCell(r, 8, item.quantity == 0 ? 0 : item.total / item.quantity, style: 5),
-      ], height: 23));
+      detailRows.add(rowXml(
+          r,
+          [
+            numCell(r, 0, data.range.year, style: 9),
+            numCell(r, 1, item.month, style: 9),
+            textCell(r, 2, _getMonthName(item.month - 1), style: 8),
+            textCell(r, 3, item.productId, style: 8),
+            textCell(r, 4, item.product, style: 8),
+            numCell(r, 5, item.quantity, style: 9),
+            numCell(r, 6, item.total, style: 5),
+            numCell(
+                r, 7, data.totalSales <= 0 ? 0 : item.total / data.totalSales,
+                style: 10),
+            numCell(r, 8, item.quantity == 0 ? 0 : item.total / item.quantity,
+                style: 5),
+          ],
+          height: 23));
     }
     final detalleXml = worksheetXml(
       rows: detailRows,
@@ -1812,20 +2023,38 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     final rankingRows = <String>[];
     final rankingMerges = <String>['A1:G1', 'A2:G2', 'A3:G3'];
-    rankingRows.addAll(titleRows('RANKING DE PRODUCTOS', 'Productos ordenados por mayor contribución comercial'));
-    rankingRows.add(rowXml(7, headerCells(7, ['#', 'ID producto', 'Producto', 'Cantidad', 'Ventas', '% total', 'Ticket estimado']), height: 21));
+    rankingRows.addAll(titleRows('RANKING DE PRODUCTOS',
+        'Productos ordenados por mayor contribución comercial'));
+    rankingRows.add(rowXml(
+        7,
+        headerCells(7, [
+          '#',
+          'ID producto',
+          'Producto',
+          'Cantidad',
+          'Ventas',
+          '% total',
+          'Ticket estimado'
+        ]),
+        height: 21));
     for (int i = 0; i < rankingProductos.length; i++) {
       final item = rankingProductos[i];
       final r = 8 + i;
-      rankingRows.add(rowXml(r, [
-        numCell(r, 0, i + 1, style: 9),
-        textCell(r, 1, item.productId, style: 8),
-        textCell(r, 2, item.product, style: 8),
-        numCell(r, 3, item.quantity, style: 9),
-        numCell(r, 4, item.total, style: 5),
-        numCell(r, 5, data.totalSales <= 0 ? 0 : item.total / data.totalSales, style: 10),
-        numCell(r, 6, item.quantity == 0 ? 0 : item.total / item.quantity, style: 5),
-      ], height: 23));
+      rankingRows.add(rowXml(
+          r,
+          [
+            numCell(r, 0, i + 1, style: 9),
+            textCell(r, 1, item.productId, style: 8),
+            textCell(r, 2, item.product, style: 8),
+            numCell(r, 3, item.quantity, style: 9),
+            numCell(r, 4, item.total, style: 5),
+            numCell(
+                r, 5, data.totalSales <= 0 ? 0 : item.total / data.totalSales,
+                style: 10),
+            numCell(r, 6, item.quantity == 0 ? 0 : item.total / item.quantity,
+                style: 5),
+          ],
+          height: 23));
     }
     final rankingXml = worksheetXml(
       rows: rankingRows,
@@ -1837,21 +2066,43 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     final orderRows = <String>[];
     final orderMerges = <String>['A1:G1', 'A2:G2', 'A3:G3'];
-    orderRows.addAll(titleRows('ÓRDENES DEL PERIODO', 'Listado completo de órdenes incluidas en el reporte'));
-    orderRows.add(rowXml(7, headerCells(7, ['Orden', 'Fecha', 'Cliente', 'Items', 'Total', 'Estado', 'Lectura']), height: 21));
+    orderRows.addAll(titleRows('ÓRDENES DEL PERIODO',
+        'Listado completo de órdenes incluidas en el reporte'));
+    orderRows.add(rowXml(
+        7,
+        headerCells(7, [
+          'Orden',
+          'Fecha',
+          'Cliente',
+          'Items',
+          'Total',
+          'Estado',
+          'Lectura'
+        ]),
+        height: 21));
     for (int i = 0; i < sortedOrders.length; i++) {
       final orden = sortedOrders[i];
       final r = 8 + i;
       final estado = _prettyEstado(_resolverEstado(orden));
-      orderRows.add(rowXml(r, [
-        textCell(r, 0, _orderNumber(orden), style: 8),
-        textCell(r, 1, _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))), style: 9),
-        textCell(r, 2, _orderClientName(orden), style: 8),
-        numCell(r, 3, _itemsPorOrden(orden), style: 9),
-        numCell(r, 4, _orderTotal(orden), style: 5),
-        textCell(r, 5, estado, style: estado == 'Cancelado' ? 16 : 15),
-        textCell(r, 6, estado == 'Cancelado' ? 'Revisar' : 'Operación registrada', style: 8),
-      ], height: 23));
+      orderRows.add(rowXml(
+          r,
+          [
+            textCell(r, 0, _orderNumber(orden), style: 8),
+            textCell(
+                r,
+                1,
+                _formatDate(_parseDate(
+                    _readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
+                style: 9),
+            textCell(r, 2, _orderClientName(orden), style: 8),
+            numCell(r, 3, _itemsPorOrden(orden), style: 9),
+            numCell(r, 4, _orderTotal(orden), style: 5),
+            textCell(r, 5, estado, style: estado == 'Cancelado' ? 16 : 15),
+            textCell(r, 6,
+                estado == 'Cancelado' ? 'Revisar' : 'Operación registrada',
+                style: 8),
+          ],
+          height: 23));
     }
     final ordenesXml = worksheetXml(
       rows: orderRows,
@@ -1881,11 +2132,13 @@ class _ReportesScreenState extends State<ReportesScreen>
     add('xl/worksheets/sheet5.xml', ordenesXml);
 
     final encoded = ZipEncoder().encode(archive);
-    if (encoded == null) throw Exception('No se pudo codificar el archivo Excel.');
+    if (encoded == null)
+      throw Exception('No se pudo codificar el archivo Excel.');
     return Uint8List.fromList(encoded);
   }
 
-  String _excelContentTypesXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelContentTypesXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
@@ -1900,29 +2153,38 @@ class _ReportesScreenState extends State<ReportesScreen>
   <Override PartName="/xl/worksheets/sheet5.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 </Types>''';
 
-  String _excelRootRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelRootRelsXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>''';
 
-  String _excelCoreXml(DateTime generatedAt) => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelCoreXml(DateTime generatedAt) =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>Muebles de los Alpes</dc:creator><cp:lastModifiedBy>Muebles de los Alpes</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${generatedAt.toUtc().toIso8601String()}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${generatedAt.toUtc().toIso8601String()}</dcterms:modified></cp:coreProperties>''';
 
-  String _excelAppXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelAppXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Muebles de los Alpes</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><HeadingPairs><vt:vector size="2" baseType="variant"><vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant><vt:variant><vt:i4>5</vt:i4></vt:variant></vt:vector></HeadingPairs><TitlesOfParts><vt:vector size="5" baseType="lpstr"><vt:lpstr>01 Dashboard</vt:lpstr><vt:lpstr>02 Graficos</vt:lpstr><vt:lpstr>03 Detalle productos</vt:lpstr><vt:lpstr>04 Ranking productos</vt:lpstr><vt:lpstr>05 Ordenes</vt:lpstr></vt:vector></TitlesOfParts><Company>Muebles de los Alpes</Company></Properties>''';
 
-  String _excelWorkbookXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelWorkbookXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="17600"/></bookViews><sheets><sheet name="01 Dashboard" sheetId="1" r:id="rId1"/><sheet name="02 Graficos" sheetId="2" r:id="rId2"/><sheet name="03 Detalle productos" sheetId="3" r:id="rId3"/><sheet name="04 Ranking productos" sheetId="4" r:id="rId4"/><sheet name="05 Ordenes" sheetId="5" r:id="rId5"/></sheets></workbook>''';
 
-  String _excelWorkbookRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelWorkbookRelsXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/><Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet5.xml"/><Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
 
-  String _excelStylesXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelStylesXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="&quot;Q &quot;#,##0.00"/><numFmt numFmtId="165" formatCode="0.0%"/></numFmts><fonts count="7"><font><sz val="10"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="18"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="13"/><color rgb="FF6F4E37"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FF2D1B12"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF0F4C35"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF6F4E37"/><name val="Arial"/></font></fonts><fills count="10"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFCF8"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF2D1B12"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4E7D4"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD8C1A2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F7B5F"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC28A20"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFDF8EF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEFEF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD8C1A2"/></left><right style="thin"><color rgb="FFD8C1A2"/></right><top style="thin"><color rgb="FFD8C1A2"/></top><bottom style="thin"><color rgb="FFD8C1A2"/></bottom><diagonal/></border><border><left style="medium"><color rgb="FFC28A20"/></left><right style="thin"><color rgb="FFD8C1A2"/></right><top style="thin"><color rgb="FFD8C1A2"/></top><bottom style="thin"><color rgb="FFD8C1A2"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="17"><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="6" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="2" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="164" fontId="4" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="165" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="5" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="9" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>''';
 
-  String _excelSheetDrawingRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>''';
+  String _excelSheetDrawingRelsXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>''';
 
-  String _excelDrawingRelsXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart2.xml"/></Relationships>''';
+  String _excelDrawingRelsXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart2.xml"/></Relationships>''';
 
-  String _excelDrawingXml() => '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  String _excelDrawingXml() =>
+      '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:twoCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>5</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>23</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Ventas mensuales"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart r:id="rId1"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:from><xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>11</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>23</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="3" name="Ranking de productos"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart r:id="rId2"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>''';
 
   String _excelBarChartXml({
@@ -1966,13 +2228,17 @@ class _ReportesScreenState extends State<ReportesScreen>
               '')
           .toString();
       if (orderId.isEmpty) continue;
-      detailsByOrder.putIfAbsent(orderId, () => <Map<String, dynamic>>[]).add(detalle);
+      detailsByOrder
+          .putIfAbsent(orderId, () => <Map<String, dynamic>>[])
+          .add(detalle);
     }
 
     final ventasPorMes = <int, double>{};
     final ordenesPorMes = <int, int>{};
     final clientesPorMes = <int, Set<String>>{};
-    for (int month = data.range.startMonth; month <= data.range.endMonth; month++) {
+    for (int month = data.range.startMonth;
+        month <= data.range.endMonth;
+        month++) {
       ventasPorMes[month] = 0;
       ordenesPorMes[month] = 0;
       clientesPorMes[month] = <String>{};
@@ -2068,14 +2334,17 @@ class _ReportesScreenState extends State<ReportesScreen>
         if (raw.isNotEmpty) return raw.toUpperCase();
       }
       final name = _productNameById(cleanId).toLowerCase();
-      if (name.contains('jardin') || name.contains('terraza') || name.contains('exterior')) {
+      if (name.contains('jardin') ||
+          name.contains('terraza') ||
+          name.contains('exterior')) {
         return 'EXTERIOR';
       }
       return 'INTERIOR';
     }
 
     double detailRawSubtotal(Map<String, dynamic> detalle) {
-      final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+      final quantity =
+          _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
       final price = _toDouble(_readValue(detalle, const [
         'PRECIO_UNITARIO',
         'precio_unitario',
@@ -2099,13 +2368,18 @@ class _ReportesScreenState extends State<ReportesScreen>
     }
 
     final sortedOrders = [...data.orders]..sort((a, b) {
-        final fechaA = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-        final fechaB = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
+        final fechaA =
+            _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+        final fechaB =
+            _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
         return fechaB.compareTo(fechaA);
       });
 
     for (final orden in data.orders) {
-      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      final fecha =
+          _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
       if (fecha == null) continue;
       final total = _orderTotal(orden);
       ventasPorMes[fecha.month] = (ventasPorMes[fecha.month] ?? 0) + total;
@@ -2120,7 +2394,8 @@ class _ReportesScreenState extends State<ReportesScreen>
     for (final row in data.monthlyProducts) {
       final item = productoTotales.putIfAbsent(
         row.productId,
-        () => _ProductMonthlyReportRow(month: 0, product: row.product, productId: row.productId),
+        () => _ProductMonthlyReportRow(
+            month: 0, product: row.product, productId: row.productId),
       );
       item.quantity += row.quantity;
       item.total += row.total;
@@ -2140,11 +2415,15 @@ class _ReportesScreenState extends State<ReportesScreen>
     final bestMonth = ventasPorMes.entries.isEmpty
         ? MapEntry(data.range.startMonth, 0.0)
         : ventasPorMes.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    final cancellationRate = data.totalOrders == 0 ? 0.0 : data.cancelledOrders / data.totalOrders;
-    final deliveryRate = data.totalOrders == 0 ? 0.0 : data.deliveredOrders / data.totalOrders;
+    final cancellationRate =
+        data.totalOrders == 0 ? 0.0 : data.cancelledOrders / data.totalOrders;
+    final deliveryRate =
+        data.totalOrders == 0 ? 0.0 : data.deliveredOrders / data.totalOrders;
 
-    final citySet = sortedOrders.map(ciudadOrden).where((e) => e.trim().isNotEmpty).toSet();
-    final cityLabel = citySet.length == 1 ? citySet.first : 'Todas las ciudades';
+    final citySet =
+        sortedOrders.map(ciudadOrden).where((e) => e.trim().isNotEmpty).toSet();
+    final cityLabel =
+        citySet.length == 1 ? citySet.first : 'Todas las ciudades';
 
     final dailyType = <String, Map<String, Map<String, dynamic>>>{};
     final paymentTotals = <String, Map<String, dynamic>>{};
@@ -2152,16 +2431,19 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     for (final orden in data.orders) {
       final orderId = _orderId(orden);
-      final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+      final fecha =
+          _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
       if (fecha == null) continue;
-      final orderDetails = detailsByOrder[orderId] ?? const <Map<String, dynamic>>[];
+      final orderDetails =
+          detailsByOrder[orderId] ?? const <Map<String, dynamic>>[];
       final orderTotal = _orderTotal(orden);
       final rawTotals = <Map<String, dynamic>, double>{};
       double rawTotalSum = 0;
       int orderQty = 0;
 
       for (final detalle in orderDetails) {
-        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        final quantity =
+            _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
         final subtotal = detailRawSubtotal(detalle);
         rawTotals[detalle] = subtotal;
         rawTotalSum += subtotal;
@@ -2169,7 +2451,8 @@ class _ReportesScreenState extends State<ReportesScreen>
       }
 
       final payment = formaPago(orden);
-      final paymentRow = paymentTotals.putIfAbsent(payment, () => {'orders': 0, 'total': 0.0});
+      final paymentRow =
+          paymentTotals.putIfAbsent(payment, () => {'orders': 0, 'total': 0.0});
       paymentRow['orders'] = (paymentRow['orders'] as int) + 1;
       paymentRow['total'] = (paymentRow['total'] as double) + orderTotal;
 
@@ -2180,32 +2463,39 @@ class _ReportesScreenState extends State<ReportesScreen>
         final productId = _detailProductId(detalle);
         final product = _productNameById(productId);
         final type = productTypeById(productId);
-        final quantity = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
+        final quantity =
+            _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
         final rawSubtotal = rawTotals[detalle] ?? 0;
         double allocatedTotal;
         if (rawTotalSum > 0) {
-          allocatedTotal = orderTotal > 0 ? orderTotal * (rawSubtotal / rawTotalSum) : rawSubtotal;
+          allocatedTotal = orderTotal > 0
+              ? orderTotal * (rawSubtotal / rawTotalSum)
+              : rawSubtotal;
         } else if (orderQty > 0) {
           allocatedTotal = orderTotal * (quantity / orderQty);
         } else {
           allocatedTotal = 0;
         }
         final day = _formatDate(fecha);
-        final typeMap = dailyType.putIfAbsent(type, () => <String, Map<String, dynamic>>{});
+        final typeMap =
+            dailyType.putIfAbsent(type, () => <String, Map<String, dynamic>>{});
         final key = '$day|$productId';
-        final row = typeMap.putIfAbsent(key, () => {
-              'date': day,
-              'product': product,
-              'quantity': 0,
-              'total': 0.0,
-            });
+        final row = typeMap.putIfAbsent(
+            key,
+            () => {
+                  'date': day,
+                  'product': product,
+                  'quantity': 0,
+                  'total': 0.0,
+                });
         row['quantity'] = (row['quantity'] as int) + quantity;
         row['total'] = (row['total'] as double) + allocatedTotal;
       }
     }
 
     List<String> orderProducts(Map<String, dynamic> orden, {int limit = 4}) {
-      final details = detailsByOrder[_orderId(orden)] ?? const <Map<String, dynamic>>[];
+      final details =
+          detailsByOrder[_orderId(orden)] ?? const <Map<String, dynamic>>[];
       final names = <String>[];
       for (final detalle in details) {
         final qty = _toInt(_readValue(detalle, const ['CANTIDAD', 'cantidad']));
@@ -2220,16 +2510,22 @@ class _ReportesScreenState extends State<ReportesScreen>
     pw.Widget brandHeader() {
       return pw.Container(
         padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
-        decoration: pw.BoxDecoration(color: espresso, borderRadius: pw.BorderRadius.circular(16)),
+        decoration: pw.BoxDecoration(
+            color: espresso, borderRadius: pw.BorderRadius.circular(16)),
         child: pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             pw.Container(
               width: 46,
               height: 46,
-              decoration: pw.BoxDecoration(color: gold, borderRadius: pw.BorderRadius.circular(12)),
+              decoration: pw.BoxDecoration(
+                  color: gold, borderRadius: pw.BorderRadius.circular(12)),
               child: pw.Center(
-                child: pw.Text('MA', style: pw.TextStyle(color: PdfColors.white, fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                child: pw.Text('MA',
+                    style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold)),
               ),
             ),
             pw.SizedBox(width: 14),
@@ -2237,17 +2533,31 @@ class _ReportesScreenState extends State<ReportesScreen>
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('MUEBLES DE LOS ALPES', style: pw.TextStyle(color: PdfColors.white, fontSize: 18, fontWeight: pw.FontWeight.bold, letterSpacing: 1.2)),
+                  pw.Text('MUEBLES DE LOS ALPES',
+                      style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          letterSpacing: 1.2)),
                   pw.SizedBox(height: 4),
-                  pw.Text('Reporte administrativo ejecutivo · ${data.range.label}', style: pw.TextStyle(color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 10.5)),
+                  pw.Text(
+                      'Reporte administrativo ejecutivo · ${data.range.label}',
+                      style: pw.TextStyle(
+                          color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 10.5)),
                 ],
               ),
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text('Generado', style: pw.TextStyle(color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 8)),
-                pw.Text(_formatDate(data.generatedAt), style: pw.TextStyle(color: PdfColors.white, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Generado',
+                    style: pw.TextStyle(
+                        color: PdfColor.fromInt(0xFFE9DDD1), fontSize: 8)),
+                pw.Text(_formatDate(data.generatedAt),
+                    style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold)),
               ],
             ),
           ],
@@ -2258,11 +2568,16 @@ class _ReportesScreenState extends State<ReportesScreen>
     pw.Widget sectionTitle(String title, String subtitle) {
       return pw.Container(
         padding: const pw.EdgeInsets.only(bottom: 6),
-        decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: gold, width: 1.2))),
+        decoration: pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(color: gold, width: 1.2))),
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(title, style: pw.TextStyle(color: dark, fontSize: 14.5, fontWeight: pw.FontWeight.bold)),
+            pw.Text(title,
+                style: pw.TextStyle(
+                    color: dark,
+                    fontSize: 14.5,
+                    fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 2),
             pw.Text(subtitle, style: pw.TextStyle(color: brown, fontSize: 8.8)),
           ],
@@ -2284,9 +2599,16 @@ class _ReportesScreenState extends State<ReportesScreen>
           children: [
             pw.Container(width: 24, height: 3, color: color),
             pw.SizedBox(height: 6),
-            pw.Text(title, style: pw.TextStyle(color: brown, fontSize: 7.8, fontWeight: pw.FontWeight.bold)),
+            pw.Text(title,
+                style: pw.TextStyle(
+                    color: brown,
+                    fontSize: 7.8,
+                    fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 3),
-            pw.Text(value, maxLines: 1, style: pw.TextStyle(color: dark, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.Text(value,
+                maxLines: 1,
+                style: pw.TextStyle(
+                    color: dark, fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 3),
             pw.Text(subtitle, style: pw.TextStyle(color: brown, fontSize: 6.8)),
           ],
@@ -2294,7 +2616,8 @@ class _ReportesScreenState extends State<ReportesScreen>
       );
     }
 
-    pw.Widget compactListCard(String title, List<String> rows, PdfColor accent) {
+    pw.Widget compactListCard(
+        String title, List<String> rows, PdfColor accent) {
       return pw.Container(
         padding: const pw.EdgeInsets.all(10),
         decoration: pw.BoxDecoration(
@@ -2308,15 +2631,24 @@ class _ReportesScreenState extends State<ReportesScreen>
             pw.Row(children: [
               pw.Container(width: 4, height: 18, color: accent),
               pw.SizedBox(width: 7),
-              pw.Expanded(child: pw.Text(title, style: pw.TextStyle(color: dark, fontSize: 10.2, fontWeight: pw.FontWeight.bold))),
+              pw.Expanded(
+                  child: pw.Text(title,
+                      style: pw.TextStyle(
+                          color: dark,
+                          fontSize: 10.2,
+                          fontWeight: pw.FontWeight.bold))),
             ]),
             pw.SizedBox(height: 7),
             if (rows.isEmpty)
-              pw.Text('Sin datos disponibles en el periodo.', style: pw.TextStyle(color: brown, fontSize: 8.2))
+              pw.Text('Sin datos disponibles en el periodo.',
+                  style: pw.TextStyle(color: brown, fontSize: 8.2))
             else
               ...rows.map((text) => pw.Padding(
                     padding: const pw.EdgeInsets.only(bottom: 4),
-                    child: pw.Text('- $text', maxLines: 2, style: pw.TextStyle(color: brown, fontSize: 7.7, lineSpacing: 2)),
+                    child: pw.Text('- $text',
+                        maxLines: 2,
+                        style: pw.TextStyle(
+                            color: brown, fontSize: 7.7, lineSpacing: 2)),
                   )),
           ],
         ),
@@ -2324,8 +2656,10 @@ class _ReportesScreenState extends State<ReportesScreen>
     }
 
     pw.Widget barChart() {
-      final values = ventasPorMes.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-      final maxValue = values.isEmpty ? 0.0 : values.map((e) => e.value).reduce(math.max);
+      final values = ventasPorMes.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      final maxValue =
+          values.isEmpty ? 0.0 : values.map((e) => e.value).reduce(math.max);
       final safeMax = maxValue <= 0 ? 1.0 : maxValue;
       String shortMonth(int month) {
         final name = _getMonthName(month - 1);
@@ -2345,8 +2679,16 @@ class _ReportesScreenState extends State<ReportesScreen>
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Tendencia mensual de ventas', style: pw.TextStyle(color: dark, fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.Text('Total: ${_formatCurrency(data.totalSales)}', style: pw.TextStyle(color: green, fontSize: 7.6, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Tendencia mensual de ventas',
+                    style: pw.TextStyle(
+                        color: dark,
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold)),
+                pw.Text('Total: ${_formatCurrency(data.totalSales)}',
+                    style: pw.TextStyle(
+                        color: green,
+                        fontSize: 7.6,
+                        fontWeight: pw.FontWeight.bold)),
               ],
             ),
             pw.SizedBox(height: 8),
@@ -2355,7 +2697,9 @@ class _ReportesScreenState extends State<ReportesScreen>
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: values.map((entry) {
-                  final barHeight = entry.value <= 0 ? 14.0 : 22.0 + ((entry.value / safeMax) * 66.0);
+                  final barHeight = entry.value <= 0
+                      ? 14.0
+                      : 22.0 + ((entry.value / safeMax) * 66.0);
                   final isBest = entry.value == maxValue && maxValue > 0;
                   return pw.Expanded(
                     child: pw.Container(
@@ -2363,17 +2707,30 @@ class _ReportesScreenState extends State<ReportesScreen>
                       child: pw.Column(
                         mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
-                          pw.Text(_formatCurrency(entry.value), textAlign: pw.TextAlign.center, maxLines: 2, style: pw.TextStyle(color: isBest ? green : brown, fontSize: 5.5, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(_formatCurrency(entry.value),
+                              textAlign: pw.TextAlign.center,
+                              maxLines: 2,
+                              style: pw.TextStyle(
+                                  color: isBest ? green : brown,
+                                  fontSize: 5.5,
+                                  fontWeight: pw.FontWeight.bold)),
                           pw.SizedBox(height: 3),
                           pw.Container(
                             width: 22,
                             height: barHeight,
-                            decoration: pw.BoxDecoration(color: isBest ? green : gold, borderRadius: pw.BorderRadius.circular(6)),
+                            decoration: pw.BoxDecoration(
+                                color: isBest ? green : gold,
+                                borderRadius: pw.BorderRadius.circular(6)),
                           ),
                           pw.SizedBox(height: 5),
-                          pw.Text(shortMonth(entry.key), style: pw.TextStyle(color: dark, fontSize: 7.2, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(shortMonth(entry.key),
+                              style: pw.TextStyle(
+                                  color: dark,
+                                  fontSize: 7.2,
+                                  fontWeight: pw.FontWeight.bold)),
                           pw.SizedBox(height: 2),
-                          pw.Text('${ordenesPorMes[entry.key] ?? 0} ord.', style: pw.TextStyle(color: brown, fontSize: 5.8)),
+                          pw.Text('${ordenesPorMes[entry.key] ?? 0} ord.',
+                              style: pw.TextStyle(color: brown, fontSize: 5.8)),
                         ],
                       ),
                     ),
@@ -2390,18 +2747,23 @@ class _ReportesScreenState extends State<ReportesScreen>
       final rows = sortedOrders.take(limit).map((orden) {
         return [
           _orderNumber(orden),
-          _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
+          _formatDate(_parseDate(
+              _readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
           _orderClientName(orden),
           '${_itemsPorOrden(orden)}',
           _formatCurrency(_orderTotal(orden)),
           _prettyEstado(_resolverEstado(orden)),
         ];
       }).toList();
-      if (rows.isEmpty) return compactListCard('Órdenes del periodo', const [], blue);
+      if (rows.isEmpty)
+        return compactListCard('Órdenes del periodo', const [], blue);
       return pw.Table.fromTextArray(
         border: pw.TableBorder.all(color: lightBrown, width: .4),
         headerDecoration: pw.BoxDecoration(color: espresso),
-        headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+        headerStyle: pw.TextStyle(
+            color: PdfColors.white,
+            fontSize: 7.5,
+            fontWeight: pw.FontWeight.bold),
         cellStyle: pw.TextStyle(color: dark, fontSize: 6.8),
         oddRowDecoration: pw.BoxDecoration(color: soft),
         cellAlignment: pw.Alignment.centerLeft,
@@ -2421,10 +2783,18 @@ class _ReportesScreenState extends State<ReportesScreen>
     pw.Widget dailySalesByTypeTable() {
       final tableRows = <List<String>>[];
       for (final type in ['INTERIOR', 'EXTERIOR']) {
-        final rows = (dailyType[type]?.values.toList() ?? <Map<String, dynamic>>[])
+        final rows = (dailyType[type]?.values.toList() ??
+            <Map<String, dynamic>>[])
           ..sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
         if (rows.isEmpty) {
-          tableRows.add([type, 'Sin movimiento', '—', '0', _formatCurrency(0), _formatCurrency(0)]);
+          tableRows.add([
+            type,
+            'Sin movimiento',
+            '—',
+            '0',
+            _formatCurrency(0),
+            _formatCurrency(0)
+          ]);
         } else {
           for (final row in rows.take(12)) {
             final quantity = row['quantity'] as int;
@@ -2444,7 +2814,10 @@ class _ReportesScreenState extends State<ReportesScreen>
       return pw.Table.fromTextArray(
         border: pw.TableBorder.all(color: lightBrown, width: .38),
         headerDecoration: pw.BoxDecoration(color: espresso),
-        headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.4, fontWeight: pw.FontWeight.bold),
+        headerStyle: pw.TextStyle(
+            color: PdfColors.white,
+            fontSize: 7.4,
+            fontWeight: pw.FontWeight.bold),
         cellStyle: pw.TextStyle(color: dark, fontSize: 6.6),
         oddRowDecoration: pw.BoxDecoration(color: soft),
         cellAlignment: pw.Alignment.centerLeft,
@@ -2456,49 +2829,86 @@ class _ReportesScreenState extends State<ReportesScreen>
           4: const pw.FixedColumnWidth(60),
           5: const pw.FixedColumnWidth(62),
         },
-        headers: ['Tipo', 'Fecha', 'Nombre', 'Cantidad', 'Costo unit.', 'Costo total'],
+        headers: [
+          'Tipo',
+          'Fecha',
+          'Nombre',
+          'Cantidad',
+          'Costo unit.',
+          'Costo total'
+        ],
         data: tableRows,
       );
     }
 
     pw.Widget topProductReport() {
-      if (topProducts.isEmpty) return compactListCard('Producto más vendido', const [], green);
+      if (topProducts.isEmpty)
+        return compactListCard('Producto más vendido', const [], green);
       final top = topProducts.first;
       return pw.Container(
         padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(color: PdfColors.white, borderRadius: pw.BorderRadius.circular(12), border: pw.Border.all(color: lightBrown, width: .7)),
+        decoration: pw.BoxDecoration(
+            color: PdfColors.white,
+            borderRadius: pw.BorderRadius.circular(12),
+            border: pw.Border.all(color: lightBrown, width: .7)),
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Row(children: [
               pw.Container(width: 5, height: 26, color: green),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: pw.Text('Reporte del producto más vendido', style: pw.TextStyle(color: dark, fontSize: 12, fontWeight: pw.FontWeight.bold))),
+              pw.Expanded(
+                  child: pw.Text('Reporte del producto más vendido',
+                      style: pw.TextStyle(
+                          color: dark,
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold))),
             ]),
             pw.SizedBox(height: 8),
             pw.Table.fromTextArray(
               border: pw.TableBorder.all(color: lightBrown, width: .35),
               headerDecoration: pw.BoxDecoration(color: parchment),
-              headerStyle: pw.TextStyle(color: dark, fontSize: 7.8, fontWeight: pw.FontWeight.bold),
+              headerStyle: pw.TextStyle(
+                  color: dark, fontSize: 7.8, fontWeight: pw.FontWeight.bold),
               cellStyle: pw.TextStyle(color: brown, fontSize: 7.4),
               cellAlignment: pw.Alignment.centerLeft,
-              headers: ['Fecha generación', 'Fecha inicio', 'Fecha fin', 'Ciudad', 'Tipo mueble', 'Nombre'],
-              data: [[
-                _formatDate(data.generatedAt),
-                '${_getMonthName(data.range.startMonth - 1)} ${data.range.year}',
-                '${_getMonthName(data.range.endMonth - 1)} ${data.range.year}',
-                cityLabel,
-                productTypeById(top.productId),
-                top.product,
-              ]],
+              headers: [
+                'Fecha generación',
+                'Fecha inicio',
+                'Fecha fin',
+                'Ciudad',
+                'Tipo mueble',
+                'Nombre'
+              ],
+              data: [
+                [
+                  _formatDate(data.generatedAt),
+                  '${_getMonthName(data.range.startMonth - 1)} ${data.range.year}',
+                  '${_getMonthName(data.range.endMonth - 1)} ${data.range.year}',
+                  cityLabel,
+                  productTypeById(top.productId),
+                  top.product,
+                ]
+              ],
             ),
             pw.SizedBox(height: 8),
             pw.Row(children: [
-              pw.Expanded(child: kpi('Cantidad vendida', '${top.quantity}', 'Unidades', green)),
+              pw.Expanded(
+                  child: kpi('Cantidad vendida', '${top.quantity}', 'Unidades',
+                      green)),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: kpi('Ventas generadas', _formatCurrency(top.total), 'Contribución directa', gold)),
+              pw.Expanded(
+                  child: kpi('Ventas generadas', _formatCurrency(top.total),
+                      'Contribución directa', gold)),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: kpi('% del total', data.totalSales <= 0 ? '0.0%' : '${(top.total / data.totalSales * 100).toStringAsFixed(1)}%', 'Participación', blue)),
+              pw.Expanded(
+                  child: kpi(
+                      '% del total',
+                      data.totalSales <= 0
+                          ? '0.0%'
+                          : '${(top.total / data.totalSales * 100).toStringAsFixed(1)}%',
+                      'Participación',
+                      blue)),
             ]),
           ],
         ),
@@ -2508,18 +2918,23 @@ class _ReportesScreenState extends State<ReportesScreen>
     pw.Widget purchasesByClientTable() {
       final rows = sortedOrders.take(18).map((orden) {
         return [
-          _formatDate(_parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
+          _formatDate(_parseDate(
+              _readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']))),
           _orderClientName(orden),
           _formatCurrency(_orderTotal(orden)),
           formaPago(orden),
           orderProducts(orden, limit: 3).join(', '),
         ];
       }).toList();
-      if (rows.isEmpty) return compactListCard('Compras por cliente', const [], blue);
+      if (rows.isEmpty)
+        return compactListCard('Compras por cliente', const [], blue);
       return pw.Table.fromTextArray(
         border: pw.TableBorder.all(color: lightBrown, width: .34),
         headerDecoration: pw.BoxDecoration(color: espresso),
-        headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.1, fontWeight: pw.FontWeight.bold),
+        headerStyle: pw.TextStyle(
+            color: PdfColors.white,
+            fontSize: 7.1,
+            fontWeight: pw.FontWeight.bold),
         cellStyle: pw.TextStyle(color: dark, fontSize: 6.3),
         oddRowDecoration: pw.BoxDecoration(color: soft),
         cellAlignment: pw.Alignment.centerLeft,
@@ -2530,24 +2945,42 @@ class _ReportesScreenState extends State<ReportesScreen>
           3: const pw.FixedColumnWidth(60),
           4: const pw.FlexColumnWidth(2.2),
         },
-        headers: ['Fecha compra', 'Cliente', 'Valor', 'Forma pago', 'Muebles incluidos'],
+        headers: [
+          'Fecha compra',
+          'Cliente',
+          'Valor',
+          'Forma pago',
+          'Muebles incluidos'
+        ],
         data: rows,
       );
     }
 
     pw.Widget cashCloseTable() {
       final rows = paymentTotals.entries.toList()
-        ..sort((a, b) => (b.value['total'] as double).compareTo(a.value['total'] as double));
+        ..sort((a, b) =>
+            (b.value['total'] as double).compareTo(a.value['total'] as double));
       final tableRows = rows.map((entry) {
         final orders = entry.value['orders'] as int;
         final total = entry.value['total'] as double;
-        return [entry.key, '$orders', _formatCurrency(total), data.totalSales <= 0 ? '0.0%' : '${(total / data.totalSales * 100).toStringAsFixed(1)}%'];
+        return [
+          entry.key,
+          '$orders',
+          _formatCurrency(total),
+          data.totalSales <= 0
+              ? '0.0%'
+              : '${(total / data.totalSales * 100).toStringAsFixed(1)}%'
+        ];
       }).toList();
-      if (tableRows.isEmpty) tableRows.add(['No especificado', '0', _formatCurrency(0), '0.0%']);
+      if (tableRows.isEmpty)
+        tableRows.add(['No especificado', '0', _formatCurrency(0), '0.0%']);
       return pw.Table.fromTextArray(
         border: pw.TableBorder.all(color: lightBrown, width: .4),
         headerDecoration: pw.BoxDecoration(color: espresso),
-        headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.4, fontWeight: pw.FontWeight.bold),
+        headerStyle: pw.TextStyle(
+            color: PdfColors.white,
+            fontSize: 7.4,
+            fontWeight: pw.FontWeight.bold),
         cellStyle: pw.TextStyle(color: dark, fontSize: 6.8),
         oddRowDecoration: pw.BoxDecoration(color: soft),
         headers: ['Forma de pago', 'Órdenes', 'Total caja', '% total'],
@@ -2556,30 +2989,56 @@ class _ReportesScreenState extends State<ReportesScreen>
     }
 
     pw.Widget marketingSummary() {
-      final avgRevenuePerClient = data.totalClients == 0 ? 0.0 : data.totalSales / data.totalClients;
-      final returningClients = clientOrderCounter.values.where((count) => count > 1).length;
-      final retentionRate = data.totalClients == 0 ? 0.0 : returningClients / data.totalClients;
-      final activityRows = ventasPorMes.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+      final avgRevenuePerClient =
+          data.totalClients == 0 ? 0.0 : data.totalSales / data.totalClients;
+      final returningClients =
+          clientOrderCounter.values.where((count) => count > 1).length;
+      final retentionRate =
+          data.totalClients == 0 ? 0.0 : returningClients / data.totalClients;
+      final activityRows = ventasPorMes.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          sectionTitle('Indicadores comerciales reales', 'Métricas calculadas únicamente con órdenes, clientes y ventas reales de la base de datos'),
+          sectionTitle('Indicadores comerciales reales',
+              'Métricas calculadas únicamente con órdenes, clientes y ventas reales de la base de datos'),
           pw.SizedBox(height: 8),
           pw.Row(children: [
-            pw.Expanded(child: kpi('Valor por cliente', _formatCurrency(avgRevenuePerClient), 'Ventas reales / clientes únicos', green)),
+            pw.Expanded(
+                child: kpi(
+                    'Valor por cliente',
+                    _formatCurrency(avgRevenuePerClient),
+                    'Ventas reales / clientes únicos',
+                    green)),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: kpi('Actividad comercial', '${data.totalOrders}', 'Órdenes reales del periodo', blue)),
+            pw.Expanded(
+                child: kpi('Actividad comercial', '${data.totalOrders}',
+                    'Órdenes reales del periodo', blue)),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: kpi('Recompra', '${(retentionRate * 100).toStringAsFixed(1)}%', 'Clientes con más de una orden', purple)),
+            pw.Expanded(
+                child: kpi(
+                    'Recompra',
+                    '${(retentionRate * 100).toStringAsFixed(1)}%',
+                    'Clientes con más de una orden',
+                    purple)),
           ]),
           pw.SizedBox(height: 10),
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(color: lightBrown, width: .34),
             headerDecoration: pw.BoxDecoration(color: espresso),
-            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.2, fontWeight: pw.FontWeight.bold),
+            headerStyle: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 7.2,
+                fontWeight: pw.FontWeight.bold),
             cellStyle: pw.TextStyle(color: dark, fontSize: 6.5),
             oddRowDecoration: pw.BoxDecoration(color: soft),
-            headers: ['Mes', 'Ventas', 'Órdenes', 'Clientes activos', 'Ticket promedio'],
+            headers: [
+              'Mes',
+              'Ventas',
+              'Órdenes',
+              'Clientes activos',
+              'Ticket promedio'
+            ],
             data: activityRows.map((entry) {
               final orders = ordenesPorMes[entry.key] ?? 0;
               return [
@@ -2595,8 +3054,6 @@ class _ReportesScreenState extends State<ReportesScreen>
       );
     }
 
-
-
     pw.Widget cohortReport() {
       // Cohorte real del periodo: agrupa clientes por el mes de su primera orden
       // OBSERVADA dentro del rango seleccionado. Esto evita inventar datos y permite
@@ -2606,45 +3063,58 @@ class _ReportesScreenState extends State<ReportesScreen>
 
       for (final orden in data.orders) {
         final clientId = _orderClientId(orden) ?? _orderClientName(orden);
-        final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+        final fecha =
+            _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
         if (clientId.trim().isEmpty || fecha == null) continue;
-        ordersByClient.putIfAbsent(clientId.trim(), () => <Map<String, dynamic>>[]).add(orden);
+        ordersByClient
+            .putIfAbsent(clientId.trim(), () => <Map<String, dynamic>>[])
+            .add(orden);
       }
 
       int monthDiff(DateTime start, DateTime end) {
         return ((end.year - start.year) * 12) + (end.month - start.month);
       }
 
-      String cohortLabel(DateTime date) => '${_getMonthName(date.month - 1)} ${date.year}';
+      String cohortLabel(DateTime date) =>
+          '${_getMonthName(date.month - 1)} ${date.year}';
 
       final cohortMap = <String, Map<String, dynamic>>{};
 
       for (final entry in ordersByClient.entries) {
         final clientOrders = [...entry.value]..sort((a, b) {
-          final fa = _parseDate(_readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-          final fb = _parseDate(_readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ?? DateTime(1900);
-          return fa.compareTo(fb);
-        });
+            final fa = _parseDate(
+                    _readValue(a, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+            final fb = _parseDate(
+                    _readValue(b, const ['FECHA_ORDEN', 'fecha_orden'])) ??
+                DateTime(1900);
+            return fa.compareTo(fb);
+          });
         if (clientOrders.isEmpty) continue;
 
-        final firstDate = _parseDate(_readValue(clientOrders.first, const ['FECHA_ORDEN', 'fecha_orden']));
+        final firstDate = _parseDate(_readValue(
+            clientOrders.first, const ['FECHA_ORDEN', 'fecha_orden']));
         if (firstDate == null) continue;
 
-        final key = '${firstDate.year}-${firstDate.month.toString().padLeft(2, '0')}';
-        final row = cohortMap.putIfAbsent(key, () => {
-              'date': DateTime(firstDate.year, firstDate.month),
-              'clients': <String>{},
-              'm0': <String>{},
-              'm1': <String>{},
-              'm2': <String>{},
-              'm3': <String>{},
-              'revenue': 0.0,
-            });
+        final key =
+            '${firstDate.year}-${firstDate.month.toString().padLeft(2, '0')}';
+        final row = cohortMap.putIfAbsent(
+            key,
+            () => {
+                  'date': DateTime(firstDate.year, firstDate.month),
+                  'clients': <String>{},
+                  'm0': <String>{},
+                  'm1': <String>{},
+                  'm2': <String>{},
+                  'm3': <String>{},
+                  'revenue': 0.0,
+                });
 
         (row['clients'] as Set<String>).add(entry.key);
 
         for (final orden in clientOrders) {
-          final fecha = _parseDate(_readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
+          final fecha = _parseDate(
+              _readValue(orden, const ['FECHA_ORDEN', 'fecha_orden']));
           if (fecha == null) continue;
           final diff = monthDiff(firstDate, fecha);
           if (diff < 0 || diff > 3) continue;
@@ -2654,7 +3124,8 @@ class _ReportesScreenState extends State<ReportesScreen>
       }
 
       final cohortRows = cohortMap.values.toList()
-        ..sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+        ..sort(
+            (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
       if (cohortRows.isEmpty) {
         return pw.Column(
@@ -2693,11 +3164,16 @@ class _ReportesScreenState extends State<ReportesScreen>
         return PdfColor.fromInt(0xFFFDF8EF);
       }
 
-      final totalClients = cohortRows.fold<int>(0, (sum, row) => sum + (row['clients'] as Set<String>).length);
-      final retainedM1 = cohortRows.fold<int>(0, (sum, row) => sum + (row['m1'] as Set<String>).length);
-      final retainedM2 = cohortRows.fold<int>(0, (sum, row) => sum + (row['m2'] as Set<String>).length);
-      final retainedM3 = cohortRows.fold<int>(0, (sum, row) => sum + (row['m3'] as Set<String>).length);
-      final cohortRevenue = cohortRows.fold<double>(0, (sum, row) => sum + (row['revenue'] as double));
+      final totalClients = cohortRows.fold<int>(
+          0, (sum, row) => sum + (row['clients'] as Set<String>).length);
+      final retainedM1 = cohortRows.fold<int>(
+          0, (sum, row) => sum + (row['m1'] as Set<String>).length);
+      final retainedM2 = cohortRows.fold<int>(
+          0, (sum, row) => sum + (row['m2'] as Set<String>).length);
+      final retainedM3 = cohortRows.fold<int>(
+          0, (sum, row) => sum + (row['m3'] as Set<String>).length);
+      final cohortRevenue = cohortRows.fold<double>(
+          0, (sum, row) => sum + (row['revenue'] as double));
       final avgM1 = totalClients == 0 ? 0.0 : retainedM1 / totalClients;
       final avgM2 = totalClients == 0 ? 0.0 : retainedM2 / totalClients;
       final avgM3 = totalClients == 0 ? 0.0 : retainedM3 / totalClients;
@@ -2720,7 +3196,11 @@ class _ReportesScreenState extends State<ReportesScreen>
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Gráfica de retención por cohorte', style: pw.TextStyle(color: dark, fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Gráfica de retención por cohorte',
+                  style: pw.TextStyle(
+                      color: dark,
+                      fontSize: 10.5,
+                      fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
               ...values.entries.map((entry) {
                 final color = heatColor(entry.value);
@@ -2728,23 +3208,44 @@ class _ReportesScreenState extends State<ReportesScreen>
                   padding: const pw.EdgeInsets.only(bottom: 6),
                   child: pw.Row(
                     children: [
-                      pw.SizedBox(width: 48, child: pw.Text(entry.key, style: pw.TextStyle(color: brown, fontSize: 7.2, fontWeight: pw.FontWeight.bold))),
+                      pw.SizedBox(
+                          width: 48,
+                          child: pw.Text(entry.key,
+                              style: pw.TextStyle(
+                                  color: brown,
+                                  fontSize: 7.2,
+                                  fontWeight: pw.FontWeight.bold))),
                       pw.Expanded(
                         child: pw.Container(
                           height: 13,
-                          decoration: pw.BoxDecoration(color: soft, borderRadius: pw.BorderRadius.circular(999), border: pw.Border.all(color: lightBrown, width: .25)),
+                          decoration: pw.BoxDecoration(
+                              color: soft,
+                              borderRadius: pw.BorderRadius.circular(999),
+                              border:
+                                  pw.Border.all(color: lightBrown, width: .25)),
                           child: pw.Align(
                             alignment: pw.Alignment.centerLeft,
                             child: pw.Container(
-                              width: 250.0 * entry.value.clamp(0.0, 1.0).toDouble(),
+                              width: 250.0 *
+                                  entry.value.clamp(0.0, 1.0).toDouble(),
                               height: 13,
-                              decoration: pw.BoxDecoration(color: color, borderRadius: pw.BorderRadius.circular(999)),
+                              decoration: pw.BoxDecoration(
+                                  color: color,
+                                  borderRadius: pw.BorderRadius.circular(999)),
                             ),
                           ),
                         ),
                       ),
                       pw.SizedBox(width: 8),
-                      pw.SizedBox(width: 42, child: pw.Text('${(entry.value * 100).toStringAsFixed(1)}%', textAlign: pw.TextAlign.right, style: pw.TextStyle(color: dark, fontSize: 7.3, fontWeight: pw.FontWeight.bold))),
+                      pw.SizedBox(
+                          width: 42,
+                          child: pw.Text(
+                              '${(entry.value * 100).toStringAsFixed(1)}%',
+                              textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(
+                                  color: dark,
+                                  fontSize: 7.3,
+                                  fontWeight: pw.FontWeight.bold))),
                     ],
                   ),
                 );
@@ -2789,13 +3290,43 @@ class _ReportesScreenState extends State<ReportesScreen>
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Mapa de cohorte por recompra mensual', style: pw.TextStyle(color: dark, fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Mapa de cohorte por recompra mensual',
+                  style: pw.TextStyle(
+                      color: dark,
+                      fontSize: 10.5,
+                      fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
               pw.Row(children: [
-                pw.SizedBox(width: 76, child: pw.Text('Cohorte', style: pw.TextStyle(color: brown, fontSize: 7.2, fontWeight: pw.FontWeight.bold))),
-                pw.SizedBox(width: 46, child: pw.Text('Clientes', textAlign: pw.TextAlign.center, style: pw.TextStyle(color: brown, fontSize: 7.2, fontWeight: pw.FontWeight.bold))),
-                ...['M0', 'M+1', 'M+2', 'M+3'].map((h) => pw.Expanded(child: pw.Text(h, textAlign: pw.TextAlign.center, style: pw.TextStyle(color: brown, fontSize: 7.2, fontWeight: pw.FontWeight.bold)))),
-                pw.SizedBox(width: 62, child: pw.Text('Ventas', textAlign: pw.TextAlign.right, style: pw.TextStyle(color: brown, fontSize: 7.2, fontWeight: pw.FontWeight.bold))),
+                pw.SizedBox(
+                    width: 76,
+                    child: pw.Text('Cohorte',
+                        style: pw.TextStyle(
+                            color: brown,
+                            fontSize: 7.2,
+                            fontWeight: pw.FontWeight.bold))),
+                pw.SizedBox(
+                    width: 46,
+                    child: pw.Text('Clientes',
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(
+                            color: brown,
+                            fontSize: 7.2,
+                            fontWeight: pw.FontWeight.bold))),
+                ...['M0', 'M+1', 'M+2', 'M+3'].map((h) => pw.Expanded(
+                    child: pw.Text(h,
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(
+                            color: brown,
+                            fontSize: 7.2,
+                            fontWeight: pw.FontWeight.bold)))),
+                pw.SizedBox(
+                    width: 62,
+                    child: pw.Text('Ventas',
+                        textAlign: pw.TextAlign.right,
+                        style: pw.TextStyle(
+                            color: brown,
+                            fontSize: 7.2,
+                            fontWeight: pw.FontWeight.bold))),
               ]),
               pw.SizedBox(height: 5),
               ...cohortRows.map((row) {
@@ -2807,17 +3338,43 @@ class _ReportesScreenState extends State<ReportesScreen>
                 return pw.Padding(
                   padding: const pw.EdgeInsets.only(bottom: 5),
                   child: pw.Row(children: [
-                    pw.SizedBox(width: 76, child: pw.Text(cohortLabel(row['date'] as DateTime), style: pw.TextStyle(color: dark, fontSize: 7.1, fontWeight: pw.FontWeight.bold))),
-                    pw.SizedBox(width: 46, child: pw.Text('${base.length}', textAlign: pw.TextAlign.center, style: pw.TextStyle(color: dark, fontSize: 7.1))),
-                    pw.Expanded(child: heatCell('${m0.length}\n${rateText(m0, base)}', rateValue(m0, base))),
+                    pw.SizedBox(
+                        width: 76,
+                        child: pw.Text(cohortLabel(row['date'] as DateTime),
+                            style: pw.TextStyle(
+                                color: dark,
+                                fontSize: 7.1,
+                                fontWeight: pw.FontWeight.bold))),
+                    pw.SizedBox(
+                        width: 46,
+                        child: pw.Text('${base.length}',
+                            textAlign: pw.TextAlign.center,
+                            style: pw.TextStyle(color: dark, fontSize: 7.1))),
+                    pw.Expanded(
+                        child: heatCell('${m0.length}\n${rateText(m0, base)}',
+                            rateValue(m0, base))),
                     pw.SizedBox(width: 4),
-                    pw.Expanded(child: heatCell('${m1.length}\n${rateText(m1, base)}', rateValue(m1, base))),
+                    pw.Expanded(
+                        child: heatCell('${m1.length}\n${rateText(m1, base)}',
+                            rateValue(m1, base))),
                     pw.SizedBox(width: 4),
-                    pw.Expanded(child: heatCell('${m2.length}\n${rateText(m2, base)}', rateValue(m2, base))),
+                    pw.Expanded(
+                        child: heatCell('${m2.length}\n${rateText(m2, base)}',
+                            rateValue(m2, base))),
                     pw.SizedBox(width: 4),
-                    pw.Expanded(child: heatCell('${m3.length}\n${rateText(m3, base)}', rateValue(m3, base))),
+                    pw.Expanded(
+                        child: heatCell('${m3.length}\n${rateText(m3, base)}',
+                            rateValue(m3, base))),
                     pw.SizedBox(width: 8),
-                    pw.SizedBox(width: 62, child: pw.Text(_formatCurrency(row['revenue'] as double), textAlign: pw.TextAlign.right, style: pw.TextStyle(color: green, fontSize: 7.1, fontWeight: pw.FontWeight.bold))),
+                    pw.SizedBox(
+                        width: 62,
+                        child: pw.Text(
+                            _formatCurrency(row['revenue'] as double),
+                            textAlign: pw.TextAlign.right,
+                            style: pw.TextStyle(
+                                color: green,
+                                fontSize: 7.1,
+                                fontWeight: pw.FontWeight.bold))),
                   ]),
                 );
               }),
@@ -2835,13 +3392,27 @@ class _ReportesScreenState extends State<ReportesScreen>
           ),
           pw.SizedBox(height: 8),
           pw.Row(children: [
-            pw.Expanded(child: kpi('Clientes cohorte', '$totalClients', 'Clientes reales agrupados', purple)),
+            pw.Expanded(
+                child: kpi('Clientes cohorte', '$totalClients',
+                    'Clientes reales agrupados', purple)),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: kpi('Retención M+1', '${(avgM1 * 100).toStringAsFixed(1)}%', 'Recompra al mes siguiente', green)),
+            pw.Expanded(
+                child: kpi(
+                    'Retención M+1',
+                    '${(avgM1 * 100).toStringAsFixed(1)}%',
+                    'Recompra al mes siguiente',
+                    green)),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: kpi('Retención M+2', '${(avgM2 * 100).toStringAsFixed(1)}%', 'Clientes activos dos meses después', blue)),
+            pw.Expanded(
+                child: kpi(
+                    'Retención M+2',
+                    '${(avgM2 * 100).toStringAsFixed(1)}%',
+                    'Clientes activos dos meses después',
+                    blue)),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: kpi('Venta cohorte', _formatCurrency(cohortRevenue), 'Ingresos reales M0-M3', gold)),
+            pw.Expanded(
+                child: kpi('Venta cohorte', _formatCurrency(cohortRevenue),
+                    'Ingresos reales M0-M3', gold)),
           ]),
           pw.SizedBox(height: 10),
           retentionBars(),
@@ -2851,9 +3422,11 @@ class _ReportesScreenState extends State<ReportesScreen>
       );
     }
 
-
     List<pw.Widget> firstPageWidgets() {
-      final productNames = topProducts.take(8).map((p) => '${p.product} (${p.quantity})').toList();
+      final productNames = topProducts
+          .take(8)
+          .map((p) => '${p.product} (${p.quantity})')
+          .toList();
       return [
         brandHeader(),
         pw.SizedBox(height: 10),
@@ -2861,12 +3434,33 @@ class _ReportesScreenState extends State<ReportesScreen>
           spacing: 8,
           runSpacing: 8,
           children: [
-            pw.SizedBox(width: 165, child: kpi('Ventas totales', _formatCurrency(data.totalSales), 'Ingreso comercial', green)),
-            pw.SizedBox(width: 165, child: kpi('Órdenes', '${data.totalOrders}', 'Operaciones registradas', blue)),
-            pw.SizedBox(width: 165, child: kpi('Ticket promedio', _formatCurrency(data.averageTicket), 'Promedio por orden', gold)),
-            pw.SizedBox(width: 165, child: kpi('Clientes únicos', '${data.totalClients}', 'Clientes atendidos', purple)),
-            pw.SizedBox(width: 165, child: kpi('Items vendidos', '${data.itemsSold}', 'Unidades registradas', green)),
-            pw.SizedBox(width: 165, child: kpi('Canceladas', '${data.cancelledOrders}', 'No concretadas', red)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi('Ventas totales', _formatCurrency(data.totalSales),
+                    'Ingreso comercial', green)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi('Órdenes', '${data.totalOrders}',
+                    'Operaciones registradas', blue)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi(
+                    'Ticket promedio',
+                    _formatCurrency(data.averageTicket),
+                    'Promedio por orden',
+                    gold)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi('Clientes únicos', '${data.totalClients}',
+                    'Clientes atendidos', purple)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi('Items vendidos', '${data.itemsSold}',
+                    'Unidades registradas', green)),
+            pw.SizedBox(
+                width: 165,
+                child: kpi('Canceladas', '${data.cancelledOrders}',
+                    'No concretadas', red)),
           ],
         ),
         pw.SizedBox(height: 10),
@@ -2875,26 +3469,35 @@ class _ReportesScreenState extends State<ReportesScreen>
           children: [
             pw.Expanded(flex: 3, child: barChart()),
             pw.SizedBox(width: 10),
-            pw.Expanded(flex: 2, child: compactListCard('Clientes únicos', uniqueClients.take(8).toList(), purple)),
+            pw.Expanded(
+                flex: 2,
+                child: compactListCard(
+                    'Clientes únicos', uniqueClients.take(8).toList(), purple)),
           ],
         ),
         pw.SizedBox(height: 10),
-        sectionTitle('Órdenes recientes del periodo', 'Información extraída directamente de las órdenes incluidas en el rango'),
+        sectionTitle('Órdenes recientes del periodo',
+            'Información extraída directamente de las órdenes incluidas en el rango'),
         pw.SizedBox(height: 7),
         ordersTable(limit: 7),
         pw.SizedBox(height: 10),
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Expanded(child: compactListCard('Items vendidos principales', productNames, green)),
+            pw.Expanded(
+                child: compactListCard(
+                    'Items vendidos principales', productNames, green)),
             pw.SizedBox(width: 10),
             pw.Expanded(
-              child: compactListCard('Lectura rápida', [
-                'Ciudad: $cityLabel.',
-                'Mejor mes: ${_getMonthName(bestMonth.key - 1)} con ${_formatCurrency(bestMonth.value)}.',
-                'Tasa de entrega: ${(deliveryRate * 100).toStringAsFixed(1)}%.',
-                'Tasa de cancelación: ${(cancellationRate * 100).toStringAsFixed(1)}%.',
-              ], gold),
+              child: compactListCard(
+                  'Lectura rápida',
+                  [
+                    'Ciudad: $cityLabel.',
+                    'Mejor mes: ${_getMonthName(bestMonth.key - 1)} con ${_formatCurrency(bestMonth.value)}.',
+                    'Tasa de entrega: ${(deliveryRate * 100).toStringAsFixed(1)}%.',
+                    'Tasa de cancelación: ${(cancellationRate * 100).toStringAsFixed(1)}%.',
+                  ],
+                  gold),
             ),
           ],
         ),
@@ -2903,13 +3506,15 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     List<pw.Widget> secondPageWidgets() {
       return [
-        sectionTitle('Reporte de ventas agrupadas por tipo de mueble', 'Fecha generación: ${_formatDate(data.generatedAt)} · Inicio: ${_getMonthName(data.range.startMonth - 1)} ${data.range.year} · Fin: ${_getMonthName(data.range.endMonth - 1)} ${data.range.year} · Ciudad: $cityLabel'),
+        sectionTitle('Reporte de ventas agrupadas por tipo de mueble',
+            'Fecha generación: ${_formatDate(data.generatedAt)} · Inicio: ${_getMonthName(data.range.startMonth - 1)} ${data.range.year} · Fin: ${_getMonthName(data.range.endMonth - 1)} ${data.range.year} · Ciudad: $cityLabel'),
         pw.SizedBox(height: 8),
         dailySalesByTypeTable(),
         pw.SizedBox(height: 14),
         topProductReport(),
         pw.SizedBox(height: 14),
-        sectionTitle('Reporte de cierre de cajas', 'Totales por forma de pago dentro del periodo seleccionado'),
+        sectionTitle('Reporte de cierre de cajas',
+            'Totales por forma de pago dentro del periodo seleccionado'),
         pw.SizedBox(height: 8),
         cashCloseTable(),
       ];
@@ -2917,7 +3522,8 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     List<pw.Widget> thirdPageWidgets() {
       return [
-        sectionTitle('Compras realizadas por cliente', 'Órdenes del periodo ordenadas por fecha de compra'),
+        sectionTitle('Compras realizadas por cliente',
+            'Órdenes del periodo ordenadas por fecha de compra'),
         pw.SizedBox(height: 8),
         purchasesByClientTable(),
         pw.SizedBox(height: 14),
@@ -2927,7 +3533,8 @@ class _ReportesScreenState extends State<ReportesScreen>
 
     List<pw.Widget> fourthPageWidgets() {
       return [
-        sectionTitle('Ranking de productos', 'Productos con mayor contribución dentro del periodo'),
+        sectionTitle('Ranking de productos',
+            'Productos con mayor contribución dentro del periodo'),
         pw.SizedBox(height: 8),
         if (topProducts.isEmpty)
           compactListCard('Ranking de productos', const [], green)
@@ -2935,7 +3542,10 @@ class _ReportesScreenState extends State<ReportesScreen>
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(color: lightBrown, width: .42),
             headerDecoration: pw.BoxDecoration(color: espresso),
-            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold),
+            headerStyle: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 8,
+                fontWeight: pw.FontWeight.bold),
             cellStyle: pw.TextStyle(color: dark, fontSize: 7.2),
             oddRowDecoration: pw.BoxDecoration(color: soft),
             cellAlignment: pw.Alignment.centerLeft,
@@ -2949,12 +3559,20 @@ class _ReportesScreenState extends State<ReportesScreen>
             headers: ['#', 'Producto', 'Cantidad', 'Ventas', '% total'],
             data: topProducts.take(12).toList().asMap().entries.map((entry) {
               final row = entry.value;
-              final share = data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
-              return ['${entry.key + 1}', row.product, '${row.quantity}', _formatCurrency(row.total), '${share.toStringAsFixed(1)}%'];
+              final share =
+                  data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
+              return [
+                '${entry.key + 1}',
+                row.product,
+                '${row.quantity}',
+                _formatCurrency(row.total),
+                '${share.toStringAsFixed(1)}%'
+              ];
             }).toList(),
           ),
         pw.SizedBox(height: 14),
-        sectionTitle('Detalle mensual por producto', 'Ventas calculadas contra el total real de las órdenes del periodo'),
+        sectionTitle('Detalle mensual por producto',
+            'Ventas calculadas contra el total real de las órdenes del periodo'),
         pw.SizedBox(height: 8),
         if (data.monthlyProducts.isEmpty)
           compactListCard('Detalle mensual', const [], blue)
@@ -2962,7 +3580,10 @@ class _ReportesScreenState extends State<ReportesScreen>
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(color: lightBrown, width: .36),
             headerDecoration: pw.BoxDecoration(color: espresso),
-            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 7.8, fontWeight: pw.FontWeight.bold),
+            headerStyle: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 7.8,
+                fontWeight: pw.FontWeight.bold),
             cellStyle: pw.TextStyle(color: dark, fontSize: 6.8),
             oddRowDecoration: pw.BoxDecoration(color: soft),
             cellAlignment: pw.Alignment.centerLeft,
@@ -2975,21 +3596,30 @@ class _ReportesScreenState extends State<ReportesScreen>
             },
             headers: ['Mes', 'Producto', 'Cant.', 'Ventas', '% total'],
             data: data.monthlyProducts.take(32).map((row) {
-              final share = data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
-              return [_getMonthName(row.month - 1), row.product, '${row.quantity}', _formatCurrency(row.total), '${share.toStringAsFixed(1)}%'];
+              final share =
+                  data.totalSales <= 0 ? 0 : row.total / data.totalSales * 100;
+              return [
+                _getMonthName(row.month - 1),
+                row.product,
+                '${row.quantity}',
+                _formatCurrency(row.total),
+                '${share.toStringAsFixed(1)}%'
+              ];
             }).toList(),
           ),
         if (data.monthlyProducts.length > 32) ...[
           pw.SizedBox(height: 7),
           pw.Container(
             padding: const pw.EdgeInsets.all(8),
-            decoration: pw.BoxDecoration(color: parchment, borderRadius: pw.BorderRadius.circular(8)),
-            child: pw.Text('El PDF muestra los primeros 32 registros para mantener lectura ejecutiva. El Excel incluye el detalle completo.', style: pw.TextStyle(color: brown, fontSize: 7.2)),
+            decoration: pw.BoxDecoration(
+                color: parchment, borderRadius: pw.BorderRadius.circular(8)),
+            child: pw.Text(
+                'El PDF muestra los primeros 32 registros para mantener lectura ejecutiva. El Excel incluye el detalle completo.',
+                style: pw.TextStyle(color: brown, fontSize: 7.2)),
           ),
         ],
       ];
     }
-
 
     pw.Widget finalValidationNotice() {
       return pw.Container(
@@ -3024,8 +3654,10 @@ class _ReportesScreenState extends State<ReportesScreen>
         footer: (context) => pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Muebles de los Alpes · Reporte administrativo', style: pw.TextStyle(color: brown, fontSize: 7.5)),
-            pw.Text('Página ${context.pageNumber} de ${context.pagesCount}', style: pw.TextStyle(color: brown, fontSize: 7.5)),
+            pw.Text('Muebles de los Alpes · Reporte administrativo',
+                style: pw.TextStyle(color: brown, fontSize: 7.5)),
+            pw.Text('Página ${context.pageNumber} de ${context.pagesCount}',
+                style: pw.TextStyle(color: brown, fontSize: 7.5)),
           ],
         ),
         build: (_) => [
@@ -3075,18 +3707,23 @@ class _ReportesScreenState extends State<ReportesScreen>
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: FilledButton.icon(
-                    onPressed: (_loading || _generandoReporte) ? null : _mostrarDialogoReporte,
+                    onPressed: (_loading || _generandoReporte)
+                        ? null
+                        : _mostrarDialogoReporte,
                     style: FilledButton.styleFrom(
                       backgroundColor: AlpesColors.oroGuatemalteco,
                       foregroundColor: AlpesColors.cafeOscuro,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                     icon: _generandoReporte
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AlpesColors.cafeOscuro),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AlpesColors.cafeOscuro),
                           )
                         : const Icon(Icons.file_download_rounded, size: 18),
                     label: Text(
@@ -3400,7 +4037,7 @@ class _ReportesScreenState extends State<ReportesScreen>
             crossAxisCount: isNarrow ? 1 : 3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: isNarrow ? 2.2 : 5.5,
+            childAspectRatio: isNarrow ? 2.2 : 4.2,
           ),
           itemBuilder: (_, index) => _buildKpiCard(cards[index]),
         );
@@ -3625,7 +4262,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    _legendDot(const Color(0xFF0F7B5F), 'Activos $_selectedYear'),
+                    _legendDot(
+                        const Color(0xFF0F7B5F), 'Activos $_selectedYear'),
                     if (compareYear != null)
                       _legendDot(
                         const Color(0xFF2F6FB2),
@@ -3709,7 +4347,8 @@ class _ReportesScreenState extends State<ReportesScreen>
   Widget _buildQuarterComparisonCard() {
     final compareYear = _previousYear;
     final isAnnualView = _selectedMonth == -1;
-    final currentQuarter = isAnnualView ? -1 : _getQuarterFromMonth(_selectedMonth);
+    final currentQuarter =
+        isAnnualView ? -1 : _getQuarterFromMonth(_selectedMonth);
 
     // Datos para la gráfica de barras de los 4 trimestres
     final List<double> currentQuarterSalesList = [];
@@ -3835,17 +4474,29 @@ class _ReportesScreenState extends State<ReportesScreen>
     final monthNames = monthsInQuarter.map((m) => _getMonthName(m)).toList();
 
     final currentSales = _getQuarterSales(_selectedYear, quarter);
-    final compareSales = compareYear != null ? _getQuarterSales(compareYear, quarter) : 0.0;
+    final compareSales =
+        compareYear != null ? _getQuarterSales(compareYear, quarter) : 0.0;
     final currentUsers = _getQuarterActiveUsers(_selectedYear, quarter);
-    final compareUsers = compareYear != null ? _getQuarterActiveUsers(compareYear, quarter) : 0;
+    final compareUsers =
+        compareYear != null ? _getQuarterActiveUsers(compareYear, quarter) : 0;
 
-    final currentMonthlySales = _getMonthlySalesForQuarter(_selectedYear, quarter);
-    final compareMonthlySales = compareYear != null ? _getMonthlySalesForQuarter(compareYear, quarter) : [0.0, 0.0, 0.0];
-    final currentMonthlyUsers = _getMonthlyUsersForQuarter(_selectedYear, quarter);
-    final compareMonthlyUsers = compareYear != null ? _getMonthlyUsersForQuarter(compareYear, quarter) : [0, 0, 0];
+    final currentMonthlySales =
+        _getMonthlySalesForQuarter(_selectedYear, quarter);
+    final compareMonthlySales = compareYear != null
+        ? _getMonthlySalesForQuarter(compareYear, quarter)
+        : [0.0, 0.0, 0.0];
+    final currentMonthlyUsers =
+        _getMonthlyUsersForQuarter(_selectedYear, quarter);
+    final compareMonthlyUsers = compareYear != null
+        ? _getMonthlyUsersForQuarter(compareYear, quarter)
+        : [0, 0, 0];
 
-    final double salesDelta = compareSales > 0 ? ((currentSales - compareSales) / compareSales) * 100 : (currentSales > 0 ? 100 : 0);
-    final double usersDelta = compareUsers > 0 ? ((currentUsers - compareUsers) / compareUsers) * 100 : (currentUsers > 0 ? 100 : 0);
+    final double salesDelta = compareSales > 0
+        ? ((currentSales - compareSales) / compareSales) * 100
+        : (currentSales > 0 ? 100 : 0);
+    final double usersDelta = compareUsers > 0
+        ? ((currentUsers - compareUsers) / compareUsers) * 100
+        : (currentUsers > 0 ? 100 : 0);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
@@ -3863,16 +4514,21 @@ class _ReportesScreenState extends State<ReportesScreen>
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AlpesColors.oroGuatemalteco.withOpacity(.15), Colors.transparent],
+                colors: [
+                  AlpesColors.oroGuatemalteco.withOpacity(.15),
+                  Colors.transparent
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AlpesColors.oroGuatemalteco.withOpacity(.3)),
+              border: Border.all(
+                  color: AlpesColors.oroGuatemalteco.withOpacity(.3)),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_month, color: AlpesColors.oroGuatemalteco, size: 24),
+                Icon(Icons.calendar_month,
+                    color: AlpesColors.oroGuatemalteco, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -3898,19 +4554,23 @@ class _ReportesScreenState extends State<ReportesScreen>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AlpesColors.exito.withOpacity(.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.trending_up, size: 14, color: AlpesColors.exito),
+                      Icon(Icons.trending_up,
+                          size: 14, color: AlpesColors.exito),
                       const SizedBox(width: 4),
                       Text(
                         '${salesDelta >= 0 ? '+' : ''}${salesDelta.toStringAsFixed(1)}%',
                         style: TextStyle(
-                          color: salesDelta >= 0 ? AlpesColors.exito : AlpesColors.rojoColonial,
+                          color: salesDelta >= 0
+                              ? AlpesColors.exito
+                              : AlpesColors.rojoColonial,
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
                         ),
@@ -3937,7 +4597,9 @@ class _ReportesScreenState extends State<ReportesScreen>
               Expanded(
                 child: _quarterMetricCard(
                   title: 'Ventas ${compareYear ?? 'N/A'}',
-                  value: compareYear != null ? _formatCompactMoney(compareSales) : 'Sin dato',
+                  value: compareYear != null
+                      ? _formatCompactMoney(compareSales)
+                      : 'Sin dato',
                   delta: salesDelta,
                   isCurrent: false,
                 ),
@@ -4050,7 +4712,8 @@ class _ReportesScreenState extends State<ReportesScreen>
           Text(
             value,
             style: TextStyle(
-              color: isCurrent ? const Color(0xFF0F7B5F) : const Color(0xFF2F6FB2),
+              color:
+                  isCurrent ? const Color(0xFF0F7B5F) : const Color(0xFF2F6FB2),
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -4060,14 +4723,18 @@ class _ReportesScreenState extends State<ReportesScreen>
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: (delta >= 0.0 ? AlpesColors.exito : AlpesColors.rojoColonial)
+                color: (delta >= 0.0
+                        ? AlpesColors.exito
+                        : AlpesColors.rojoColonial)
                     .withOpacity(.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${delta >= 0.0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
                 style: TextStyle(
-                  color: delta >= 0.0 ? AlpesColors.exito : AlpesColors.rojoColonial,
+                  color: delta >= 0.0
+                      ? AlpesColors.exito
+                      : AlpesColors.rojoColonial,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4358,7 +5025,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                   children: [
                     SizedBox(
                       height: 320,
-                      child: _buildChartCard('Gráfica pie general', false, total),
+                      child:
+                          _buildChartCard('Gráfica pie general', false, total),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -4377,7 +5045,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildChartCard('Gráfica pie general', false, total),
+                      child:
+                          _buildChartCard('Gráfica pie general', false, total),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -4458,10 +5127,12 @@ class _ReportesScreenState extends State<ReportesScreen>
               builder: (context, _) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final chartSize = math.min(
-                      math.max(150, constraints.maxWidth * .34),
-                      180,
-                    ).toDouble();
+                    final chartSize = math
+                        .min(
+                          math.max(150, constraints.maxWidth * .34),
+                          180,
+                        )
+                        .toDouble();
 
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4788,7 +5459,8 @@ class _ReportesScreenState extends State<ReportesScreen>
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
-                onPressed: _recargandoUltimasOrdenes ? null : _recargarUltimasOrdenes,
+                onPressed:
+                    _recargandoUltimasOrdenes ? null : _recargarUltimasOrdenes,
                 style: FilledButton.styleFrom(
                   backgroundColor: AlpesColors.cafeOscuro,
                   foregroundColor: Colors.white,
@@ -4894,7 +5566,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                             final total = _toDouble(
                               _readValue(orden, const ['TOTAL', 'total']),
                             );
-                            final estado = _prettyEstado(_resolverEstado(orden));
+                            final estado =
+                                _prettyEstado(_resolverEstado(orden));
                             final color = _estadoColor(estado);
                             final items = _itemsPorOrden(orden);
 
@@ -5072,7 +5745,6 @@ class _ReportesScreenState extends State<ReportesScreen>
   }
 }
 
-
 class _ReportRange {
   final int year;
   final int startMonth;
@@ -5123,7 +5795,8 @@ class _ReportRange {
           year: year,
           startMonth: safeStart,
           endMonth: safeEnd,
-          label: '${getMonthName(safeStart - 1)} a ${getMonthName(safeEnd - 1)} · $year',
+          label:
+              '${getMonthName(safeStart - 1)} a ${getMonthName(safeEnd - 1)} · $year',
           fileSuffix: '${safeStart}_${safeEnd}_$year',
         );
     }
@@ -5471,7 +6144,8 @@ class _SalesTrendPainter extends CustomPainter {
       final x = chart.left + spacing * i + spacing / 2;
       final y = allZero
           ? chart.bottom - 2
-          : chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+          : chart.bottom -
+              ((currentData[i] / maxValue) * chart.height * progress);
       points.add(Offset(x, y));
     }
 
@@ -5480,11 +6154,12 @@ class _SalesTrendPainter extends CustomPainter {
     if (points.isNotEmpty) {
       path.moveTo(points[0].dx, points[0].dy);
       for (int i = 0; i < points.length - 1; i++) {
-        final cp1x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
+        final cp1x = points[i].dx + (points[i + 1].dx - points[i].dx) / 2;
         final cp1y = points[i].dy;
-        final cp2x = points[i].dx + (points[i+1].dx - points[i].dx) / 2;
-        final cp2y = points[i+1].dy;
-        path.cubicTo(cp1x, cp1y, cp2x, cp2y, points[i+1].dx, points[i+1].dy);
+        final cp2x = points[i].dx + (points[i + 1].dx - points[i].dx) / 2;
+        final cp2y = points[i + 1].dy;
+        path.cubicTo(
+            cp1x, cp1y, cp2x, cp2y, points[i + 1].dx, points[i + 1].dy);
       }
     }
 
@@ -5545,7 +6220,8 @@ class _SalesTrendPainter extends CustomPainter {
     final areaPoints = <Offset>[];
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i + spacing / 2;
-      final y = chart.bottom - ((currentData[i] / maxValue) * chart.height * progress);
+      final y = chart.bottom -
+          ((currentData[i] / maxValue) * chart.height * progress);
       areaPoints.add(Offset(x, y));
     }
 
@@ -5556,12 +6232,16 @@ class _SalesTrendPainter extends CustomPainter {
       fillPath.moveTo(areaPoints[0].dx, chart.bottom);
       fillPath.lineTo(areaPoints[0].dx, areaPoints[0].dy);
       for (int i = 0; i < areaPoints.length - 1; i++) {
-        final cp1x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
+        final cp1x =
+            areaPoints[i].dx + (areaPoints[i + 1].dx - areaPoints[i].dx) / 2;
         final cp1y = areaPoints[i].dy;
-        final cp2x = areaPoints[i].dx + (areaPoints[i+1].dx - areaPoints[i].dx) / 2;
-        final cp2y = areaPoints[i+1].dy;
-        path.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
-        fillPath.cubicTo(cp1x, cp1y, cp2x, cp2y, areaPoints[i+1].dx, areaPoints[i+1].dy);
+        final cp2x =
+            areaPoints[i].dx + (areaPoints[i + 1].dx - areaPoints[i].dx) / 2;
+        final cp2y = areaPoints[i + 1].dy;
+        path.cubicTo(
+            cp1x, cp1y, cp2x, cp2y, areaPoints[i + 1].dx, areaPoints[i + 1].dy);
+        fillPath.cubicTo(
+            cp1x, cp1y, cp2x, cp2y, areaPoints[i + 1].dx, areaPoints[i + 1].dy);
       }
     }
 
@@ -5660,13 +6340,11 @@ class _UsersActivityPainter extends CustomPainter {
       canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), grid);
     }
 
-    final maxCurrent = currentData.isEmpty
+    final maxCurrent =
+        currentData.isEmpty ? 0 : currentData.reduce((a, b) => a > b ? a : b);
+    final maxPrevious = previousData == null || previousData!.isEmpty
         ? 0
-        : currentData.reduce((a, b) => a > b ? a : b);
-    final maxPrevious =
-        previousData == null || previousData!.isEmpty
-            ? 0
-            : previousData!.reduce((a, b) => a > b ? a : b);
+        : previousData!.reduce((a, b) => a > b ? a : b);
 
     final maxValue = math.max(maxCurrent, maxPrevious).toDouble();
     final safeMax = maxValue <= 0 ? 1.0 : maxValue;
@@ -5705,8 +6383,8 @@ class _UsersActivityPainter extends CustomPainter {
     final currentPath = Path();
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i;
-      final y = chart.bottom -
-          ((currentData[i] / safeMax) * chart.height * progress);
+      final y =
+          chart.bottom - ((currentData[i] / safeMax) * chart.height * progress);
       if (i == 0) {
         currentPath.moveTo(x, y);
       } else {
@@ -5732,8 +6410,8 @@ class _UsersActivityPainter extends CustomPainter {
 
     for (int i = 0; i < currentData.length; i++) {
       final x = chart.left + spacing * i;
-      final y = chart.bottom -
-          ((currentData[i] / safeMax) * chart.height * progress);
+      final y =
+          chart.bottom - ((currentData[i] / safeMax) * chart.height * progress);
       canvas.drawCircle(
         Offset(x, y),
         5.5,
@@ -5792,8 +6470,7 @@ class _EstadoChartPainter extends CustomPainter {
 
     final center = size.center(Offset.zero);
     final radius = size.shortestSide * .38;
-    final strokeWidth =
-        holeFraction > 0 ? radius * (1 - holeFraction) : radius;
+    final strokeWidth = holeFraction > 0 ? radius * (1 - holeFraction) : radius;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     double start = -math.pi / 2;
@@ -5915,7 +6592,8 @@ class _QuarterComparisonPainter extends CustomPainter {
 
       // Barra del año comparado
       if (i < previousData.length) {
-        final prevHeight = (previousData[i] / safeMax) * chart.height * progress;
+        final prevHeight =
+            (previousData[i] / safeMax) * chart.height * progress;
         final prevRect = RRect.fromRectAndRadius(
           Rect.fromLTWH(
             x - barWidth - groupSpacing,
@@ -5946,7 +6624,10 @@ class _QuarterComparisonPainter extends CustomPainter {
           ..shader = LinearGradient(
             colors: isHighlighted
                 ? [currentColor, currentColor.withOpacity(0.7)]
-                : [currentColor.withOpacity(0.85), currentColor.withOpacity(0.55)],
+                : [
+                    currentColor.withOpacity(0.85),
+                    currentColor.withOpacity(0.55)
+                  ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ).createShader(currRect.outerRect);
@@ -6022,7 +6703,8 @@ class _MonthlyQuarterPainter extends CustomPainter {
         currentSales.isEmpty ? 0.0 : currentSales.reduce(math.max).toDouble();
     final double maxPreviousSales =
         previousSales.isEmpty ? 0.0 : previousSales.reduce(math.max).toDouble();
-    final double maxSales = math.max(maxCurrentSales, maxPreviousSales).toDouble();
+    final double maxSales =
+        math.max(maxCurrentSales, maxPreviousSales).toDouble();
     final double safeMax = maxSales <= 0 ? 1.0 : maxSales;
 
     final spacing = chart.width / labels.length;
@@ -6052,7 +6734,8 @@ class _MonthlyQuarterPainter extends CustomPainter {
 
       // Barra del año comparado
       if (i < previousSales.length) {
-        final prevHeight = (previousSales[i] / safeMax) * chart.height * progress;
+        final prevHeight =
+            (previousSales[i] / safeMax) * chart.height * progress;
         final prevRect = RRect.fromRectAndRadius(
           Rect.fromLTWH(
             x - barWidth - groupSpacing,
@@ -6068,7 +6751,8 @@ class _MonthlyQuarterPainter extends CustomPainter {
 
       // Barra del año seleccionado
       if (i < currentSales.length) {
-        final currHeight = (currentSales[i] / safeMax) * chart.height * progress;
+        final currHeight =
+            (currentSales[i] / safeMax) * chart.height * progress;
         final currRect = RRect.fromRectAndRadius(
           Rect.fromLTWH(
             x + groupSpacing,
@@ -6081,7 +6765,10 @@ class _MonthlyQuarterPainter extends CustomPainter {
 
         final currPaint = Paint()
           ..shader = LinearGradient(
-            colors: [currentColor.withOpacity(0.85), currentColor.withOpacity(0.55)],
+            colors: [
+              currentColor.withOpacity(0.85),
+              currentColor.withOpacity(0.55)
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ).createShader(currRect.outerRect);

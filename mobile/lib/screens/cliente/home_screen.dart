@@ -88,8 +88,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _cargarOrdenes(int clienteId) async {
     try {
-      final res = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=$clienteId'));
+      final auth = context.read<AuthProvider>();
+      // ✅ FIX: enviar token JWT — la ruta /api/ordenes-venta está protegida
+      final res = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordenVenta}/buscar?criterio=cli_id&valor=$clienteId'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         final list = List<Map<String, dynamic>>.from(data['data']);
@@ -121,27 +126,43 @@ class _HomeScreenState extends State<HomeScreen> {
             _totalGastado = gastado;
             if (ultima != null) _ultimoEnvio = ultima;
           });
+      } else {
+        debugPrint('⚠️ /ordenes-venta/buscar -> ${res.statusCode}: ${res.body}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ Error cargando órdenes en home: $e');
+    }
   }
 
   Future<void> _cargarTarjetas(int clienteId) async {
     try {
-      final res = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$clienteId'));
+      final auth = context.read<AuthProvider>();
+      // ✅ FIX: enviar token JWT — /api/tarjetas-cliente está protegida
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/tarjetas-cliente/cliente/$clienteId'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         if (mounted)
           setState(
               () => _tarjetas = List<Map<String, dynamic>>.from(data['data']));
+      } else {
+        debugPrint('⚠️ /tarjetas-cliente -> ${res.statusCode}: ${res.body}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ Error cargando tarjetas: $e');
+    }
   }
 
   Future<void> _cargarNombreCliente(int clienteId) async {
     try {
-      final res = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.cliente}/$clienteId'));
+      final auth = context.read<AuthProvider>();
+      // ✅ FIX: enviar token JWT — /api/clientes está protegida
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}/$clienteId'),
+        headers: auth.authHeaders,
+      );
       final data = jsonDecode(res.body);
       if (data['ok'] == true && data['data'] != null) {
         final cli = data['data'] is List
@@ -151,8 +172,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final apellido = (cli['APELLIDOS'] ?? cli['apellidos'] ?? cli['APELLIDO'] ?? cli['apellido'] ?? '').toString().trim();
         final full = '$nombre $apellido'.trim();
         if (full.isNotEmpty && mounted) setState(() => _nombreCliente = full);
+      } else {
+        debugPrint('⚠️ /clientes/$clienteId -> ${res.statusCode}: ${res.body}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ Error cargando nombre cliente: $e');
+    }
   }
 
   @override

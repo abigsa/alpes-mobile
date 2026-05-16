@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../../config/theme.dart';
 import '../../../config/api_config.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+
 class NominaScreen extends StatefulWidget {
   const NominaScreen({super.key});
 
@@ -40,11 +43,16 @@ class _NominaScreenState extends State<NominaScreen> {
   }
 
   Future<void> _cargar() async {
+    final _auth = context.read<AuthProvider>();
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.nomina)),
-        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.empleados)),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.nomina),
+          headers: _auth.authHeaders,
+        ),
+        http.get(Uri.parse(ApiConfig.baseUrl + ApiConfig.empleados),
+          headers: _auth.authHeaders,
+        ),
       ]);
 
       final nominasData = jsonDecode(responses[0].body);
@@ -70,6 +78,7 @@ class _NominaScreenState extends State<NominaScreen> {
   }
 
   Future<void> _eliminar(dynamic id) async {
+    final _auth = context.read<AuthProvider>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -96,6 +105,7 @@ class _NominaScreenState extends State<NominaScreen> {
 
     await http.delete(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.nomina}/$id'),
+      headers: _auth.authHeaders,
     );
     _cargar();
   }
@@ -573,6 +583,7 @@ class __NominaFormState extends State<_NominaForm> {
   }
 
   Future<void> _guardar() async {
+    final _auth = context.read<AuthProvider>();
     if (!_fk.currentState!.validate()) return;
 
     setState(() => _g = true);
@@ -600,12 +611,12 @@ class __NominaFormState extends State<_NominaForm> {
       final res = id != null
           ? await http.put(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             )
           : await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: _auth.authHeaders,
               body: jsonEncode(body),
             );
 

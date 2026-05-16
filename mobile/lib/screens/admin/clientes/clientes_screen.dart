@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
   import 'dart:convert';
   import 'package:flutter/material.dart';
   import 'package:go_router/go_router.dart';
@@ -41,11 +43,13 @@
     }
 
     Future<void> _cargar() async {
+      final _auth = context.read<AuthProvider>();
       setState(() => _loading = true);
       _fadeCtrl.reset();
       try {
         final res = await http.get(
           Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}'),
+          headers: _auth.authHeaders,
         );
         final data = jsonDecode(res.body);
         if (data['ok'] == true) {
@@ -174,6 +178,7 @@
     }
 
     Future<void> _eliminar(dynamic id) async {
+      final _auth = context.read<AuthProvider>();
       final ok = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
@@ -220,6 +225,7 @@
       if (ok != true) return;
       await http.delete(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cliente}/$id'),
+        headers: _auth.authHeaders,
       );
       _cargar();
     }
@@ -1344,6 +1350,7 @@
     }
 
     Future<void> _guardar() async {
+      final _auth = context.read<AuthProvider>();
       if (!_formKey.currentState!.validate()) return;
       
       // Asignar el departamento seleccionado al controlador
@@ -1379,12 +1386,12 @@
         final res = id != null
             ? await http.put(
                 uri,
-                headers: {'Content-Type': 'application/json'},
+                headers: _auth.authHeaders,
                 body: jsonEncode(body),
               )
             : await http.post(
                 uri,
-                headers: {'Content-Type': 'application/json'},
+                headers: _auth.authHeaders,
                 body: jsonEncode(body),
               );
 

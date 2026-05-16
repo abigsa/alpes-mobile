@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../utils/http_client.dart';
 
 class CuponProvider extends ChangeNotifier {
   // Estado
@@ -10,6 +11,22 @@ class CuponProvider extends ChangeNotifier {
   String? _mensajeCupon;
   bool _cargando = false;
   List<Map<String, dynamic>> _cupones = [];
+
+  // Token para autenticar requests admin
+  String? _token;
+
+  void setToken(String? token) {
+    _token = token;
+  }
+
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
+
+  Map<String, String> get _getHeaders => {
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
 
   // Getters
   Map<String, dynamic>? get cuponAplicado => _cuponAplicado;
@@ -29,28 +46,37 @@ class CuponProvider extends ChangeNotifier {
     try {
       final res = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cupon}/validar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: jsonEncode({'codigo': codigo.trim().toUpperCase()}),
       );
-
       final data = jsonDecode(res.body);
 
       if (data['ok'] == true) {
         _cuponAplicado = data['data'];
 
-        // Calcular descuento (podrá ser fijo o porcentaje)
-        final tipo = data['data']['tipo_descuento'] ??
-            'porcentaje'; // 'porcentaje' o 'fijo'
-        final valor = (data['data']['valor_descuento'] ?? 0).toDouble();
+        // ✅ FIX: La API devuelve campos en MAYÚSCULAS igual que el resto de endpoints
+        final tipo = data['data']['TIPO_DESCUENTO'] ??
+            data['data']['tipo_descuento'] ??
+            'porcentaje';
+        final valor = (data['data']['VALOR_DESCUENTO'] ??
+                data['data']['valor_descuento'] ??
+                0)
+            .toDouble();
 
         if (tipo == 'porcentaje') {
           _descuentoAplicado = (montoTotal * valor) / 100;
         } else {
+          // tipo == 'fijo'
           _descuentoAplicado = valor;
         }
 
+        // Asegurarse de que el descuento no supere el monto total
+        if (_descuentoAplicado > montoTotal) {
+          _descuentoAplicado = montoTotal;
+        }
+
         _mensajeCupon =
-            'Cupón aplicado: ${(_descuentoAplicado).toStringAsFixed(2)} de descuento';
+            'Cupón aplicado: Q ${_descuentoAplicado.toStringAsFixed(2)} de descuento';
         notifyListeners();
         return true;
       } else {
@@ -68,7 +94,6 @@ class CuponProvider extends ChangeNotifier {
     }
   }
 
-  // Limpiar cupón aplicado
   void limpiarCupon() {
     _cuponAplicado = null;
     _descuentoAplicado = 0;
@@ -80,23 +105,28 @@ class CuponProvider extends ChangeNotifier {
   Future<void> cargarCupones() async {
     _cargando = true;
     notifyListeners();
-
     try {
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cupon}'),
+        headers: _getHeaders,
       );
-
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         _cupones = List<Map<String, dynamic>>.from(
           (data['data'] as List).map((item) {
-            // Normalizar claves a minúsculas y formatear fechas
             return {
               'cupon_id': item['CUPON_ID'] ?? item['cupon_id'],
               'codigo': item['CODIGO'] ?? item['codigo'],
               'descripcion': item['DESCRIPCION'] ??
                   item['descripcion'] ??
                   'Sin descripción',
+              // ✅ Incluir tipo y valor para uso futuro
+              'tipo_descuento': item['TIPO_DESCUENTO'] ??
+                  item['tipo_descuento'] ??
+                  'porcentaje',
+              'valor_descuento':
+                  (item['VALOR_DESCUENTO'] ?? item['valor_descuento'] ?? 0)
+                      .toDouble(),
               'vigencia_inicio': _formatearFechaProvider(
                   item['VIGENCIA_INICIO'] ?? item['vigencia_inicio']),
               'vigencia_fin': _formatearFechaProvider(
@@ -123,11 +153,9 @@ class CuponProvider extends ChangeNotifier {
     if (fecha == null) return '';
     try {
       if (fecha is num) {
-        // Si es timestamp
         final dt = DateTime.fromMillisecondsSinceEpoch(fecha.toInt());
         return dt.toIso8601String().split('T').first;
       } else {
-        // Si es string
         final fechaStr = fecha.toString();
         if (fechaStr.contains('T')) {
           return fechaStr.split('T').first;
@@ -143,7 +171,7 @@ class CuponProvider extends ChangeNotifier {
   Future<bool> crearCupon({
     required String codigo,
     required String descripcion,
-    required String tipoDescuento, // 'porcentaje' o 'fijo'
+    required String tipoDescuento,
     required double valorDescuento,
     required DateTime vigenciaInicio,
     required DateTime vigenciaFin,
@@ -153,7 +181,7 @@ class CuponProvider extends ChangeNotifier {
     try {
       final res = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cupon}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: jsonEncode({
           'codigo': codigo.trim().toUpperCase(),
           'descripcion': descripcion.trim(),
@@ -166,7 +194,6 @@ class CuponProvider extends ChangeNotifier {
           'usos_actuales': 0,
         }),
       );
-
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         await cargarCupones();
@@ -198,7 +225,7 @@ class CuponProvider extends ChangeNotifier {
     try {
       final res = await http.put(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cupon}/$cuponId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: jsonEncode({
           'codigo': codigo.trim().toUpperCase(),
           'descripcion': descripcion.trim(),
@@ -210,7 +237,6 @@ class CuponProvider extends ChangeNotifier {
           'limite_uso_por_cliente': limiteUsoPorCliente,
         }),
       );
-
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         await cargarCupones();
@@ -232,8 +258,8 @@ class CuponProvider extends ChangeNotifier {
     try {
       final res = await http.delete(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cupon}/$cuponId'),
+        headers: _getHeaders,
       );
-
       final data = jsonDecode(res.body);
       if (data['ok'] == true) {
         await cargarCupones();
